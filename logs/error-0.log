@@ -13,3 +13,243 @@
 2026-03-20 02:06:12: [20.03.2026, 03:06:12] WARN  Trade skipped for CHFJPY: CHFJPY: Preis bereits über TP — Trade übersprungen
 2026-03-20 07:30:12: [20.03.2026, 08:30:12] WARN  Trade skipped for CHFJPY: CHFJPY: Preis bereits über TP — Trade übersprungen
 2026-03-20 09:18:16: [20.03.2026, 10:18:16] WARN  Trade skipped for GBPCAD: GBPCAD: Preis bereits unter TP — Trade übersprungen
+2026-03-21 13:31:23: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:23:         let strength = null;
+2026-03-21 13:31:23:             ^
+2026-03-21 13:31:23: 
+2026-03-21 13:31:23: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:23:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:23:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:23:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:23:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:23:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:23:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:23:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:23:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:23:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:23:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:23: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:23:         let strength = null;
+2026-03-21 13:31:23:             ^
+2026-03-21 13:31:23: 
+2026-03-21 13:31:23: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:23:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:23:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:23:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:23:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:23:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:23:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:23:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:23:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:23:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:23:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:24:         let strength = null;
+2026-03-21 13:31:24:             ^
+2026-03-21 13:31:24: 
+2026-03-21 13:31:24: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:24:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:24:         let strength = null;
+2026-03-21 13:31:24:             ^
+2026-03-21 13:31:24: 
+2026-03-21 13:31:24: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:24:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:24:         let strength = null;
+2026-03-21 13:31:24:             ^
+2026-03-21 13:31:24: 
+2026-03-21 13:31:24: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:24:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:24:         let strength = null;
+2026-03-21 13:31:24:             ^
+2026-03-21 13:31:24: 
+2026-03-21 13:31:24: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:24:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:24:         let strength = null;
+2026-03-21 13:31:24:             ^
+2026-03-21 13:31:24: 
+2026-03-21 13:31:24: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:24:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:24:         let strength = null;
+2026-03-21 13:31:24:             ^
+2026-03-21 13:31:24: 
+2026-03-21 13:31:24: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:24:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:24:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:24:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:24:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:24:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:24:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:25:         let strength = null;
+2026-03-21 13:31:25:             ^
+2026-03-21 13:31:25: 
+2026-03-21 13:31:25: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:25:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:25:         let strength = null;
+2026-03-21 13:31:25:             ^
+2026-03-21 13:31:25: 
+2026-03-21 13:31:25: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:25:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:25:         let strength = null;
+2026-03-21 13:31:25:             ^
+2026-03-21 13:31:25: 
+2026-03-21 13:31:25: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:25:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:25:         let strength = null;
+2026-03-21 13:31:25:             ^
+2026-03-21 13:31:25: 
+2026-03-21 13:31:25: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:25:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:25:         let strength = null;
+2026-03-21 13:31:25:             ^
+2026-03-21 13:31:25: 
+2026-03-21 13:31:25: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:25:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:25:         let strength = null;
+2026-03-21 13:31:25:             ^
+2026-03-21 13:31:25: 
+2026-03-21 13:31:25: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:25:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:25:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:25:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:25:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:25:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:25:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:26: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:26:         let strength = null;
+2026-03-21 13:31:26:             ^
+2026-03-21 13:31:26: 
+2026-03-21 13:31:26: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:26:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:26:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:26:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:26:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:26:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:26:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:26:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:26:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:26:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:26:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:26: /var/www/ttrades-bot/dist/index.js:218
+2026-03-21 13:31:26:         let strength = null;
+2026-03-21 13:31:26:             ^
+2026-03-21 13:31:26: 
+2026-03-21 13:31:26: SyntaxError: Identifier 'strength' has already been declared
+2026-03-21 13:31:26:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 13:31:26:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 13:31:26:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:26:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:26:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 13:31:26:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-21 13:31:26:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-21 13:31:26:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 13:31:26:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 13:31:26:     at Function._load (node:internal/modules/cjs/loader:1263:12)

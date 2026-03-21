@@ -278,14 +278,6 @@ async function runScan() {
       capital.securityToken
     );
 
-    // Calculate currency strength once per scan (cached 1h)
-    let strength: StrengthResult | null = null;
-    try {
-      strength = await getCurrencyStrength(capital);
-    } catch (err) {
-      logger.warn('Currency strength calculation failed — filter disabled for this scan');
-    }
-
     // Scan active symbols first (fast lane)
     const active = toScan.filter(s => activeSymbols.has(s));
     const passive = toScan.filter(s => !activeSymbols.has(s));

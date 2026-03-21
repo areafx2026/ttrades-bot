@@ -105,7 +105,7 @@ async function syncClosedTrades() {
     }
 }
 // ─── Analyze single symbol ────────────────────────────────────────────────────
-async function analyzeSymbol(symbol, capital, executor, telegram) {
+async function analyzeSymbol(symbol, capital, executor, telegram, strength = null) {
     lastScanned.set(symbol, Date.now());
     const dailyCandles = await capital.getCandles(symbol, 'DAY', 20);
     await new Promise(r => setTimeout(r, 150));
@@ -120,6 +120,16 @@ async function analyzeSymbol(symbol, capital, executor, telegram) {
         if ((0, signalCache_1.isDuplicate)(signal.symbol, signal.type, signal.phase)) {
             logger_1.logger.info(`${symbol}: signal already sent recently, skipping.`);
             return;
+        }
+        // Currency strength filter
+        if (strength) {
+            const strengthCheck = (0, currencyStrength_1.isStrengthAligned)(symbol, signal.type, strength);
+            if (!strengthCheck.aligned) {
+                logger_1.logger.info(`${symbol}: strength filter blocked — ${strengthCheck.reason}`);
+                activeSymbols.delete(symbol);
+                return;
+            }
+            logger_1.logger.info(`${symbol}: strength aligned — ${strengthCheck.reason}`);
         }
         logger_1.logger.info(`Signal found for ${symbol}: ${signal.type}`);
         await telegram.sendSignal(signal);
@@ -204,6 +214,14 @@ async function runScan() {
             logger_1.logger.warn('Currency strength calculation failed — filter disabled for this scan');
         }
         const executor = new tradeExecutor_1.TradeExecutor(capital.apiKey, capital.isDemo, capital.cst, capital.securityToken);
+        // Calculate currency strength once per scan (cached 1h)
+        let strength = null;
+        try {
+            strength = await (0, currencyStrength_1.getCurrencyStrength)(capital);
+        }
+        catch (err) {
+            logger_1.logger.warn('Currency strength calculation failed — filter disabled for this scan');
+        }
         // Scan active symbols first (fast lane)
         const active = toScan.filter(s => activeSymbols.has(s));
         const passive = toScan.filter(s => !activeSymbols.has(s));
