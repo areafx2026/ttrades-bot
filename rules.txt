@@ -1,0 +1,28 @@
+// TTrades Bot Regelwerk
+// Jede Regel beginnt mit "-" oder "#"
+// Kommentare beginnen mit "//"
+
+// Zeitbasierte Regeln
+- Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+
+// Wochentage
+- Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+
+// Allgemein
+- Maximale Anzahl gleichzeitig offener Trades: 3
+
+// KI-Vorschlag [18.3.2026]: Mindest-Haltezeit von 5 Minuten für alle Trades, außer bei Stop-Loss Hit — wegen vorzeitigem Entry ohne CISD-Bestätigung bei EURCAD Trade
+
+// KI-Vorschlag [18.3.2026]: Entry erst nach 2 bestätigenden Candles in Trade-Richtung nach C3-Signal — wegen mangelnder Struktur-Bestätigung
+
+// KI-Vorschlag [19.3.2026]: Mindest-Stop-Abstand von 15 Pips für alle Cross-Pairs (AUDNZD, EURNZD, etc.) — wegen unrealistisch enger Stops bei AUDNZD Trade
+
+// KI-Vorschlag [19.3.2026]: Kein Entry bei C3-Signal ohne vorherige Higher-High/Lower-Low Struktur im H1 Timeframe — wegen schwacher Setups ohne Trend-Bestätigung
+
+// KI-Vorschlag [19.3.2026]: Trade-Pause von 30 Minuten nach Breakeven-Trade — wegen impulsiver Entries ohne ausreichende Markt-Analyse
+
+// KI-Vorschlag [19.3.2026]: Mindest-Haltezeit von 2 Minuten nach Entry, bevor manueller Close möglich ist — wegen sofortiger Trade-Schließungen ohne Marktentwicklung
+
+// KI-Vorschlag [19.3.2026]: Maximaler Stop-Loss von 8 Pips nur für Major-Pairs (EURUSD, GBPUSD, etc.), Cross-Pairs mindestens 12 Pips — wegen unrealistisch enger Stops bei GBPAUD
+
+// KI-Vorschlag [19.3.2026]: Vor jedem Trade 5-Minuten-Chart auf Trend-Bestätigung prüfen — wegen Entries ohne Struktur-Analyse

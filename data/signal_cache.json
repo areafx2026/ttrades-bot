@@ -1,0 +1,14 @@
+{
+  "CHFJPY_LONG_C4_RETEST": {
+    "symbol": "CHFJPY",
+    "type": "LONG",
+    "phase": "C4_RETEST",
+    "timestamp": 1773991812337
+  },
+  "GBPCAD_SHORT_C4_RETEST": {
+    "symbol": "GBPCAD",
+    "type": "SHORT",
+    "phase": "C4_RETEST",
+    "timestamp": 1773998296057
+  }
+}
