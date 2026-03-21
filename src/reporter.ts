@@ -35,17 +35,10 @@ export async function checkZoneCoverage(telegram: TelegramNotifier): Promise<voi
   if (warnings.length === 0) return;
 
   const msg = `🗺 <b>Zonen-Warnung</b>
-` +
-    `━━━━━━━━━━━━━━━━━━━━
-` +
-    `Folgende Zonen fehlen oder sind veraltet:
-
-` +
-    warnings.join('
-') +
-    `
-
-<i>Bitte zones.json aktualisieren.</i>`;
+`━━━━━━━━━━━━━━━━━━━━\n` +
+    `Folgende Zonen fehlen oder sind veraltet:\n\n` +
+    warnings.join('\n') +
+    `\n\n<i>Bitte zones.json aktualisieren.</i>`;
 
   await telegram.sendMessage(msg);
   logger.info(`Zone coverage warning sent: ${warnings.length} missing zones`);

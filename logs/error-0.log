@@ -253,3 +253,243 @@
 2026-03-21 13:31:26:     at Object..js (node:internal/modules/cjs/loader:1838:10)
 2026-03-21 13:31:26:     at Module.load (node:internal/modules/cjs/loader:1441:32)
 2026-03-21 13:31:26:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:45: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:45: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:45:                                        ^
+2026-03-21 15:04:45: 
+2026-03-21 15:04:45: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:45:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:45:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:45:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:45:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:45:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:45:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:45:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:45:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:45:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:45:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:45: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:45: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:45:                                        ^
+2026-03-21 15:04:45: 
+2026-03-21 15:04:45: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:45:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:45:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:45:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:45:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:45:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:45:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:45:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:45:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:45:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:45:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:45: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:45: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:45:                                        ^
+2026-03-21 15:04:45: 
+2026-03-21 15:04:45: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:45:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:45:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:45:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:45:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:45:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:45:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:45:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:45:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:45:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:45:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:46: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:46: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:46:                                        ^
+2026-03-21 15:04:46: 
+2026-03-21 15:04:46: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:46:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:46:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:46:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:46:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:46:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:46:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:46:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:46:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:46:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:46:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:46: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:46: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:46:                                        ^
+2026-03-21 15:04:46: 
+2026-03-21 15:04:46: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:46:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:46:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:46:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:46:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:46:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:46:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:46:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:46:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:46:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:46:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:46: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:46: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:46:                                        ^
+2026-03-21 15:04:46: 
+2026-03-21 15:04:46: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:46:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:46:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:46:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:46:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:46:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:46:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:46:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:46:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:46:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:46:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:46: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:46: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:46:                                        ^
+2026-03-21 15:04:46: 
+2026-03-21 15:04:46: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:46:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:46:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:46:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:46:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:46:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:46:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:46:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:46:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:46:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:46:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:47: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:47: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:47:                                        ^
+2026-03-21 15:04:47: 
+2026-03-21 15:04:47: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:47:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:47:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:47:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:47:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:47:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:47:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:47:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:47:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:47:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:47:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:47: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:47: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:47:                                        ^
+2026-03-21 15:04:47: 
+2026-03-21 15:04:47: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:47:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:47:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:47:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:47:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:47:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:47:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:47:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:47:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:47:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:47:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:47: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:47: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:47:                                        ^
+2026-03-21 15:04:47: 
+2026-03-21 15:04:47: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:47:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:47:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:47:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:47:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:47:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:47:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:47:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:47:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:47:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:47:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:47: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:47: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:47:                                        ^
+2026-03-21 15:04:47: 
+2026-03-21 15:04:47: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:47:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:47:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:47:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:47:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:47:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:47:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:47:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:47:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:47:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:47:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:48: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:48: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:48:                                        ^
+2026-03-21 15:04:48: 
+2026-03-21 15:04:48: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:48:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:48:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:48:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:48:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:48:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:48:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:48:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:48:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:48:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:48:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:48: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:48: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:48:                                        ^
+2026-03-21 15:04:48: 
+2026-03-21 15:04:48: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:48:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:48:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:48:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:48:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:48:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:48:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:48:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:48:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:48:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:48:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:48: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:48: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:48:                                        ^
+2026-03-21 15:04:48: 
+2026-03-21 15:04:48: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:48:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:48:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:48:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:48:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:48:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:48:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:48:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:48:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:48:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:48:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:49: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:49: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:49:                                        ^
+2026-03-21 15:04:49: 
+2026-03-21 15:04:49: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:49:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:49:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:49:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:49:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:49:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:49:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:49:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:49:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:49:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:49:     at require (node:internal/modules/helpers:147:16)
+2026-03-21 15:04:49: /var/www/ttrades-bot/dist/reporter.js:44
+2026-03-21 15:04:49: <i>Bitte zones.json aktualisieren.</i>`);
+2026-03-21 15:04:49:                                        ^
+2026-03-21 15:04:49: 
+2026-03-21 15:04:49: SyntaxError: Unexpected token ')'
+2026-03-21 15:04:49:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-21 15:04:49:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-21 15:04:49:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-21 15:04:49:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-21 15:04:49:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-21 15:04:49:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-21 15:04:49:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-21 15:04:49:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-21 15:04:49:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-21 15:04:49:     at require (node:internal/modules/helpers:147:16)
