@@ -15,6 +15,7 @@ const rulesEngine_1 = require("./rulesEngine");
 const tradeLogger_1 = require("./tradeLogger");
 const reporter_1 = require("./reporter");
 const logger_1 = require("./logger");
+const currencyStrength_1 = require("./currencyStrength");
 const node_cron_1 = __importDefault(require("node-cron"));
 const SYMBOLS = [
     'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD',
@@ -194,6 +195,14 @@ async function runScan() {
     const telegram = new telegram_1.TelegramNotifier(process.env.TELEGRAM_BOT_TOKEN, process.env.TELEGRAM_CHAT_ID);
     try {
         await capital.createSession();
+        // Calculate currency strength once per scan (cached for 1h)
+        let strength = null;
+        try {
+            strength = await (0, currencyStrength_1.getCurrencyStrength)(capital);
+        }
+        catch (err) {
+            logger_1.logger.warn('Currency strength calculation failed — filter disabled for this scan');
+        }
         const executor = new tradeExecutor_1.TradeExecutor(capital.apiKey, capital.isDemo, capital.cst, capital.securityToken);
         // Scan active symbols first (fast lane)
         const active = toScan.filter(s => activeSymbols.has(s));

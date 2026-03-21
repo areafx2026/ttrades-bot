@@ -10,6 +10,7 @@ import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport } from './reporter';
 import { logger } from './logger';
+import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
 import cron from 'node-cron';
 
 const SYMBOLS = [
@@ -135,7 +136,8 @@ async function analyzeSymbol(
   symbol: string,
   capital: CapitalAPI,
   executor: TradeExecutor,
-  telegram: TelegramNotifier
+  telegram: TelegramNotifier,
+  strength: import('./currencyStrength').StrengthResult | null = null
 ): Promise<void> {
   lastScanned.set(symbol, Date.now());
 
@@ -155,6 +157,17 @@ async function analyzeSymbol(
     if (isDuplicate(signal.symbol, signal.type, signal.phase)) {
       logger.info(`${symbol}: signal already sent recently, skipping.`);
       return;
+    }
+
+    // Currency strength filter
+    if (strength) {
+      const strengthCheck = isStrengthAligned(symbol, signal.type, strength);
+      if (!strengthCheck.aligned) {
+        logger.info(`${symbol}: strength filter blocked — ${strengthCheck.reason}`);
+        activeSymbols.delete(symbol);
+        return;
+      }
+      logger.info(`${symbol}: strength aligned — ${strengthCheck.reason}`);
     }
 
     logger.info(`Signal found for ${symbol}: ${signal.type}`);
@@ -250,12 +263,28 @@ async function runScan() {
   try {
     await capital.createSession();
 
+    // Calculate currency strength once per scan (cached for 1h)
+    let strength: StrengthResult | null = null;
+    try {
+      strength = await getCurrencyStrength(capital);
+    } catch (err) {
+      logger.warn('Currency strength calculation failed — filter disabled for this scan');
+    }
+
     const executor = new TradeExecutor(
       capital.apiKey,
       capital.isDemo,
       capital.cst,
       capital.securityToken
     );
+
+    // Calculate currency strength once per scan (cached 1h)
+    let strength: StrengthResult | null = null;
+    try {
+      strength = await getCurrencyStrength(capital);
+    } catch (err) {
+      logger.warn('Currency strength calculation failed — filter disabled for this scan');
+    }
 
     // Scan active symbols first (fast lane)
     const active = toScan.filter(s => activeSymbols.has(s));
