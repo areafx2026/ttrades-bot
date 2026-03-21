@@ -1,7 +1,55 @@
 import { loadTrades, TradeRecord } from './tradeLogger';
 import { analyzeTradesWithAI } from './aiAnalyzer';
+import { loadZones } from './zoneManager';
 import { TelegramNotifier } from './telegram';
 import { logger } from './logger';
+
+const MONITORED_SYMBOLS = [
+  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD', 'AUDUSD', 'NZDUSD',
+  'EURGBP', 'EURJPY', 'EURCHF', 'EURAUD', 'EURCAD',
+  'GBPNZD', 'GBPJPY', 'GBPCHF', 'GBPCAD', 'GBPAUD',
+  'AUDJPY', 'CHFJPY', 'AUDNZD', 'AUDCAD', 'CADJPY',
+];
+
+export async function checkZoneCoverage(telegram: TelegramNotifier): Promise<void> {
+  const zones = loadZones();
+  const warnings: string[] = [];
+
+  for (const symbol of MONITORED_SYMBOLS) {
+    const symbolZones = zones.filter(z => z.symbol === symbol);
+    const hasSupport    = symbolZones.some(z => z.type === 'support');
+    const hasResistance = symbolZones.some(z => z.type === 'resistance');
+
+    if (!hasSupport && !hasResistance) {
+      // No zones at all — only warn for symbols user has started defining zones for
+      continue;
+    }
+    if (!hasSupport) {
+      warnings.push(`⚠️ <b>${symbol}</b> — keine Support-Zone definiert`);
+    }
+    if (!hasResistance) {
+      warnings.push(`⚠️ <b>${symbol}</b> — keine Resistance-Zone definiert`);
+    }
+  }
+
+  if (warnings.length === 0) return;
+
+  const msg = `🗺 <b>Zonen-Warnung</b>
+` +
+    `━━━━━━━━━━━━━━━━━━━━
+` +
+    `Folgende Zonen fehlen oder sind veraltet:
+
+` +
+    warnings.join('
+') +
+    `
+
+<i>Bitte zones.json aktualisieren.</i>`;
+
+  await telegram.sendMessage(msg);
+  logger.info(`Zone coverage warning sent: ${warnings.length} missing zones`);
+}
 
 export async function sendDailyReport(telegram: TelegramNotifier): Promise<void> {
   logger.info('Generating daily report...');
@@ -85,6 +133,9 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
 
   await telegram.sendMessage(msg);
   logger.info('Daily report sent.');
+
+  // Zone coverage check
+  await checkZoneCoverage(telegram);
 
   // AI analysis — only if there were closed trades
   const closedToday2 = loadTrades().filter(t => {

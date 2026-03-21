@@ -8,7 +8,7 @@ import { isDuplicate, cacheSignal } from './signalCache';
 import { isMarketOpen } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
-import { sendDailyReport } from './reporter';
+import { sendDailyReport, checkZoneCoverage } from './reporter';
 import { logger } from './logger';
 import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
 import { checkZone, initZones } from './zoneManager';
@@ -315,6 +315,15 @@ cron.schedule('0 8 * * *', () => {
     process.env.TELEGRAM_CHAT_ID!
   );
   sendDailyReport(telegram).catch(err => logger.error('Report error:', err));
+});
+
+// Zone coverage check at 22:05 UTC (after daily close)
+cron.schedule('5 22 * * 1-5', () => {
+  const telegram = new TelegramNotifier(
+    process.env.TELEGRAM_BOT_TOKEN!,
+    process.env.TELEGRAM_CHAT_ID!
+  );
+  checkZoneCoverage(telegram).catch(err => logger.error('Zone check error:', err));
 });
 
 // ─── Startup ──────────────────────────────────────────────────────────────────

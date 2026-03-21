@@ -1,9 +1,50 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.checkZoneCoverage = checkZoneCoverage;
 exports.sendDailyReport = sendDailyReport;
 const tradeLogger_1 = require("./tradeLogger");
 const aiAnalyzer_1 = require("./aiAnalyzer");
+const zoneManager_1 = require("./zoneManager");
 const logger_1 = require("./logger");
+const MONITORED_SYMBOLS = [
+    'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD', 'AUDUSD', 'NZDUSD',
+    'EURGBP', 'EURJPY', 'EURCHF', 'EURAUD', 'EURCAD',
+    'GBPNZD', 'GBPJPY', 'GBPCHF', 'GBPCAD', 'GBPAUD',
+    'AUDJPY', 'CHFJPY', 'AUDNZD', 'AUDCAD', 'CADJPY',
+];
+async function checkZoneCoverage(telegram) {
+    const zones = (0, zoneManager_1.loadZones)();
+    const warnings = [];
+    for (const symbol of MONITORED_SYMBOLS) {
+        const symbolZones = zones.filter(z => z.symbol === symbol);
+        const hasSupport = symbolZones.some(z => z.type === 'support');
+        const hasResistance = symbolZones.some(z => z.type === 'resistance');
+        if (!hasSupport && !hasResistance) {
+            // No zones at all — only warn for symbols user has started defining zones for
+            continue;
+        }
+        if (!hasSupport) {
+            warnings.push(`⚠️ <b>${symbol}</b> — keine Support-Zone definiert`);
+        }
+        if (!hasResistance) {
+            warnings.push(`⚠️ <b>${symbol}</b> — keine Resistance-Zone definiert`);
+        }
+    }
+    if (warnings.length === 0)
+        return;
+    const msg = `🗺 <b>Zonen-Warnung</b>
+` +
+        `━━━━━━━━━━━━━━━━━━━━
+` +
+        `Folgende Zonen fehlen oder sind veraltet:
+
+` +
+        warnings.join(', ') + `
+
+<i>Bitte zones.json aktualisieren.</i>`);
+    await telegram.sendMessage(msg);
+    logger_1.logger.info(`Zone coverage warning sent: ${warnings.length} missing zones`);
+}
 async function sendDailyReport(telegram) {
     logger_1.logger.info('Generating daily report...');
     const allTrades = (0, tradeLogger_1.loadTrades)();
@@ -75,6 +116,8 @@ async function sendDailyReport(telegram) {
     msg += `<i>🤖 TTFM Bot | ${now.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin' })} MEZ</i>`;
     await telegram.sendMessage(msg);
     logger_1.logger.info('Daily report sent.');
+    // Zone coverage check
+    await checkZoneCoverage(telegram);
     // AI analysis — only if there were closed trades
     const closedToday2 = (0, tradeLogger_1.loadTrades)().filter(t => {
         if (!t.closedAt)

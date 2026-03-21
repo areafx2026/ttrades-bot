@@ -11736,3 +11736,13 @@
 2026-03-21 13:39:30: [21.03.2026, 14:39:30] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
 2026-03-21 13:39:30: [21.03.2026, 14:39:30] INFO  3 rules loaded from rules.txt
 2026-03-21 13:39:30: [21.03.2026, 14:39:30] INFO  Market closed — scans paused until next open.
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Signal cache loaded: 0 active entries
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  TTrades Fractal Model Bot started
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Monitoring: EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURCHF, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, CHFJPY, GBPCHF, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Paper trading: ENABLED
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Fast poll: 3 min (active signals) | Slow poll: 10 min (others)
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Rule loaded: [NYSE_BUFFER] Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Rule loaded: [WEEKEND_BLOCK] Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  3 rules loaded from rules.txt
+2026-03-21 14:25:45: [21.03.2026, 15:25:45] INFO  Market closed — scans paused until next open.

@@ -245,6 +245,11 @@ node_cron_1.default.schedule('0 8 * * *', () => {
     const telegram = new telegram_1.TelegramNotifier(process.env.TELEGRAM_BOT_TOKEN, process.env.TELEGRAM_CHAT_ID);
     (0, reporter_1.sendDailyReport)(telegram).catch(err => logger_1.logger.error('Report error:', err));
 });
+// Zone coverage check at 22:05 UTC (after daily close)
+node_cron_1.default.schedule('5 22 * * 1-5', () => {
+    const telegram = new telegram_1.TelegramNotifier(process.env.TELEGRAM_BOT_TOKEN, process.env.TELEGRAM_CHAT_ID);
+    (0, reporter_1.checkZoneCoverage)(telegram).catch(err => logger_1.logger.error('Zone check error:', err));
+});
 // ─── Startup ──────────────────────────────────────────────────────────────────
 logger_1.logger.info('TTrades Fractal Model Bot started');
 logger_1.logger.info(`Monitoring: ${SYMBOLS.join(', ')}`);
