@@ -214,14 +214,6 @@ async function runScan() {
             logger_1.logger.warn('Currency strength calculation failed — filter disabled for this scan');
         }
         const executor = new tradeExecutor_1.TradeExecutor(capital.apiKey, capital.isDemo, capital.cst, capital.securityToken);
-        // Calculate currency strength once per scan (cached 1h)
-        let strength = null;
-        try {
-            strength = await (0, currencyStrength_1.getCurrencyStrength)(capital);
-        }
-        catch (err) {
-            logger_1.logger.warn('Currency strength calculation failed — filter disabled for this scan');
-        }
         // Scan active symbols first (fast lane)
         const active = toScan.filter(s => activeSymbols.has(s));
         const passive = toScan.filter(s => !activeSymbols.has(s));
