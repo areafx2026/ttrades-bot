@@ -11,6 +11,7 @@ import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './trad
 import { sendDailyReport } from './reporter';
 import { logger } from './logger';
 import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
+import { checkZone, initZones } from './zoneManager';
 import cron from 'node-cron';
 
 const SYMBOLS = [
@@ -324,6 +325,7 @@ logger.info(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
 logger.info('Fast poll: 3 min (active signals) | Slow poll: 10 min (others)');
 
 loadRules();
+initZones();
 
 // Seed open trades as active symbols on startup
 const openTrades = loadTrades().filter(t => !t.closedAt);

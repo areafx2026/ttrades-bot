@@ -16,6 +16,7 @@ const tradeLogger_1 = require("./tradeLogger");
 const reporter_1 = require("./reporter");
 const logger_1 = require("./logger");
 const currencyStrength_1 = require("./currencyStrength");
+const zoneManager_1 = require("./zoneManager");
 const node_cron_1 = __importDefault(require("node-cron"));
 const SYMBOLS = [
     'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD',
@@ -250,6 +251,7 @@ logger_1.logger.info(`Monitoring: ${SYMBOLS.join(', ')}`);
 logger_1.logger.info(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
 logger_1.logger.info('Fast poll: 3 min (active signals) | Slow poll: 10 min (others)');
 (0, rulesEngine_1.loadRules)();
+(0, zoneManager_1.initZones)();
 // Seed open trades as active symbols on startup
 const openTrades = (0, tradeLogger_1.loadTrades)().filter(t => !t.closedAt);
 for (const t of openTrades)
