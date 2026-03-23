@@ -34,9 +34,7 @@ export async function checkZoneCoverage(telegram: TelegramNotifier): Promise<voi
 
   if (warnings.length === 0) return;
 
-  const msg = `🗺 <b>Zonen-Warnung</b>
-`━━━━━━━━━━━━━━━━━━━━\n` +
-    `Folgende Zonen fehlen oder sind veraltet:\n\n` +
+  const msg = `🗺 <b>Zonen-Warnung</b>\n━━━━━━━━━━━━━━━━━━━━\nFolgende Zonen fehlen oder sind veraltet:\n\n` +
     warnings.join('\n') +
     `\n\n<i>Bitte zones.json aktualisieren.</i>`;
 
@@ -141,12 +139,7 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
     const analysis = await analyzeTradesWithAI();
     if (analysis) {
       await telegram.sendMessage(
-        `🤖 <b>KI-Analyse — ${dateStr}</b>
-` +
-        `━━━━━━━━━━━━━━━━━━━━
-
-` +
-        analysis
+        `🤖 <b>KI-Analyse — ${dateStr}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` + analysis
       );
     }
   }

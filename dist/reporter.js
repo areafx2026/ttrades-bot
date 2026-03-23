@@ -32,24 +32,9 @@ async function checkZoneCoverage(telegram) {
     }
     if (warnings.length === 0)
         return;
-    const msg = `🗺 <b>Zonen-Warnung</b>
-`, n;
-    ` +
-    `;
-    Folgende;
-    Zonen;
-    fehlen;
-    oder;
-    sind;
-    veraltet: ;
-    n;
-    n ` +
-    warnings.join('\n') +
-    `;
-    n;
-    n < i > Bitte;
-    zones.json;
-    aktualisieren. < /i>`;
+    const msg = `🗺 <b>Zonen-Warnung</b>\n━━━━━━━━━━━━━━━━━━━━\nFolgende Zonen fehlen oder sind veraltet:\n\n` +
+        warnings.join('\n') +
+        `\n\n<i>Bitte zones.json aktualisieren.</i>`;
     await telegram.sendMessage(msg);
     logger_1.logger.info(`Zone coverage warning sent: ${warnings.length} missing zones`);
 }
@@ -136,12 +121,7 @@ async function sendDailyReport(telegram) {
         logger_1.logger.info('Requesting AI trade analysis...');
         const analysis = await (0, aiAnalyzer_1.analyzeTradesWithAI)();
         if (analysis) {
-            await telegram.sendMessage(`🤖 <b>KI-Analyse — ${dateStr}</b>
-` +
-                `━━━━━━━━━━━━━━━━━━━━
-
-` +
-                analysis);
+            await telegram.sendMessage(`🤖 <b>KI-Analyse — ${dateStr}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` + analysis);
         }
     }
 }
