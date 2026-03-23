@@ -1213,3 +1213,174 @@
 2026-03-23 17:52:54:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
 2026-03-23 17:52:54:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
 2026-03-23 17:52:54:     at require (node:internal/modules/helpers:147:16)
+2026-03-23 18:42:10: [23.03.2026, 19:42:10] ERROR Scan error: <ref *1> AxiosError: timeout of 10000ms exceeded
+2026-03-23 18:42:10:     at RedirectableRequest.handleRequestTimeout (/var/www/ttrades-bot/node_modules/axios/dist/node/axios.cjs:3836:13)
+2026-03-23 18:42:10:     at RedirectableRequest.emit (node:events:519:28)
+2026-03-23 18:42:10:     at Timeout._onTimeout (/var/www/ttrades-bot/node_modules/follow-redirects/index.js:221:12)
+2026-03-23 18:42:10:     at listOnTimeout (node:internal/timers:585:17)
+2026-03-23 18:42:10:     at process.processTimers (node:internal/timers:521:7)
+2026-03-23 18:42:10:     at Axios.request (/var/www/ttrades-bot/node_modules/axios/dist/node/axios.cjs:5110:41)
+2026-03-23 18:42:10:     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+2026-03-23 18:42:10:     at async CapitalAPI.createSession (/var/www/ttrades-bot/dist/capitalApi.js:23:21)
+2026-03-23 18:42:10:     at async runScan (/var/www/ttrades-bot/dist/index.js:208:9) {
+2026-03-23 18:42:10:   isAxiosError: true,
+2026-03-23 18:42:10:   code: 'ECONNABORTED',
+2026-03-23 18:42:10:   config: {
+2026-03-23 18:42:10:     transitional: {
+2026-03-23 18:42:10:       silentJSONParsing: true,
+2026-03-23 18:42:10:       forcedJSONParsing: true,
+2026-03-23 18:42:10:       clarifyTimeoutError: false,
+2026-03-23 18:42:10:       legacyInterceptorReqResOrdering: true
+2026-03-23 18:42:10:     },
+2026-03-23 18:42:10:     adapter: [ 'xhr', 'http', 'fetch' ],
+2026-03-23 18:42:10:     transformRequest: [ [Function: transformRequest] ],
+2026-03-23 18:42:10:     transformResponse: [ [Function: transformResponse] ],
+2026-03-23 18:42:10:     timeout: 10000,
+2026-03-23 18:42:10:     xsrfCookieName: 'XSRF-TOKEN',
+2026-03-23 18:42:10:     xsrfHeaderName: 'X-XSRF-TOKEN',
+2026-03-23 18:42:10:     maxContentLength: -1,
+2026-03-23 18:42:10:     maxBodyLength: -1,
+2026-03-23 18:42:10:     env: { FormData: [Function], Blob: [class Blob] },
+2026-03-23 18:42:10:     validateStatus: [Function: validateStatus],
+2026-03-23 18:42:10:     headers: Object [AxiosHeaders] {
+2026-03-23 18:42:10:       Accept: 'application/json, text/plain, */*',
+2026-03-23 18:42:10:       'Content-Type': 'application/json',
+2026-03-23 18:42:10:       'X-CAP-API-KEY': 'vj2tCnzjuSr8hHI3',
+2026-03-23 18:42:10:       'User-Agent': 'axios/1.13.6',
+2026-03-23 18:42:10:       'Content-Length': '90',
+2026-03-23 18:42:10:       'Accept-Encoding': 'gzip, compress, deflate, br'
+2026-03-23 18:42:10:     },
+2026-03-23 18:42:10:     baseURL: 'https://demo-api-capital.backend-capital.com/api/v1',
+2026-03-23 18:42:10:     method: 'post',
+2026-03-23 18:42:10:     url: '/session',
+2026-03-23 18:42:10:     data: '{"identifier":"scw@mailbox.org","password":"U7ZN$^rf/:|4CoG4Rk","encryptedPassword":false}',
+2026-03-23 18:42:10:     allowAbsoluteUrls: true
+2026-03-23 18:42:10:   },
+2026-03-23 18:42:10:   request: <ref *2> Writable {
+2026-03-23 18:42:10:     _events: {
+2026-03-23 18:42:10:       close: undefined,
+2026-03-23 18:42:10:       error: [Function: handleRequestError],
+2026-03-23 18:42:10:       prefinish: undefined,
+2026-03-23 18:42:10:       finish: undefined,
+2026-03-23 18:42:10:       drain: undefined,
+2026-03-23 18:42:10:       response: [Function: handleResponse],
+2026-03-23 18:42:10:       socket: [Array],
+2026-03-23 18:42:10:       timeout: undefined,
+2026-03-23 18:42:10:       abort: undefined
+2026-03-23 18:42:10:     },
+2026-03-23 18:42:10:     _writableState: WritableState {
+2026-03-23 18:42:10:       highWaterMark: 65536,
+2026-03-23 18:42:10:       length: 0,
+2026-03-23 18:42:10:       corked: 0,
+2026-03-23 18:42:10:       onwrite: [Function: bound onwrite],
+2026-03-23 18:42:10:       writelen: 0,
+2026-03-23 18:42:10:       bufferedIndex: 0,
+2026-03-23 18:42:10:       pendingcb: 0,
+2026-03-23 18:42:10:       [Symbol(kState)]: 17581054,
+2026-03-23 18:42:10:       [Symbol(kBufferedValue)]: null,
+2026-03-23 18:42:10:       [Symbol(kErroredValue)]: [Circular *1]
+2026-03-23 18:42:10:     },
+2026-03-23 18:42:10:     _maxListeners: undefined,
+2026-03-23 18:42:10:     _options: {
+2026-03-23 18:42:10:       maxRedirects: 21,
+2026-03-23 18:42:10:       maxBodyLength: Infinity,
+2026-03-23 18:42:10:       protocol: 'https:',
+2026-03-23 18:42:10:       path: '/api/v1/session',
+2026-03-23 18:42:10:       method: 'POST',
+2026-03-23 18:42:10:       headers: [Object: null prototype],
+2026-03-23 18:42:10:       agents: [Object],
+2026-03-23 18:42:10:       auth: undefined,
+2026-03-23 18:42:10:       family: undefined,
+2026-03-23 18:42:10:       beforeRedirect: [Function: dispatchBeforeRedirect],
+2026-03-23 18:42:10:       beforeRedirects: [Object],
+2026-03-23 18:42:10:       http2Options: undefined,
+2026-03-23 18:42:10:       hostname: 'demo-api-capital.backend-capital.com',
+2026-03-23 18:42:10:       port: '',
+2026-03-23 18:42:10:       agent: undefined,
+2026-03-23 18:42:10:       nativeProtocols: [Object],
+2026-03-23 18:42:10:       pathname: '/api/v1/session'
+2026-03-23 18:42:10:     },
+2026-03-23 18:42:10:     _ended: true,
+2026-03-23 18:42:10:     _ending: true,
+2026-03-23 18:42:10:     _redirectCount: 0,
+2026-03-23 18:42:10:     _redirects: [],
+2026-03-23 18:42:10:     _requestBodyLength: 90,
+2026-03-23 18:42:10:     _requestBodyBuffers: [ [Object] ],
+2026-03-23 18:42:10:     _eventsCount: 3,
+2026-03-23 18:42:10:     _onNativeResponse: [Function (anonymous)],
+2026-03-23 18:42:10:     _currentRequest: ClientRequest {
+2026-03-23 18:42:10:       _events: [Object: null prototype],
+2026-03-23 18:42:10:       _eventsCount: 2,
+2026-03-23 18:42:10:       _maxListeners: undefined,
+2026-03-23 18:42:10:       outputData: [],
+2026-03-23 18:42:10:       outputSize: 0,
+2026-03-23 18:42:10:       writable: true,
+2026-03-23 18:42:10:       destroyed: true,
+2026-03-23 18:42:10:       _last: false,
+2026-03-23 18:42:10:       chunkedEncoding: false,
+2026-03-23 18:42:10:       shouldKeepAlive: true,
+2026-03-23 18:42:10:       maxRequestsOnConnectionReached: false,
+2026-03-23 18:42:10:       _defaultKeepAlive: true,
+2026-03-23 18:42:10:       useChunkedEncodingByDefault: true,
+2026-03-23 18:42:10:       sendDate: false,
+2026-03-23 18:42:10:       _removedConnection: false,
+2026-03-23 18:42:10:       _removedContLen: false,
+2026-03-23 18:42:10:       _removedTE: false,
+2026-03-23 18:42:10:       strictContentLength: false,
+2026-03-23 18:42:10:       _contentLength: 90,
+2026-03-23 18:42:10:       _hasBody: true,
+2026-03-23 18:42:10:       _trailer: '',
+2026-03-23 18:42:10:       finished: true,
+2026-03-23 18:42:10:       _headerSent: true,
+2026-03-23 18:42:10:       _closed: false,
+2026-03-23 18:42:10:       _header: 'POST /api/v1/session HTTP/1.1\r\n' +
+2026-03-23 18:42:10:         'Accept: application/json, text/plain, */*\r\n' +
+2026-03-23 18:42:10:         'Content-Type: application/json\r\n' +
+2026-03-23 18:42:10:         'X-CAP-API-KEY: vj2tCnzjuSr8hHI3\r\n' +
+2026-03-23 18:42:10:         'User-Agent: axios/1.13.6\r\n' +
+2026-03-23 18:42:10:         'Content-Length: 90\r\n' +
+2026-03-23 18:42:10:         'Accept-Encoding: gzip, compress, deflate, br\r\n' +
+2026-03-23 18:42:10:         'Host: demo-api-capital.backend-capital.com\r\n' +
+2026-03-23 18:42:10:         'Connection: keep-alive\r\n' +
+2026-03-23 18:42:10:         '\r\n',
+2026-03-23 18:42:10:       _keepAliveTimeout: 0,
+2026-03-23 18:42:10:       _onPendingData: [Function: nop],
+2026-03-23 18:42:10:       agent: [Agent],
+2026-03-23 18:42:10:       socketPath: undefined,
+2026-03-23 18:42:10:       method: 'POST',
+2026-03-23 18:42:10:       maxHeaderSize: undefined,
+2026-03-23 18:42:10:       insecureHTTPParser: undefined,
+2026-03-23 18:42:10:       joinDuplicateHeaders: undefined,
+2026-03-23 18:42:10:       path: '/api/v1/session',
+2026-03-23 18:42:10:       _ended: false,
+2026-03-23 18:42:10:       res: null,
+2026-03-23 18:42:10:       aborted: false,
+2026-03-23 18:42:10:       timeoutCb: [Function: emitRequestTimeout],
+2026-03-23 18:42:10:       upgradeOrConnect: false,
+2026-03-23 18:42:10:       parser: null,
+2026-03-23 18:42:10:       maxHeadersCount: null,
+2026-03-23 18:42:10:       reusedSocket: false,
+2026-03-23 18:42:10:       host: 'demo-api-capital.backend-capital.com',
+2026-03-23 18:42:10:       protocol: 'https:',
+2026-03-23 18:42:10:       _redirectable: [Circular *2],
+2026-03-23 18:42:10:       [Symbol(shapeMode)]: false,
+2026-03-23 18:42:10:       [Symbol(kCapture)]: false,
+2026-03-23 18:42:10:       [Symbol(kBytesWritten)]: 0,
+2026-03-23 18:42:10:       [Symbol(kNeedDrain)]: false,
+2026-03-23 18:42:10:       [Symbol(corked)]: 0,
+2026-03-23 18:42:10:       [Symbol(kChunkedBuffer)]: [],
+2026-03-23 18:42:10:       [Symbol(kChunkedLength)]: 0,
+2026-03-23 18:42:10:       [Symbol(kSocket)]: [TLSSocket],
+2026-03-23 18:42:10:       [Symbol(kOutHeaders)]: [Object: null prototype],
+2026-03-23 18:42:10:       [Symbol(errored)]: null,
+2026-03-23 18:42:10:       [Symbol(kHighWaterMark)]: 65536,
+2026-03-23 18:42:10:       [Symbol(kRejectNonStandardBodyWrites)]: false,
+2026-03-23 18:42:10:       [Symbol(kUniqueHeaders)]: null,
+2026-03-23 18:42:10:       [Symbol(kError)]: [Circular *1]
+2026-03-23 18:42:10:     },
+2026-03-23 18:42:10:     _currentUrl: 'https://demo-api-capital.backend-capital.com/api/v1/session',
+2026-03-23 18:42:10:     _timeout: null,
+2026-03-23 18:42:10:     [Symbol(shapeMode)]: true,
+2026-03-23 18:42:10:     [Symbol(kCapture)]: false
+2026-03-23 18:42:10:   }
+2026-03-23 18:42:10: }
