@@ -12037,3 +12037,73 @@
 2026-03-23 18:45:15: [23.03.2026, 19:45:15] INFO  No setup for CADJPY yet.
 2026-03-23 18:45:15: [23.03.2026, 19:45:15] INFO  No setup for GBPCAD yet.
 2026-03-23 18:45:16: [23.03.2026, 19:45:16] INFO  No setup for GBPAUD yet.
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Signal cache loaded: 0 active entries
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  TTrades Fractal Model Bot started
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Monitoring: EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURCHF, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, CHFJPY, GBPCHF, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Paper trading: ENABLED
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Fast poll: 3 min (active signals) | Slow poll: 10 min (others)
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Rule loaded: [NYSE_BUFFER] Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Rule loaded: [WEEKEND_BLOCK] Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  3 rules loaded from rules.txt
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Zones: none defined yet
+2026-03-23 18:50:09: [23.03.2026, 19:50:09] INFO  Scanning 1 symbols (0 fast / 1 slow)
+2026-03-23 18:50:10: [23.03.2026, 19:50:10] INFO  Capital.com session created
+2026-03-23 18:50:15: [23.03.2026, 19:50:15] INFO  Currency strength updated (22 pairs): Strong=GBP/NZD Weak=USD/CAD
+2026-03-23 18:50:15: [23.03.2026, 19:50:15] INFO  No setup for EURUSD yet.
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Signal cache loaded: 0 active entries
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  TTrades Fractal Model Bot started
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Monitoring: EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURCHF, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, CHFJPY, GBPCHF, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Paper trading: ENABLED
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Fast poll: 3 min (active signals) | Slow poll: 10 min (others)
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Rule loaded: [NYSE_BUFFER] Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Rule loaded: [WEEKEND_BLOCK] Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  3 rules loaded from rules.txt
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Zones loaded (8 total): EURUSD:2S/2R | GBPUSD:2S/1R | USDJPY:0S/1R
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Scanning 1 symbols (0 fast / 1 slow)
+2026-03-23 18:50:44: [23.03.2026, 19:50:44] INFO  Capital.com session created
+2026-03-23 18:50:50: [23.03.2026, 19:50:50] INFO  Currency strength updated (22 pairs): Strong=GBP/NZD Weak=USD/CAD
+2026-03-23 18:50:51: [23.03.2026, 19:50:51] INFO  No setup for EURUSD yet.
+2026-03-23 18:51:00: [23.03.2026, 19:51:00] INFO  Scanning 16 symbols (0 fast / 16 slow)
+2026-03-23 18:51:00: [23.03.2026, 19:51:00] INFO  Capital.com session created
+2026-03-23 18:51:01: [23.03.2026, 19:51:01] INFO  No setup for GBPUSD yet.
+2026-03-23 18:51:02: [23.03.2026, 19:51:02] INFO  No setup for USDJPY yet.
+2026-03-23 18:51:02: [23.03.2026, 19:51:02] INFO  No setup for USDCHF yet.
+2026-03-23 18:51:03: [23.03.2026, 19:51:03] INFO  No setup for USDCAD yet.
+2026-03-23 18:51:04: [23.03.2026, 19:51:04] INFO  No setup for AUDUSD yet.
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  No setup for NZDUSD yet.
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Signal cache loaded: 0 active entries
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  TTrades Fractal Model Bot started
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Monitoring: EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURCHF, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, CHFJPY, GBPCHF, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Paper trading: ENABLED
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Fast poll: 3 min (active signals) | Slow poll: 10 min (others)
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Rule loaded: [NYSE_BUFFER] Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Rule loaded: [WEEKEND_BLOCK] Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  3 rules loaded from rules.txt
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Zones loaded (8 total): EURUSD:2S/2R | GBPUSD:2S/1R | USDJPY:0S/1R
+2026-03-23 18:51:05: [23.03.2026, 19:51:05] INFO  Scanning 1 symbols (0 fast / 1 slow)
+2026-03-23 18:51:06: [23.03.2026, 19:51:06] INFO  Capital.com session created
+2026-03-23 18:51:11: [23.03.2026, 19:51:11] INFO  Currency strength updated (22 pairs): Strong=GBP/NZD Weak=USD/CAD
+2026-03-23 18:51:11: [23.03.2026, 19:51:11] INFO  No setup for EURUSD yet.
+2026-03-23 18:54:00: [23.03.2026, 19:54:00] INFO  Scanning 21 symbols (0 fast / 21 slow)
+2026-03-23 18:54:01: [23.03.2026, 19:54:01] INFO  Capital.com session created
+2026-03-23 18:54:02: [23.03.2026, 19:54:02] INFO  No setup for GBPUSD yet.
+2026-03-23 18:54:02: [23.03.2026, 19:54:02] INFO  No setup for USDJPY yet.
+2026-03-23 18:54:03: [23.03.2026, 19:54:03] INFO  No setup for USDCHF yet.
+2026-03-23 18:54:04: [23.03.2026, 19:54:04] INFO  No setup for USDCAD yet.
+2026-03-23 18:54:05: [23.03.2026, 19:54:05] INFO  No setup for AUDUSD yet.
+2026-03-23 18:54:05: [23.03.2026, 19:54:05] INFO  No setup for NZDUSD yet.
+2026-03-23 18:54:06: [23.03.2026, 19:54:06] INFO  No setup for EURGBP yet.
+2026-03-23 18:54:07: [23.03.2026, 19:54:07] INFO  No setup for EURJPY yet.
+2026-03-23 18:54:07: [23.03.2026, 19:54:07] INFO  No setup for EURCHF yet.
+2026-03-23 18:54:08: [23.03.2026, 19:54:08] INFO  No setup for EURAUD yet.
+2026-03-23 18:54:09: [23.03.2026, 19:54:09] INFO  No setup for EURCAD yet.
+2026-03-23 18:54:10: [23.03.2026, 19:54:10] INFO  No setup for GBPNZD yet.
+2026-03-23 18:54:10: [23.03.2026, 19:54:10] INFO  No setup for GBPJPY yet.
+2026-03-23 18:54:11: [23.03.2026, 19:54:11] INFO  No setup for AUDJPY yet.
+2026-03-23 18:54:12: [23.03.2026, 19:54:12] INFO  No setup for CHFJPY yet.
+2026-03-23 18:54:13: [23.03.2026, 19:54:13] INFO  No setup for GBPCHF yet.
+2026-03-23 18:54:13: [23.03.2026, 19:54:13] INFO  No setup for AUDNZD yet.
+2026-03-23 18:54:14: [23.03.2026, 19:54:14] INFO  No setup for AUDCAD yet.
