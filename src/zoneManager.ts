@@ -44,6 +44,31 @@ export function initZones(): void {
   if (!fs.existsSync(ZONES_FILE)) {
     saveZones([]);
     logger.info('zones.json created (empty)');
+    return;
+  }
+
+  // Log zone coverage summary on startup
+  const zones = loadZones();
+  const SYMBOLS = [
+    'EURUSD','GBPUSD','USDJPY','USDCHF','USDCAD','AUDUSD','NZDUSD',
+    'EURGBP','EURJPY','EURCHF','EURAUD','EURCAD',
+    'GBPNZD','GBPJPY','GBPCHF','GBPCAD','GBPAUD',
+    'AUDJPY','CHFJPY','AUDNZD','AUDCAD','CADJPY',
+  ];
+
+  const summary = SYMBOLS.map(s => {
+    const sz = zones.filter(z => z.symbol === s);
+    const sup = sz.filter(z => z.type === 'support').length;
+    const res = sz.filter(z => z.type === 'resistance').length;
+    if (sup === 0 && res === 0) return null;
+    return `${s}:${sup}S/${res}R`;
+  }).filter(Boolean);
+
+  const total = zones.length;
+  if (total === 0) {
+    logger.info('Zones: none defined yet');
+  } else {
+    logger.info(`Zones loaded (${total} total): ${summary.join(' | ')}`);
   }
 }
 
