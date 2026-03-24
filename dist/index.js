@@ -23,7 +23,7 @@ const SYMBOLS = [
     'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY', 'EURCHF',
     'EURAUD', 'EURCAD', 'GBPNZD', 'GBPJPY', 'AUDJPY',
     'CHFJPY', 'GBPCHF', 'AUDNZD', 'AUDCAD', 'CADJPY',
-    'GBPCAD', 'GBPAUD'
+    'GBPCAD', 'GBPAUD', 'EURNZD'
 ];
 const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
 let marketWasOpen = true;

@@ -166,5 +166,26 @@
     "pnlPips": 0,
     "pnlEUR": 0,
     "result": "BREAKEVEN"
+  },
+  {
+    "id": "o_a628adea-503e-4abe-bb8b-92cf9cece9fb",
+    "symbol": "GBPCHF",
+    "type": "LONG",
+    "phase": "C3_ENTRY",
+    "entryZone": [
+      1.0547525000000002,
+      1.0549025000000003
+    ],
+    "stopLoss": 1.05268,
+    "target1": 1.0591225000000006,
+    "target2": 1.063417500000001,
+    "riskReward": 2,
+    "openedAt": "2026-03-24T13:39:14.140Z",
+    "dealId": "o_a628adea-503e-4abe-bb8b-92cf9cece9fb",
+    "closedAt": "2026-03-24T13:39:18.457Z",
+    "closePrice": 1.0548275000000003,
+    "pnlPips": 0,
+    "pnlEUR": 0,
+    "result": "BREAKEVEN"
   }
 ]
