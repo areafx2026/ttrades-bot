@@ -249,7 +249,7 @@ export class TradeExecutor {
       profitLevel: signal.target1,
     };
 
-    logger.info(`Opening ${direction} ${signal.symbol} | Size: ${lotSize} lots | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
+    logger.info(`Opening ${direction} ${signal.symbol} | Entry: ${currentPrice.toFixed(dec)} | Size: ${lotSize} pts | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
 
     try {
       const res = await this.client.post('/positions', body, { headers: this.authHeaders });

@@ -209,7 +209,7 @@ class TradeExecutor {
             stopLevel: signal.stopLoss,
             profitLevel: signal.target1,
         };
-        logger_1.logger.info(`Opening ${direction} ${signal.symbol} | Size: ${lotSize} lots | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
+        logger_1.logger.info(`Opening ${direction} ${signal.symbol} | Entry: ${currentPrice.toFixed(dec)} | Size: ${lotSize} pts | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
         try {
             const res = await this.client.post('/positions', body, { headers: this.authHeaders });
             const dealId = res.data.dealReference || res.data.dealId || 'unknown';

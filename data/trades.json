@@ -145,5 +145,26 @@
     "pnlPips": 0,
     "pnlEUR": 0,
     "result": "BREAKEVEN"
+  },
+  {
+    "id": "o_47291f28-91e5-48f0-b234-e162ab3fa83a",
+    "symbol": "GBPCAD",
+    "type": "SHORT",
+    "phase": "C3_ENTRY",
+    "entryZone": [
+      1.8425574999999998,
+      1.8427075
+    ],
+    "stopLoss": 1.846195,
+    "target1": 1.8355074999999996,
+    "target2": 1.8283824999999994,
+    "riskReward": 2,
+    "openedAt": "2026-03-24T09:39:17.423Z",
+    "dealId": "o_47291f28-91e5-48f0-b234-e162ab3fa83a",
+    "closedAt": "2026-03-24T09:39:18.702Z",
+    "closePrice": 1.8426325,
+    "pnlPips": 0,
+    "pnlEUR": 0,
+    "result": "BREAKEVEN"
   }
 ]

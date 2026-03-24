@@ -148,8 +148,10 @@ async function analyzeSymbol(symbol, capital, executor, telegram, strength = nul
                 logger_1.logger.info(`Trade opened for ${symbol}: ${result.dealId}`);
                 (0, tradeLogger_1.logOpenTrade)(signal, result.dealId);
                 (0, tradeLogger_1.savePineScript)();
+                const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
                 await telegram.sendMessage(`✅ <b>Trade geöffnet — ${symbol}</b>\n` +
                     `${signal.type === 'LONG' ? '📈' : '📉'} ${signal.type} | ${result.dealId}\n` +
+                    `Entry: <code>${entryMid.toFixed(dec)}</code>\n` +
                     `SL: <code>${signal.stopLoss.toFixed(dec)}</code> | ` +
                     `TP: <code>${signal.target1.toFixed(dec)}</code>`);
             }

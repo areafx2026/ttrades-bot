@@ -1,16 +1,4 @@
 {
-  "EURCAD_SHORT_C4_RETEST": {
-    "symbol": "EURCAD",
-    "type": "SHORT",
-    "phase": "C4_RETEST",
-    "timestamp": 1774310769347
-  },
-  "EURCAD_SHORT_C3_ENTRY": {
-    "symbol": "EURCAD",
-    "type": "SHORT",
-    "phase": "C3_ENTRY",
-    "timestamp": 1774316161283
-  },
   "EURGBP_SHORT_C3_ENTRY": {
     "symbol": "EURGBP",
     "type": "SHORT",
@@ -22,5 +10,11 @@
     "type": "LONG",
     "phase": "C3_ENTRY",
     "timestamp": 1774335972548
+  },
+  "GBPCAD_SHORT_C3_ENTRY": {
+    "symbol": "GBPCAD",
+    "type": "SHORT",
+    "phase": "C3_ENTRY",
+    "timestamp": 1774345156040
   }
 }
