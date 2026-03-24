@@ -108,15 +108,24 @@ class TradeExecutor {
         const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
         const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
         const stopPips = Math.abs(entryMid - signal.stopLoss) / pip;
+        if (stopPips <= 0)
+            return 100;
         const riskEUR = 100;
-        // Pip value: ~€1 per 10,000 points for major pairs
-        // So for 1000 points: ~€0.1 per pip
-        // Target: riskEUR = stopPips * (size / 10000)
-        // size = riskEUR * 10000 / stopPips
-        const rawSize = (riskEUR * 10000) / stopPips;
-        // Round to nearest 100 (Capital.com increment), min 100, max 100000
+        // Conservative pip value per 1000 Points
+        let pipValuePer1000;
+        if (signal.symbol.includes('JPY')) {
+            pipValuePer1000 = 0.07;
+        }
+        else if (signal.symbol.startsWith('USD') || signal.symbol.endsWith('USD')) {
+            pipValuePer1000 = 0.09;
+        }
+        else {
+            pipValuePer1000 = 0.08;
+        }
+        const rawSize = (riskEUR / (stopPips * pipValuePer1000)) * 1000;
+        // Round to nearest 100, min 100, hard cap 5000 Points
         const rounded = Math.round(rawSize / 100) * 100;
-        return Math.min(Math.max(rounded, 100), 100000);
+        return Math.min(Math.max(rounded, 100), 5000);
     }
     // Open a position based on a signal
     async openTrade(signal) {

@@ -1,14 +1,26 @@
 {
-  "CHFJPY_LONG_C4_RETEST": {
-    "symbol": "CHFJPY",
-    "type": "LONG",
-    "phase": "C4_RETEST",
-    "timestamp": 1773991812337
-  },
-  "GBPCAD_SHORT_C4_RETEST": {
-    "symbol": "GBPCAD",
+  "EURCAD_SHORT_C4_RETEST": {
+    "symbol": "EURCAD",
     "type": "SHORT",
     "phase": "C4_RETEST",
-    "timestamp": 1773998296057
+    "timestamp": 1774310769347
+  },
+  "EURCAD_SHORT_C3_ENTRY": {
+    "symbol": "EURCAD",
+    "type": "SHORT",
+    "phase": "C3_ENTRY",
+    "timestamp": 1774316161283
+  },
+  "EURGBP_SHORT_C3_ENTRY": {
+    "symbol": "EURGBP",
+    "type": "SHORT",
+    "phase": "C3_ENTRY",
+    "timestamp": 1774332366507
+  },
+  "GBPCHF_LONG_C3_ENTRY": {
+    "symbol": "GBPCHF",
+    "type": "LONG",
+    "phase": "C3_ENTRY",
+    "timestamp": 1774335972548
   }
 }

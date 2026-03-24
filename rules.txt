@@ -26,3 +26,7 @@
 // KI-Vorschlag [19.3.2026]: Maximaler Stop-Loss von 8 Pips nur für Major-Pairs (EURUSD, GBPUSD, etc.), Cross-Pairs mindestens 12 Pips — wegen unrealistisch enger Stops bei GBPAUD
 
 // KI-Vorschlag [19.3.2026]: Vor jedem Trade 5-Minuten-Chart auf Trend-Bestätigung prüfen — wegen Entries ohne Struktur-Analyse
+
+// KI-Vorschlag [24.3.2026]: Mindest-Haltezeit von 3 Minuten auch bei manuellen Closes, außer bei Stop-Loss Hit — wegen 5-Sekunden-Trade ohne Marktentwicklung bei GBPCHF
+
+// KI-Vorschlag [24.3.2026]: Kein Trade in den ersten 30 Minuten der London Session (08:00-08:30) ohne vorherige 15-Minuten Marktbeobachtung — wegen impulsivem Entry in volatile Morgenstunden
