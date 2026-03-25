@@ -41,7 +41,26 @@ export class FractalAnalyzer {
     const m15Setup = this.getM15Setup(dailyBias, h4Confirm.level);
     if (!m15Setup) return null;
 
+    // Require 2 consecutive H1 candles confirming the direction
+    if (!this.confirmH1Direction(dailyBias)) return null;
+
     return this.buildSignal(dailyBias, h4Confirm, m15Setup);
+  }
+
+  // Check last 2 closed H1 candles are in the same direction as bias
+  private confirmH1Direction(bias: SignalType): boolean {
+    const candles = this.m15; // m15 field holds H1 candles in our setup
+    if (candles.length < 3) return false;
+
+    // Last 2 closed candles (not the current forming one)
+    const c1 = candles[candles.length - 3];
+    const c2 = candles[candles.length - 2];
+
+    if (bias === 'LONG') {
+      return c1.close > c1.open && c2.close > c2.open;
+    } else {
+      return c1.close < c1.open && c2.close < c2.open;
+    }
   }
 
   // JPY pairs have 2 decimal places, others have 5

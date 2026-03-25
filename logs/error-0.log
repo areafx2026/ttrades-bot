@@ -1630,3 +1630,772 @@
 2026-03-25 06:38:13:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
 2026-03-25 06:38:13:     at require (node:internal/modules/helpers:147:16)
 2026-03-25 06:42:13: [25.03.2026, 07:42:13] WARN  Rule nicht erkannt: Kein Trade zwischen 08:00 Uhr und 08:30 Uhr (London Open Volatilit�t)
+2026-03-25 07:36:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:32: Require stack:
+2026-03-25 07:36:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:32: }
+2026-03-25 07:36:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:32: Require stack:
+2026-03-25 07:36:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:32: }
+2026-03-25 07:36:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:32: Require stack:
+2026-03-25 07:36:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:32: }
+2026-03-25 07:36:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:32: Require stack:
+2026-03-25 07:36:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:32: }
+2026-03-25 07:36:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:33: Require stack:
+2026-03-25 07:36:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:33: }
+2026-03-25 07:36:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:33: Require stack:
+2026-03-25 07:36:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:33: }
+2026-03-25 07:36:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:33: Require stack:
+2026-03-25 07:36:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:33: }
+2026-03-25 07:36:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:33: Require stack:
+2026-03-25 07:36:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:33: }
+2026-03-25 07:36:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:33: Require stack:
+2026-03-25 07:36:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:33: }
+2026-03-25 07:36:34: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:34: Require stack:
+2026-03-25 07:36:34: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:34:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:34:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:34:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:34:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:34:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:34:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:34:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:34: }
+2026-03-25 07:36:34: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:34: Require stack:
+2026-03-25 07:36:34: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:34:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:34:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:34:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:34:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:34:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:34:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:34:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:34: }
+2026-03-25 07:36:34: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:34: Require stack:
+2026-03-25 07:36:34: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:34:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:34:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:34:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:34:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:34:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:34:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:34:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:34: }
+2026-03-25 07:36:34: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:34: Require stack:
+2026-03-25 07:36:34: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:34:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:34:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:34:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:34:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:34:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:34:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:34:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:34: }
+2026-03-25 07:36:34: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:34: Require stack:
+2026-03-25 07:36:34: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:34:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:34:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:34:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:34:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:34:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:34:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:34:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:34: }
+2026-03-25 07:36:34: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:34: Require stack:
+2026-03-25 07:36:34: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:34:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:34:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:34:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:34:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:34:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:34:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:34:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:34:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:34:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:34:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:34:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:34: }
+2026-03-25 07:36:35: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:36:35: Require stack:
+2026-03-25 07:36:35: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:36:35:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:36:35:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:36:35:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:36:35:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:36:35:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:36:35:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:36:35:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:36:35:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:36:35:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:36:35:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:36:35:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:36:35:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:36:35: }
+2026-03-25 07:38:40: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:40: Require stack:
+2026-03-25 07:38:40: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:40:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:40:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:40:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:40:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:40:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:40:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:40:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:40:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:40:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:40:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:40: }
+2026-03-25 07:38:40: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:40: Require stack:
+2026-03-25 07:38:40: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:40:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:40:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:40:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:40:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:40:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:40:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:40:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:40:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:40:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:40:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:40: }
+2026-03-25 07:38:40: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:40: Require stack:
+2026-03-25 07:38:40: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:40:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:40:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:40:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:40:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:40:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:40:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:40:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:40:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:40:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:40:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:40: }
+2026-03-25 07:38:40: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:40: Require stack:
+2026-03-25 07:38:40: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:40:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:40:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:40:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:40:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:40:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:40:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:40:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:40:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:40:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:40:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:40: }
+2026-03-25 07:38:40: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:40: Require stack:
+2026-03-25 07:38:40: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:40:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:40:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:40:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:40:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:40:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:40:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:40:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:40:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:40:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:40:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:40:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:40: }
+2026-03-25 07:38:41: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:41: Require stack:
+2026-03-25 07:38:41: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:41:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:41:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:41:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:41:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:41:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:41:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:41:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:41:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:41:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:41:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:41: }
+2026-03-25 07:38:41: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:41: Require stack:
+2026-03-25 07:38:41: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:41:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:41:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:41:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:41:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:41:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:41:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:41:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:41:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:41:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:41:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:41: }
+2026-03-25 07:38:41: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:41: Require stack:
+2026-03-25 07:38:41: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:41:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:41:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:41:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:41:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:41:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:41:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:41:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:41:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:41:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:41:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:41: }
+2026-03-25 07:38:41: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:41: Require stack:
+2026-03-25 07:38:41: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:41:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:41:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:41:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:41:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:41:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:41:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:41:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:41:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:41:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:41:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:41: }
+2026-03-25 07:38:41: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:41: Require stack:
+2026-03-25 07:38:41: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:41:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:41:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:41:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:41:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:41:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:41:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:41:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:41:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:41:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:41:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:41: }
+2026-03-25 07:38:41: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:41: Require stack:
+2026-03-25 07:38:41: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:41:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:41:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:41:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:41:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:41:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:41:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:41:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:41:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:41:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:41:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:41:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:41: }
+2026-03-25 07:38:42: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:42: Require stack:
+2026-03-25 07:38:42: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:42:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:42:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:42:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:42:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:42:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:42:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:42:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:42:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:42:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:42:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:42: }
+2026-03-25 07:38:42: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:42: Require stack:
+2026-03-25 07:38:42: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:42:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:42:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:42:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:42:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:42:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:42:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:42:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:42:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:42:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:42:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:42: }
+2026-03-25 07:38:42: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:42: Require stack:
+2026-03-25 07:38:42: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:42:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:42:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:42:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:42:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:42:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:42:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:42:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:42:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:42:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:42:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:42: }
+2026-03-25 07:38:42: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:42: Require stack:
+2026-03-25 07:38:42: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:42:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:42:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:42:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:42:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:42:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:42:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:42:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:42:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:42:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:42:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:42: }
+2026-03-25 07:38:42: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:38:42: Require stack:
+2026-03-25 07:38:42: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:38:42:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:38:42:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:38:42:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:38:42:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:38:42:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:38:42:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:38:42:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:38:42:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:38:42:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:38:42:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:38:42:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:38:42: }
+2026-03-25 07:42:31: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:31: Require stack:
+2026-03-25 07:42:31: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:31:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:31:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:31:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:31:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:31:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:31:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:31:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:31:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:31:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:31:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:31: }
+2026-03-25 07:42:31: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:31: Require stack:
+2026-03-25 07:42:31: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:31:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:31:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:31:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:31:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:31:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:31:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:31:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:31:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:31:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:31:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:31: }
+2026-03-25 07:42:31: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:31: Require stack:
+2026-03-25 07:42:31: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:31:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:31:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:31:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:31:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:31:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:31:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:31:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:31:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:31:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:31:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:31: }
+2026-03-25 07:42:31: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:31: Require stack:
+2026-03-25 07:42:31: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:31:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:31:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:31:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:31:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:31:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:31:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:31:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:31:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:31:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:31:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:31: }
+2026-03-25 07:42:31: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:31: Require stack:
+2026-03-25 07:42:31: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:31:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:31:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:31:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:31:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:31:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:31:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:31:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:31:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:31:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:31:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:31: }
+2026-03-25 07:42:31: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:31: Require stack:
+2026-03-25 07:42:31: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:31:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:31:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:31:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:31:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:31:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:31:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:31:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:31:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:31:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:31:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:31:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:31: }
+2026-03-25 07:42:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:32: Require stack:
+2026-03-25 07:42:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:32: }
+2026-03-25 07:42:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:32: Require stack:
+2026-03-25 07:42:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:32: }
+2026-03-25 07:42:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:32: Require stack:
+2026-03-25 07:42:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:32: }
+2026-03-25 07:42:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:32: Require stack:
+2026-03-25 07:42:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:32: }
+2026-03-25 07:42:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:32: Require stack:
+2026-03-25 07:42:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:32: }
+2026-03-25 07:42:32: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:32: Require stack:
+2026-03-25 07:42:32: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:32:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:32:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:32:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:32:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:32:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:32:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:32:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:32:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:32:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:32:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:32:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:32: }
+2026-03-25 07:42:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:33: Require stack:
+2026-03-25 07:42:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:33: }
+2026-03-25 07:42:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:33: Require stack:
+2026-03-25 07:42:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:33: }
+2026-03-25 07:42:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:33: Require stack:
+2026-03-25 07:42:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:33: }
+2026-03-25 07:42:33: Error: Cannot find module 'dotenv/config'
+2026-03-25 07:42:33: Require stack:
+2026-03-25 07:42:33: - /var/www/ttrades-bot/dist/index.js
+2026-03-25 07:42:33:     at Function._resolveFilename (node:internal/modules/cjs/loader:1383:15)
+2026-03-25 07:42:33:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+2026-03-25 07:42:33:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 07:42:33:     at Object.<anonymous> (/var/www/ttrades-bot/dist/index.js:6:1)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14)
+2026-03-25 07:42:33:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 07:42:33:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 07:42:33:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 07:42:33:     at Object.<anonymous> (/usr/lib/node_modules/pm2/lib/ProcessContainerFork.js:33:23)
+2026-03-25 07:42:33:     at Module._compile (node:internal/modules/cjs/loader:1705:14) {
+2026-03-25 07:42:33:   code: 'MODULE_NOT_FOUND',
+2026-03-25 07:42:33:   requireStack: [ '/var/www/ttrades-bot/dist/index.js' ]
+2026-03-25 07:42:33: }
+2026-03-25 07:43:58: [25.03.2026, 08:43:58] WARN  Rule nicht erkannt: Kein Trade zwischen 08:00 Uhr und 08:30 Uhr (London Open Volatilit�t)
