@@ -159,7 +159,7 @@ class TradeExecutor {
         const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
         const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
         const distanceFromEntry = Math.abs(currentPrice - entryMid) / pip;
-        const maxEntryDistance = 20; // max 20 pips from entry zone
+        const maxEntryDistance = 15; // max 15 pips from entry zone
         if (signal.type === 'LONG') {
             // Price must be near or below entry zone (not already above TP or below SL)
             if (currentPrice >= signal.target1) {

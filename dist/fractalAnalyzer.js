@@ -192,6 +192,23 @@ class FractalAnalyzer {
         const minRisk = this.symbol.includes('JPY') ? pip * 8 : pip * 5;
         if (risk < minRisk)
             return null;
+        // Filter 1: TP must be at least 20 pips away from recent D1 High/Low
+        // to ensure there is enough room to run
+        const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+        const recentLows = this.daily.slice(-10).map(c => c.low).sort((a, b) => a - b);
+        const nearestD1High = recentHighs[0];
+        const nearestD1Low = recentLows[0];
+        const minTPBuffer = pip * 20;
+        if (bias === 'LONG') {
+            const distanceToD1High = Math.abs(target1 - nearestD1High);
+            if (distanceToD1High < minTPBuffer)
+                return null;
+        }
+        else {
+            const distanceToD1Low = Math.abs(target1 - nearestD1Low);
+            if (distanceToD1Low < minTPBuffer)
+                return null;
+        }
         const reward = Math.abs(target1 - entryMid);
         const riskReward = risk > 0 ? reward / risk : 0;
         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);

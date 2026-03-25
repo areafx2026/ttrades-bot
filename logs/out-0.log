@@ -16866,3 +16866,56 @@
 2026-03-25 06:19:10: [25.03.2026, 07:19:10] INFO  Zones loaded (14 total): EURUSD:2S/1R | GBPUSD:2S/1R | USDJPY:1S/1R | USDCHF:1S/1R
 2026-03-25 06:19:10: [25.03.2026, 07:19:10] INFO  Scanning 1 symbols (0 fast / 1 slow)
 2026-03-25 06:19:10: [25.03.2026, 07:19:10] INFO  Capital.com session created
+2026-03-25 06:19:15: [25.03.2026, 07:19:15] INFO  Currency strength updated (23 pairs): Strong=EUR/USD Weak=JPY/NZD
+2026-03-25 06:19:16: [25.03.2026, 07:19:16] INFO  No setup for EURUSD yet.
+2026-03-25 06:20:00: [25.03.2026, 07:20:00] INFO  Scanning 22 symbols (0 fast / 22 slow)
+2026-03-25 06:20:00: [25.03.2026, 07:20:00] INFO  Capital.com session created
+2026-03-25 06:20:00: [25.03.2026, 07:20:00] INFO  No setup for GBPUSD yet.
+2026-03-25 06:20:01: [25.03.2026, 07:20:01] INFO  No setup for USDJPY yet.
+2026-03-25 06:20:02: [25.03.2026, 07:20:02] INFO  No setup for USDCHF yet.
+2026-03-25 06:20:03: [25.03.2026, 07:20:03] INFO  No setup for USDCAD yet.
+2026-03-25 06:20:03: [25.03.2026, 07:20:03] INFO  No setup for AUDUSD yet.
+2026-03-25 06:20:04: [25.03.2026, 07:20:04] INFO  No setup for NZDUSD yet.
+2026-03-25 06:20:05: [25.03.2026, 07:20:05] INFO  No setup for EURGBP yet.
+2026-03-25 06:20:06: [25.03.2026, 07:20:06] INFO  No setup for EURJPY yet.
+2026-03-25 06:20:06: [25.03.2026, 07:20:06] INFO  No setup for EURCHF yet.
+2026-03-25 06:20:07: [25.03.2026, 07:20:07] INFO  No setup for EURAUD yet.
+2026-03-25 06:20:08: [25.03.2026, 07:20:08] INFO  No setup for EURCAD yet.
+2026-03-25 06:20:09: [25.03.2026, 07:20:09] INFO  No setup for GBPNZD yet.
+2026-03-25 06:20:09: [25.03.2026, 07:20:09] INFO  No setup for GBPJPY yet.
+2026-03-25 06:20:10: [25.03.2026, 07:20:10] INFO  No setup for AUDJPY yet.
+2026-03-25 06:20:11: [25.03.2026, 07:20:11] INFO  No setup for CHFJPY yet.
+2026-03-25 06:20:12: [25.03.2026, 07:20:12] INFO  No setup for GBPCHF yet.
+2026-03-25 06:20:12: [25.03.2026, 07:20:12] INFO  No setup for AUDNZD yet.
+2026-03-25 06:20:13: [25.03.2026, 07:20:13] INFO  No setup for AUDCAD yet.
+2026-03-25 06:20:14: [25.03.2026, 07:20:14] INFO  No setup for CADJPY yet.
+2026-03-25 06:20:15: [25.03.2026, 07:20:15] INFO  No setup for GBPCAD yet.
+2026-03-25 06:20:15: [25.03.2026, 07:20:15] INFO  No setup for GBPAUD yet.
+2026-03-25 06:20:16: [25.03.2026, 07:20:16] INFO  No setup for EURNZD yet.
+2026-03-25 06:30:00: [25.03.2026, 07:30:00] INFO  Scanning 2 symbols (0 fast / 2 slow)
+2026-03-25 06:30:00: [25.03.2026, 07:30:00] INFO  Capital.com session created
+2026-03-25 06:30:01: [25.03.2026, 07:30:01] INFO  No setup for EURUSD yet.
+2026-03-25 06:30:02: [25.03.2026, 07:30:02] INFO  No setup for GBPUSD yet.
+2026-03-25 06:31:00: [25.03.2026, 07:31:00] INFO  Scanning 21 symbols (0 fast / 21 slow)
+2026-03-25 06:31:00: [25.03.2026, 07:31:00] INFO  Capital.com session created
+2026-03-25 06:31:01: [25.03.2026, 07:31:01] INFO  No setup for USDJPY yet.
+2026-03-25 06:31:02: [25.03.2026, 07:31:02] INFO  No setup for USDCHF yet.
+2026-03-25 06:31:02: [25.03.2026, 07:31:02] INFO  No setup for USDCAD yet.
+2026-03-25 06:31:03: [25.03.2026, 07:31:03] INFO  No setup for AUDUSD yet.
+2026-03-25 06:31:04: [25.03.2026, 07:31:04] INFO  No setup for NZDUSD yet.
+2026-03-25 06:31:05: [25.03.2026, 07:31:05] INFO  No setup for EURGBP yet.
+2026-03-25 06:31:05: [25.03.2026, 07:31:05] INFO  No setup for EURJPY yet.
+2026-03-25 06:31:06: [25.03.2026, 07:31:06] INFO  No setup for EURCHF yet.
+2026-03-25 06:31:07: [25.03.2026, 07:31:07] INFO  No setup for EURAUD yet.
+2026-03-25 06:31:08: [25.03.2026, 07:31:08] INFO  No setup for EURCAD yet.
+2026-03-25 06:31:08: [25.03.2026, 07:31:08] INFO  No setup for GBPNZD yet.
+2026-03-25 06:31:09: [25.03.2026, 07:31:09] INFO  No setup for GBPJPY yet.
+2026-03-25 06:31:10: [25.03.2026, 07:31:10] INFO  No setup for AUDJPY yet.
+2026-03-25 06:31:11: [25.03.2026, 07:31:11] INFO  No setup for CHFJPY yet.
+2026-03-25 06:31:11: [25.03.2026, 07:31:11] INFO  No setup for GBPCHF yet.
+2026-03-25 06:31:12: [25.03.2026, 07:31:12] INFO  No setup for AUDNZD yet.
+2026-03-25 06:31:13: [25.03.2026, 07:31:13] INFO  No setup for AUDCAD yet.
+2026-03-25 06:31:14: [25.03.2026, 07:31:14] INFO  No setup for CADJPY yet.
+2026-03-25 06:31:14: [25.03.2026, 07:31:14] INFO  No setup for GBPCAD yet.
+2026-03-25 06:31:15: [25.03.2026, 07:31:15] INFO  No setup for GBPAUD yet.
+2026-03-25 06:31:16: [25.03.2026, 07:31:16] INFO  No setup for EURNZD yet.

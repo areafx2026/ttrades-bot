@@ -7,6 +7,7 @@
 
 // Wochentage
 - Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+- Kein Trade zwischen 08:00 Uhr und 08:30 Uhr (London Open Volatilität)
 
 // Allgemein
 - Maximale Anzahl gleichzeitig offener Trades: 3
