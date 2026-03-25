@@ -57,9 +57,15 @@ export async function analyzeTradesWithAI(): Promise<string | null> {
     `--- Trade ${i + 1} ---\n${formatTrade(t)}`
   ).join('\n\n');
 
-  const prompt = `Du bist ein erfahrener Forex-Trader und Trading-Coach der das TTrades Fractal Model (TTFM) analysiert.
+  const prompt = `Du analysierst die Trades eines vollautomatischen Forex-Trading-Bots (TTrades Fractal Model / TTFM).
+Es gibt keinen menschlichen Trader - alle Trades werden algorithmisch ausgefuehrt.
+Bewerte ausschliesslich ob der Bot-Algorithmus korrekt funktioniert hat, nicht menschliches Verhalten.
 
-Du erhältst die Trades des heutigen Handelstages und sollst eine ehrliche, konstruktive Analyse auf Deutsch liefern.
+## Wichtige Hinweise:
+- Kurze Haltezeiten sind KEIN Zeichen von Impulsivitaet - sie entstehen durch Bot-Bugs (z.B. SL/TP zu nah, Size-Fehler)
+- Regelwerk-Verletzungen bedeuten dass ein Filter im Code fehlt oder versagt hat, nicht Disziplinlosigkeit
+- Analysiere ob vorhandene Filter (Currency Strength, S/R Zonen, Entry Distance, TP/D1 Distance) gegriffen haben
+- Wenn ein Filter haette greifen sollen aber nicht hat, ist das ein Code-Problem
 
 ## Heutige Trades:
 ${tradeDetails}
@@ -70,17 +76,17 @@ ${currentRules}
 ## Deine Aufgabe:
 
 Analysiere jeden Trade nach diesen Kriterien:
-1. **Struktur-Analyse**: War die Candle-Nummerierung (C2/C3/C4) korrekt erkannt?
-2. **Entry-Timing**: War der Entry zu früh (vor CISD-Bestätigung) oder zu spät?
-3. **Stop-Abstand**: War der Stop zu eng für das jeweilige Pair und den Timeframe?
-4. **Daily Bias**: Passte der Daily Bias zur übergeordneten Struktur?
-5. **Marktbedingungen**: Gab es bekannte News-Ereignisse oder ungewöhnliche Volatilität?
+1. **Signal-Qualitaet**: War das Setup gueltig? (Daily Bias, 4H Trend, H1 Entry alle aligned?)
+2. **Filter-Check**: Welche Filter haben gegriffen, welche haetten greifen sollen aber nicht haben?
+3. **Stop-Abstand**: War der Stop sinnvoll fuer das Pair und den Timeframe?
+4. **Size-Berechnung**: War die Positionsgroesse korrekt (max 5000 Points)?
+5. **Ergebnis-Analyse**: Bei Loss - haette ein bestehender Filter den Trade verhindert?
 
 Dann:
-6. **Regelwerk-Vorschlag**: Wenn ein Trade-Problem durch eine neue Regel verhindert werden könnte, formuliere einen konkreten Vorschlag.
-   Format: // KI-Vorschlag [${today}]: [Regel] — wegen [Trade-Problem]
+6. **Code-Vorschlag**: Wenn ein Trade durch einen neuen Filter haette verhindert werden koennen:
+   Format: // KI-Vorschlag [${today}]: [Filter/Regel] - wegen [technischem Problem beim Trade]
 
-Sei direkt und ehrlich. Maximal 500 Wörter.`;
+Sei direkt und technisch. Maximal 500 Woerter.`;
 
   try {
     logger.info('Sending trades to Claude for analysis...');
