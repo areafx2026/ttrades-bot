@@ -18262,3 +18262,19 @@
 2026-03-25 17:24:15: [25.03.2026, 18:24:15] INFO  No setup for CADJPY yet.
 2026-03-25 17:24:16: [25.03.2026, 18:24:16] INFO  No setup for GBPCAD yet.
 2026-03-25 17:24:17: [25.03.2026, 18:24:17] INFO  No setup for GBPAUD yet.
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Signal cache loaded: 0 active entries
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  TTrades Fractal Model Bot started
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Monitoring: EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURCHF, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, CHFJPY, GBPCHF, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Paper trading: ENABLED
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Fast poll: 3 min (active signals) | Slow poll: 10 min (others)
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Rule loaded: [NYSE_BUFFER] Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Rule loaded: [WEEKEND_BLOCK] Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  4 rules loaded from rules.txt
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Zones loaded (14 total): EURUSD:2S/1R | GBPUSD:2S/1R | USDJPY:1S/1R | USDCHF:1S/1R
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  SQLite database initialized: /var/www/ttrades-bot/data/trades.db
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Scanning 1 symbols (0 fast / 1 slow)
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Dashboard running at http://0.0.0.0:3001
+2026-03-25 17:34:30: [25.03.2026, 18:34:30] INFO  Capital.com session created
+2026-03-25 17:34:35: [25.03.2026, 18:34:35] INFO  Currency strength updated (23 pairs): Strong=NZD/AUD Weak=JPY/CAD
+2026-03-25 17:34:36: [25.03.2026, 18:34:36] INFO  No setup for EURUSD yet.
