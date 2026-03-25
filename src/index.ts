@@ -9,6 +9,8 @@ import { isMarketOpen } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
+import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
+import { startDashboard } from './dashboard';
 import { logger } from './logger';
 import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
 import { checkZone, initZones } from './zoneManager';
@@ -19,7 +21,7 @@ const SYMBOLS = [
   'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY', 'EURCHF',
   'EURAUD', 'EURCAD', 'GBPNZD', 'GBPJPY', 'AUDJPY',
   'CHFJPY', 'GBPCHF', 'AUDNZD', 'AUDCAD', 'CADJPY',
-  'GBPCAD', 'GBPAUD', 'EURNZD'
+  'GBPCAD', 'GBPAUD'
 ];
 
 const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
@@ -29,7 +31,7 @@ let marketWasOpen = true;
 const activeSymbols = new Set<string>();
 // Track last scan time per symbol
 const lastScanned = new Map<string, number>();
-const FAST_INTERVAL_MS = 1  * 60 * 1000; // 1 minute
+const FAST_INTERVAL_MS = 3  * 60 * 1000; // 3 minutes
 const SLOW_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 function shouldScan(symbol: string): boolean {
@@ -68,6 +70,16 @@ async function syncClosedTrades(): Promise<void> {
       'CST': capital.cst,
       'X-SECURITY-TOKEN': capital.securityToken,
     };
+
+    // Update MAE/MFE for open trades via price ticks
+    const dbOpenTrades = getDbOpenTrades();
+    for (const dbTrade of dbOpenTrades) {
+      try {
+        const priceRes = await axios.get(`${baseURL}/markets/${dbTrade.symbol}`, { headers });
+        const mid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
+        recordPriceTick(dbTrade.id, mid);
+      } catch { /* skip */ }
+    }
 
     const posRes = await axios.get(`${baseURL}/positions`, { headers });
     const openDealIds = new Set<string>(
@@ -304,9 +316,9 @@ async function runScan() {
   }
 }
 
-// ─── Cron: every minute ────────────────────────────────────────────────────
+// ─── Cron: every 3 minutes ────────────────────────────────────────────────────
 
-cron.schedule('* * * * *', () => {
+cron.schedule('*/3 * * * *', () => {
   runScan().catch(err => logger.error('Cron error:', err));
 });
 
@@ -337,6 +349,8 @@ logger.info('Fast poll: 3 min (active signals) | Slow poll: 10 min (others)');
 
 loadRules();
 initZones();
+getDb(); // init SQLite
+startDashboard();
 
 // Seed open trades as active symbols on startup
 const openTrades = loadTrades().filter(t => !t.closedAt);

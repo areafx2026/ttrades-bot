@@ -1629,3 +1629,4 @@
 2026-03-25 06:38:13:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
 2026-03-25 06:38:13:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
 2026-03-25 06:38:13:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:42:13: [25.03.2026, 07:42:13] WARN  Rule nicht erkannt: Kein Trade zwischen 08:00 Uhr und 08:30 Uhr (London Open Volatilit�t)

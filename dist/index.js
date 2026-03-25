@@ -14,6 +14,8 @@ const marketHours_1 = require("./marketHours");
 const rulesEngine_1 = require("./rulesEngine");
 const tradeLogger_1 = require("./tradeLogger");
 const reporter_1 = require("./reporter");
+const database_1 = require("./database");
+const dashboard_1 = require("./dashboard");
 const logger_1 = require("./logger");
 const currencyStrength_1 = require("./currencyStrength");
 const zoneManager_1 = require("./zoneManager");
@@ -23,7 +25,7 @@ const SYMBOLS = [
     'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY', 'EURCHF',
     'EURAUD', 'EURCAD', 'GBPNZD', 'GBPJPY', 'AUDJPY',
     'CHFJPY', 'GBPCHF', 'AUDNZD', 'AUDCAD', 'CADJPY',
-    'GBPCAD', 'GBPAUD', 'EURNZD'
+    'GBPCAD', 'GBPAUD'
 ];
 const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
 let marketWasOpen = true;
@@ -31,7 +33,7 @@ let marketWasOpen = true;
 const activeSymbols = new Set();
 // Track last scan time per symbol
 const lastScanned = new Map();
-const FAST_INTERVAL_MS = 1 * 60 * 1000; // 1 minute
+const FAST_INTERVAL_MS = 3 * 60 * 1000; // 3 minutes
 const SLOW_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 function shouldScan(symbol) {
     const now = Date.now();
@@ -55,6 +57,16 @@ async function syncClosedTrades() {
             'CST': capital.cst,
             'X-SECURITY-TOKEN': capital.securityToken,
         };
+        // Update MAE/MFE for open trades via price ticks
+        const dbOpenTrades = (0, database_1.getOpenTrades)();
+        for (const dbTrade of dbOpenTrades) {
+            try {
+                const priceRes = await axios_1.default.get(`${baseURL}/markets/${dbTrade.symbol}`, { headers });
+                const mid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
+                (0, database_1.recordPriceTick)(dbTrade.id, mid);
+            }
+            catch { /* skip */ }
+        }
         const posRes = await axios_1.default.get(`${baseURL}/positions`, { headers });
         const openDealIds = new Set((posRes.data.positions || []).map((p) => p.position.dealId));
         for (const trade of openTrades) {
@@ -238,8 +250,8 @@ async function runScan() {
         logger_1.logger.error('Scan error:', err);
     }
 }
-// ─── Cron: every minute ────────────────────────────────────────────────────
-node_cron_1.default.schedule('* * * * *', () => {
+// ─── Cron: every 3 minutes ────────────────────────────────────────────────────
+node_cron_1.default.schedule('*/3 * * * *', () => {
     runScan().catch(err => logger_1.logger.error('Cron error:', err));
 });
 // Daily report at 08:00 UTC (09:00 MEZ)
@@ -259,6 +271,8 @@ logger_1.logger.info(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`)
 logger_1.logger.info('Fast poll: 3 min (active signals) | Slow poll: 10 min (others)');
 (0, rulesEngine_1.loadRules)();
 (0, zoneManager_1.initZones)();
+(0, database_1.getDb)(); // init SQLite
+(0, dashboard_1.startDashboard)();
 // Seed open trades as active symbols on startup
 const openTrades = (0, tradeLogger_1.loadTrades)().filter(t => !t.closedAt);
 for (const t of openTrades)

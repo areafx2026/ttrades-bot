@@ -94,55 +94,57 @@ export class FractalAnalyzer {
     return null;
   }
 
-  // STEP 2: 4H CISD Confirmation
+  // STEP 2: 4H Trend Confirmation
+  // 4H trend must align with Daily bias:
+  // LONG: 4H must show bullish structure (HH + HL = higher highs and higher lows)
+  // SHORT: 4H must show bearish structure (LH + LL = lower highs and lower lows)
   private getH4Confirmation(bias: SignalType): { confirmed: boolean; level: number; description: string } | null {
     const candles = this.h4;
-    if (candles.length < 5) return null;
+    if (candles.length < 10) return null;
 
     const dec = this.decimals();
-    const last3 = candles.slice(-3);
-    const [prev2, prev1, last] = last3;
 
-    if (bias === 'LONG') {
-      const swingHigh = Math.max(prev2.high, prev1.high);
-      if (last.close > swingHigh && last.close > last.open) {
-        return { confirmed: true, level: swingHigh, description: `4H CISD: bullish close above ${swingHigh.toFixed(dec)} after sweep` };
+    // Find last 3 swing highs and lows from 4H candles
+    // A swing high: candle with higher high than both neighbors
+    // A swing low: candle with lower low than both neighbors
+    const swingHighs: number[] = [];
+    const swingLows: number[] = [];
+
+    for (let i = 1; i < candles.length - 1; i++) {
+      if (candles[i].high > candles[i-1].high && candles[i].high > candles[i+1].high) {
+        swingHighs.push(candles[i].high);
       }
-      // Strict bullish engulfing:
-      // - prev2 AND prev1 must both be bearish (2 confirmed bearish candles before)
-      // - last must be bullish and fully engulf prev1 body
-      // - last body must be at least 60% of its range (no doji)
-      const prev2Bearish = prev2.close < prev2.open;
-      const prev1Bearish = prev1.close < prev1.open;
-      const lastBullish  = last.close > last.open;
-      const lastBody     = last.close - last.open;
-      const lastRange    = last.high - last.low;
-      const fullyEngulfs = last.open < prev1.close && last.close > prev1.open;
-      const strongBody   = lastRange > 0 && lastBody / lastRange > 0.6;
-      if (prev2Bearish && prev1Bearish && lastBullish && fullyEngulfs && strongBody) {
-        return { confirmed: true, level: prev1.low, description: `4H Bullish Engulfing at ${prev1.low.toFixed(dec)} (2-candle setup)` };
+      if (candles[i].low < candles[i-1].low && candles[i].low < candles[i+1].low) {
+        swingLows.push(candles[i].low);
       }
     }
 
-    if (bias === 'SHORT') {
-      const swingLow = Math.min(prev2.low, prev1.low);
-      if (last.close < swingLow && last.close < last.open) {
-        return { confirmed: true, level: swingLow, description: `4H CISD: bearish close below ${swingLow.toFixed(dec)} after sweep` };
-      }
-      // Strict bearish engulfing:
-      // - prev2 AND prev1 must both be bullish (2 confirmed bullish candles before)
-      // - last must be bearish and fully engulf prev1 body
-      // - last body must be at least 60% of its range (no doji)
-      const prev2Bullish = prev2.close > prev2.open;
-      const prev1Bullish = prev1.close > prev1.open;
-      const lastBearish  = last.close < last.open;
-      const lastBody     = last.open - last.close;
-      const lastRange    = last.high - last.low;
-      const fullyEngulfs = last.open > prev1.close && last.close < prev1.open;
-      const strongBody   = lastRange > 0 && lastBody / lastRange > 0.6;
-      if (prev2Bullish && prev1Bullish && lastBearish && fullyEngulfs && strongBody) {
-        return { confirmed: true, level: prev1.high, description: `4H Bearish Engulfing at ${prev1.high.toFixed(dec)} (2-candle setup)` };
-      }
+    // Need at least 2 swing highs and 2 swing lows to determine trend
+    if (swingHighs.length < 2 || swingLows.length < 2) return null;
+
+    const lastSwingHigh = swingHighs[swingHighs.length - 1];
+    const prevSwingHigh = swingHighs[swingHighs.length - 2];
+    const lastSwingLow  = swingLows[swingLows.length - 1];
+    const prevSwingLow  = swingLows[swingLows.length - 2];
+
+    const h4Bullish = lastSwingHigh > prevSwingHigh && lastSwingLow > prevSwingLow;
+    const h4Bearish = lastSwingHigh < prevSwingHigh && lastSwingLow < prevSwingLow;
+
+    // Use last swing low/high as the key level for SL reference
+    if (bias === 'LONG' && h4Bullish) {
+      return {
+        confirmed: true,
+        level: lastSwingLow,
+        description: `4H Bullish structure: HH ${lastSwingHigh.toFixed(dec)} > ${prevSwingHigh.toFixed(dec)}, HL ${lastSwingLow.toFixed(dec)} > ${prevSwingLow.toFixed(dec)}`,
+      };
+    }
+
+    if (bias === 'SHORT' && h4Bearish) {
+      return {
+        confirmed: true,
+        level: lastSwingHigh,
+        description: `4H Bearish structure: LH ${lastSwingHigh.toFixed(dec)} < ${prevSwingHigh.toFixed(dec)}, LL ${lastSwingLow.toFixed(dec)} < ${prevSwingLow.toFixed(dec)}`,
+      };
     }
 
     return null;
