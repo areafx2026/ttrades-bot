@@ -29,7 +29,7 @@ let marketWasOpen = true;
 const activeSymbols = new Set<string>();
 // Track last scan time per symbol
 const lastScanned = new Map<string, number>();
-const FAST_INTERVAL_MS = 3  * 60 * 1000; // 3 minutes
+const FAST_INTERVAL_MS = 1  * 60 * 1000; // 1 minute
 const SLOW_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 
 function shouldScan(symbol: string): boolean {
@@ -304,9 +304,9 @@ async function runScan() {
   }
 }
 
-// ─── Cron: every 3 minutes ────────────────────────────────────────────────────
+// ─── Cron: every minute ────────────────────────────────────────────────────
 
-cron.schedule('*/3 * * * *', () => {
+cron.schedule('* * * * *', () => {
   runScan().catch(err => logger.error('Cron error:', err));
 });
 

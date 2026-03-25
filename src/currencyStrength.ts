@@ -16,6 +16,7 @@ const STRENGTH_PAIRS: { epic: string; base: string; quote: string }[] = [
   { epic: 'EURCHF', base: 'EUR', quote: 'CHF' },
   { epic: 'EURCAD', base: 'EUR', quote: 'CAD' },
   { epic: 'EURAUD', base: 'EUR', quote: 'AUD' },
+  { epic: 'EURNZD', base: 'EUR', quote: 'NZD' },
   { epic: 'GBPJPY', base: 'GBP', quote: 'JPY' },
   { epic: 'GBPCHF', base: 'GBP', quote: 'CHF' },
   { epic: 'GBPAUD', base: 'GBP', quote: 'AUD' },
