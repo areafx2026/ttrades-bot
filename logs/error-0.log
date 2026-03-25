@@ -1389,3 +1389,243 @@
 2026-03-24 01:36:01: [24.03.2026, 02:36:01] WARN  Trade skipped for EURCAD: EURCAD: Preis bereits unter TP — Trade übersprungen
 2026-03-24 06:06:06: [24.03.2026, 07:06:06] WARN  Trade skipped for EURGBP: EURGBP: Preis bereits unter TP — Trade übersprungen
 2026-03-24 13:51:16: [24.03.2026, 14:51:16] WARN  Trade skipped for GBPCAD: Position bereits offen für GBPCAD — übersprungen.
+2026-03-25 06:38:09: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:09:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:09:               ^
+2026-03-25 06:38:09: 
+2026-03-25 06:38:09: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:09:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:09:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:09:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:09:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:09:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:09:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:09:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:09:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:09:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:09:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:10: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:10:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:10:               ^
+2026-03-25 06:38:10: 
+2026-03-25 06:38:10: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:10:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:10:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:10:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:10:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:10:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:10:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:10:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:10:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:10:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:10:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:10: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:10:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:10:               ^
+2026-03-25 06:38:10: 
+2026-03-25 06:38:10: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:10:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:10:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:10:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:10:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:10:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:10:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:10:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:10:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:10:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:10:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:10: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:10:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:10:               ^
+2026-03-25 06:38:10: 
+2026-03-25 06:38:10: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:10:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:10:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:10:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:10:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:10:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:10:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:10:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:10:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:10:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:10:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:10: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:10:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:10:               ^
+2026-03-25 06:38:10: 
+2026-03-25 06:38:10: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:10:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:10:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:10:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:10:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:10:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:10:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:10:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:10:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:10:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:10:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:11: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:11:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:11:               ^
+2026-03-25 06:38:11: 
+2026-03-25 06:38:11: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:11:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:11:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:11:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:11:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:11:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:11:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:11:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:11:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:11:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:11:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:11: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:11:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:11:               ^
+2026-03-25 06:38:11: 
+2026-03-25 06:38:11: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:11:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:11:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:11:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:11:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:11:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:11:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:11:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:11:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:11:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:11:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:11: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:11:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:11:               ^
+2026-03-25 06:38:11: 
+2026-03-25 06:38:11: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:11:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:11:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:11:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:11:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:11:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:11:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:11:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:11:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:11:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:11:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:12: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:12:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:12:               ^
+2026-03-25 06:38:12: 
+2026-03-25 06:38:12: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:12:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:12:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:12:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:12:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:12:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:12:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:12:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:12:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:12:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:12:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:12: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:12:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:12:               ^
+2026-03-25 06:38:12: 
+2026-03-25 06:38:12: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:12:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:12:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:12:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:12:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:12:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:12:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:12:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:12:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:12:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:12:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:12: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:12:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:12:               ^
+2026-03-25 06:38:12: 
+2026-03-25 06:38:12: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:12:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:12:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:12:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:12:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:12:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:12:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:12:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:12:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:12:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:12:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:12: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:12:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:12:               ^
+2026-03-25 06:38:12: 
+2026-03-25 06:38:12: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:12:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:12:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:12:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:12:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:12:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:12:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:12:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:12:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:12:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:12:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:13: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:13:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:13:               ^
+2026-03-25 06:38:13: 
+2026-03-25 06:38:13: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:13:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:13:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:13:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:13:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:13:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:13:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:13:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:13:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:13:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:13:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:13: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:13:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:13:               ^
+2026-03-25 06:38:13: 
+2026-03-25 06:38:13: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:13:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:13:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:13:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:13:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:13:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:13:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:13:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:13:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:13:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:13:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:13: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:13:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:13:               ^
+2026-03-25 06:38:13: 
+2026-03-25 06:38:13: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:13:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:13:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:13:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:13:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:13:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:13:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:13:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:13:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:13:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:13:     at require (node:internal/modules/helpers:147:16)
+2026-03-25 06:38:13: /var/www/ttrades-bot/dist/fractalAnalyzer.js:214
+2026-03-25 06:38:13:         const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+2026-03-25 06:38:13:               ^
+2026-03-25 06:38:13: 
+2026-03-25 06:38:13: SyntaxError: Identifier 'recentHighs' has already been declared
+2026-03-25 06:38:13:     at wrapSafe (node:internal/modules/cjs/loader:1637:18)
+2026-03-25 06:38:13:     at Module._compile (node:internal/modules/cjs/loader:1679:20)
+2026-03-25 06:38:13:     at Object..js (node:internal/modules/cjs/loader:1838:10)
+2026-03-25 06:38:13:     at Module.load (node:internal/modules/cjs/loader:1441:32)
+2026-03-25 06:38:13:     at Function._load (node:internal/modules/cjs/loader:1263:12)
+2026-03-25 06:38:13:     at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+2026-03-25 06:38:13:     at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+2026-03-25 06:38:13:     at Module.<anonymous> (node:internal/modules/cjs/loader:1463:12)
+2026-03-25 06:38:13:     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:101:39)
+2026-03-25 06:38:13:     at require (node:internal/modules/helpers:147:16)

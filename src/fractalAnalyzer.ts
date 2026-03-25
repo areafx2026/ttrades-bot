@@ -242,10 +242,10 @@ export class FractalAnalyzer {
 
     // Filter 1: TP must be at least 20 pips away from recent D1 High/Low
     // to ensure there is enough room to run
-    const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
-    const recentLows  = this.daily.slice(-10).map(c => c.low).sort((a, b) => a - b);
-    const nearestD1High = recentHighs[0];
-    const nearestD1Low  = recentLows[0];
+    const d1Highs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
+    const d1Lows  = this.daily.slice(-10).map(c => c.low).sort((a, b) => a - b);
+    const nearestD1High = d1Highs[0];
+    const nearestD1Low  = d1Lows[0];
     const minTPBuffer = pip * 20;
 
     if (bias === 'LONG') {
