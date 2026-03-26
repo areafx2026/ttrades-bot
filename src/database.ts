@@ -26,31 +26,49 @@ function initSchema(): void {
       symbol TEXT NOT NULL,
       type TEXT NOT NULL,
       phase TEXT NOT NULL,
+      -- Entry details
       entry_zone_low REAL NOT NULL,
       entry_zone_high REAL NOT NULL,
       entry_price REAL,
+      entry_distance_pips REAL,
       stop_loss REAL NOT NULL,
+      stop_pips REAL,
       target1 REAL NOT NULL,
       target2 REAL NOT NULL,
       risk_reward REAL NOT NULL,
       size_points INTEGER,
-      daily_bias TEXT,
-      h4_confirmation TEXT,
-      h1_setup TEXT,
-      currency_strength TEXT,
-      zone_note TEXT,
-      strategy_version TEXT,
+      -- Session & timing
+      session TEXT,
+      weekday INTEGER,
       opened_at TEXT NOT NULL,
       closed_at TEXT,
+      hold_duration_min REAL,
+      -- Signal context
+      daily_bias TEXT,
+      h4_confirmation TEXT,
+      h1_context TEXT,
+      m15_setup TEXT,
+      currency_strength TEXT,
+      strength_score REAL,
+      zone_note TEXT,
+      zone_status TEXT,
+      fvg_present INTEGER,
+      exhaustion_detected INTEGER,
+      -- Outcome
       close_price REAL,
       close_reason TEXT,
       pnl_pips REAL,
       pnl_eur REAL,
       result TEXT,
+      -- MAE/MFE
       mae_pips REAL,
       mfe_pips REAL,
       mae_price REAL,
       mfe_price REAL,
+      mae_pct_of_sl REAL,
+      mfe_pct_of_tp REAL,
+      -- Meta
+      strategy_version TEXT,
       notes TEXT
     );
 
@@ -87,31 +105,49 @@ export interface DbTrade {
   symbol: string;
   type: 'LONG' | 'SHORT';
   phase: string;
+  // Entry
   entry_zone_low: number;
   entry_zone_high: number;
   entry_price?: number;
+  entry_distance_pips?: number;
   stop_loss: number;
+  stop_pips?: number;
   target1: number;
   target2: number;
   risk_reward: number;
   size_points?: number;
-  daily_bias?: string;
-  h4_confirmation?: string;
-  h1_setup?: string;
-  currency_strength?: string;
-  zone_note?: string;
-  strategy_version?: string;
+  // Session
+  session?: string;
+  weekday?: number;
   opened_at: string;
   closed_at?: string;
+  hold_duration_min?: number;
+  // Signal context
+  daily_bias?: string;
+  h4_confirmation?: string;
+  h1_context?: string;
+  m15_setup?: string;
+  currency_strength?: string;
+  strength_score?: number;
+  zone_note?: string;
+  zone_status?: string;
+  fvg_present?: number;
+  exhaustion_detected?: number;
+  // Outcome
   close_price?: number;
   close_reason?: string;
   pnl_pips?: number;
   pnl_eur?: number;
   result?: string;
+  // MAE/MFE
   mae_pips?: number;
   mfe_pips?: number;
   mae_price?: number;
   mfe_price?: number;
+  mae_pct_of_sl?: number;
+  mfe_pct_of_tp?: number;
+  // Meta
+  strategy_version?: string;
   notes?: string;
 }
 
@@ -119,15 +155,23 @@ export function insertTrade(trade: DbTrade): void {
   const db = getDb();
   db.prepare(`
     INSERT OR REPLACE INTO trades (
-      id, symbol, type, phase, entry_zone_low, entry_zone_high, entry_price,
-      stop_loss, target1, target2, risk_reward, size_points,
-      daily_bias, h4_confirmation, h1_setup, currency_strength, zone_note,
-      strategy_version, opened_at
+      id, symbol, type, phase,
+      entry_zone_low, entry_zone_high, entry_price, entry_distance_pips,
+      stop_loss, stop_pips, target1, target2, risk_reward, size_points,
+      session, weekday, opened_at,
+      daily_bias, h4_confirmation, h1_context, m15_setup,
+      currency_strength, strength_score, zone_note, zone_status,
+      fvg_present, exhaustion_detected,
+      strategy_version
     ) VALUES (
-      @id, @symbol, @type, @phase, @entry_zone_low, @entry_zone_high, @entry_price,
-      @stop_loss, @target1, @target2, @risk_reward, @size_points,
-      @daily_bias, @h4_confirmation, @h1_setup, @currency_strength, @zone_note,
-      @strategy_version, @opened_at
+      @id, @symbol, @type, @phase,
+      @entry_zone_low, @entry_zone_high, @entry_price, @entry_distance_pips,
+      @stop_loss, @stop_pips, @target1, @target2, @risk_reward, @size_points,
+      @session, @weekday, @opened_at,
+      @daily_bias, @h4_confirmation, @h1_context, @m15_setup,
+      @currency_strength, @strength_score, @zone_note, @zone_status,
+      @fvg_present, @exhaustion_detected,
+      @strategy_version
     )
   `).run(trade);
 }
@@ -142,6 +186,28 @@ export function closeTrade(
   result: string
 ): void {
   const db = getDb();
+  const trade = db.prepare('SELECT * FROM trades WHERE id = ?').get(id) as DbTrade | undefined;
+
+  let holdDurationMin: number | null = null;
+  let maePctOfSl: number | null = null;
+  let mfePctOfTp: number | null = null;
+
+  if (trade) {
+    const openMs  = new Date(trade.opened_at).getTime();
+    const closeMs = new Date(closedAt).getTime();
+    holdDurationMin = Math.round((closeMs - openMs) / 60000);
+
+    const entryMid = (trade.entry_zone_low + trade.entry_zone_high) / 2;
+    const slDist = Math.abs(entryMid - trade.stop_loss);
+    const tpDist = Math.abs(trade.target1 - entryMid);
+    if (trade.mae_pips != null && slDist > 0) {
+      maePctOfSl = Math.round(Math.abs(trade.mae_pips) / (slDist / (trade.symbol.includes('JPY') ? 0.01 : 0.0001)) * 100);
+    }
+    if (trade.mfe_pips != null && tpDist > 0) {
+      mfePctOfTp = Math.round(trade.mfe_pips / (tpDist / (trade.symbol.includes('JPY') ? 0.01 : 0.0001)) * 100);
+    }
+  }
+
   db.prepare(`
     UPDATE trades SET
       closed_at = @closedAt,
@@ -149,9 +215,12 @@ export function closeTrade(
       close_reason = @closeReason,
       pnl_pips = @pnlPips,
       pnl_eur = @pnlEur,
-      result = @result
+      result = @result,
+      hold_duration_min = @holdDurationMin,
+      mae_pct_of_sl = @maePctOfSl,
+      mfe_pct_of_tp = @mfePctOfTp
     WHERE id = @id
-  `).run({ id, closedAt, closePrice, closeReason, pnlPips, pnlEur, result });
+  `).run({ id, closedAt, closePrice, closeReason, pnlPips, pnlEur, result, holdDurationMin, maePctOfSl, mfePctOfTp });
 }
 
 export function updateMAEMFE(id: string, maePips: number, mfePips: number, maePrice: number, mfePrice: number): void {

@@ -122,6 +122,22 @@ async function syncClosedTrades(): Promise<void> {
       const closed = logClosedTrade(trade.dealId, closePrice, closedAt);
       savePineScript();
 
+      // Update SQLite DB with close data
+      if (closed) {
+        try {
+          const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
+          closeTrade(
+            trade.dealId,
+            closePrice,
+            closedAt,
+            'SL/TP/Market',
+            closed.pnlPips ?? 0,
+            closed.pnlEUR ?? 0,
+            closed.result ?? 'BREAKEVEN'
+          );
+        } catch (dbErr) { logger.error('DB close error:', dbErr); }
+      }
+
       // Remove from active symbols
       activeSymbols.delete(trade.symbol);
 
@@ -212,6 +228,39 @@ async function analyzeSymbol(
         logger.info(`Trade opened for ${symbol}: ${result.dealId}`);
         logOpenTrade(signal, result.dealId);
         savePineScript();
+
+        // Insert full signal context into SQLite DB
+        try {
+          const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
+          const entryMid2 = (signal.entryZone[0] + signal.entryZone[1]) / 2;
+          const stopPips2 = Math.abs(entryMid2 - signal.stopLoss) / pip;
+          const entryDistPips = Math.abs(signal.currentPrice - entryMid2) / pip;
+          const openedDate = new Date();
+          insertTrade({
+            id: result.dealId!,
+            symbol: signal.symbol,
+            type: signal.type,
+            phase: signal.phase,
+            entry_zone_low: signal.entryZone[0],
+            entry_zone_high: signal.entryZone[1],
+            entry_price: signal.currentPrice,
+            entry_distance_pips: Math.round(entryDistPips * 10) / 10,
+            stop_loss: signal.stopLoss,
+            stop_pips: Math.round(stopPips2 * 10) / 10,
+            target1: signal.target1,
+            target2: signal.target2,
+            risk_reward: Math.round(signal.riskReward * 100) / 100,
+            session: getActiveSession() ?? 'unknown',
+            weekday: openedDate.getUTCDay(),
+            opened_at: openedDate.toISOString(),
+            daily_bias: signal.dailyBias,
+            h4_confirmation: signal.h4Confirmation,
+            h1_context: signal.h1Context,
+            m15_setup: signal.m15Setup,
+            fvg_present: signal.fvgLevel != null ? 1 : 0,
+            strategy_version: getCurrentStrategyVersion(),
+          });
+        } catch (dbErr) { logger.error('DB insert error:', dbErr); }
         const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
         await telegram.sendMessage(
           `✅ <b>Trade geöffnet — ${symbol}</b>\n` +

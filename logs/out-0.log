@@ -21444,3 +21444,96 @@
 2026-03-26 19:00:15: [26.03.2026, 20:00:15] INFO  No setup for CADJPY yet.
 2026-03-26 19:00:16: [26.03.2026, 20:00:16] INFO  No setup for GBPCAD yet.
 2026-03-26 19:00:17: [26.03.2026, 20:00:17] INFO  No setup for GBPAUD yet.
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Signal cache loaded: 0 active entries
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  TTrades Fractal Model Bot started
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Monitoring: EURUSD, GBPUSD, USDJPY, USDCHF, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURCHF, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, CHFJPY, GBPCHF, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Paper trading: ENABLED
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Fast poll: 3 min (active signals) | Slow poll: 10 min (others)
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Rule loaded: [NYSE_BUFFER] Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Rule loaded: [WEEKEND_BLOCK] Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Rule loaded: [MAX_TRADES] Maximale Anzahl gleichzeitig offener Trades: 3
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  4 rules loaded from rules.txt
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Zones loaded (14 total): EURUSD:2S/1R | GBPUSD:2S/1R | USDJPY:1S/1R | USDCHF:1S/1R
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  SQLite database initialized: /var/www/ttrades-bot/data/trades.db
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Scanning 1 symbols (0 fast / 1 slow)
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Dashboard running at http://0.0.0.0:3001
+2026-03-26 19:11:45: [26.03.2026, 20:11:45] INFO  Capital.com session created
+2026-03-26 19:11:51: [26.03.2026, 20:11:51] INFO  Currency strength updated (23 pairs): Strong=USD/JPY Weak=NZD/AUD
+2026-03-26 19:11:51: [26.03.2026, 20:11:51] INFO  EURUSD: outside active session — skipping
+2026-03-26 19:12:00: [26.03.2026, 20:12:00] INFO  Scanning 14 symbols (0 fast / 14 slow)
+2026-03-26 19:12:00: [26.03.2026, 20:12:00] INFO  Capital.com session created
+2026-03-26 19:12:00: [26.03.2026, 20:12:00] INFO  GBPUSD: outside active session — skipping
+2026-03-26 19:12:00: [26.03.2026, 20:12:00] INFO  USDJPY: outside active session — skipping
+2026-03-26 19:12:01: [26.03.2026, 20:12:01] INFO  USDCHF: outside active session — skipping
+2026-03-26 19:12:01: [26.03.2026, 20:12:01] INFO  USDCAD: outside active session — skipping
+2026-03-26 19:12:01: [26.03.2026, 20:12:01] INFO  AUDUSD: outside active session — skipping
+2026-03-26 19:12:01: [26.03.2026, 20:12:01] INFO  NZDUSD: outside active session — skipping
+2026-03-26 19:12:01: [26.03.2026, 20:12:01] INFO  EURGBP: outside active session — skipping
+2026-03-26 19:12:02: [26.03.2026, 20:12:02] INFO  EURJPY: outside active session — skipping
+2026-03-26 19:12:02: [26.03.2026, 20:12:02] INFO  EURCHF: outside active session — skipping
+2026-03-26 19:12:02: [26.03.2026, 20:12:02] INFO  EURAUD: outside active session — skipping
+2026-03-26 19:12:02: [26.03.2026, 20:12:02] INFO  EURCAD: outside active session — skipping
+2026-03-26 19:12:03: [26.03.2026, 20:12:03] INFO  GBPNZD: outside active session — skipping
+2026-03-26 19:12:03: [26.03.2026, 20:12:03] INFO  GBPJPY: outside active session — skipping
+2026-03-26 19:12:03: [26.03.2026, 20:12:03] INFO  AUDJPY: outside active session — skipping
+2026-03-26 19:15:00: [26.03.2026, 20:15:00] INFO  Scanning 7 symbols (0 fast / 7 slow)
+2026-03-26 19:15:00: [26.03.2026, 20:15:00] INFO  Capital.com session created
+2026-03-26 19:15:00: [26.03.2026, 20:15:00] INFO  CHFJPY: outside active session — skipping
+2026-03-26 19:15:01: [26.03.2026, 20:15:01] INFO  GBPCHF: outside active session — skipping
+2026-03-26 19:15:01: [26.03.2026, 20:15:01] INFO  AUDNZD: outside active session — skipping
+2026-03-26 19:15:01: [26.03.2026, 20:15:01] INFO  AUDCAD: outside active session — skipping
+2026-03-26 19:15:01: [26.03.2026, 20:15:01] INFO  CADJPY: outside active session — skipping
+2026-03-26 19:15:01: [26.03.2026, 20:15:01] INFO  GBPCAD: outside active session — skipping
+2026-03-26 19:15:02: [26.03.2026, 20:15:02] INFO  GBPAUD: outside active session — skipping
+2026-03-26 19:24:00: [26.03.2026, 20:24:00] INFO  Scanning 15 symbols (0 fast / 15 slow)
+2026-03-26 19:24:01: [26.03.2026, 20:24:01] INFO  Capital.com session created
+2026-03-26 19:24:01: [26.03.2026, 20:24:01] INFO  EURUSD: outside active session — skipping
+2026-03-26 19:24:01: [26.03.2026, 20:24:01] INFO  GBPUSD: outside active session — skipping
+2026-03-26 19:24:01: [26.03.2026, 20:24:01] INFO  USDJPY: outside active session — skipping
+2026-03-26 19:24:01: [26.03.2026, 20:24:01] INFO  USDCHF: outside active session — skipping
+2026-03-26 19:24:02: [26.03.2026, 20:24:02] INFO  USDCAD: outside active session — skipping
+2026-03-26 19:24:02: [26.03.2026, 20:24:02] INFO  AUDUSD: outside active session — skipping
+2026-03-26 19:24:02: [26.03.2026, 20:24:02] INFO  NZDUSD: outside active session — skipping
+2026-03-26 19:24:02: [26.03.2026, 20:24:02] INFO  EURGBP: outside active session — skipping
+2026-03-26 19:24:02: [26.03.2026, 20:24:02] INFO  EURJPY: outside active session — skipping
+2026-03-26 19:24:03: [26.03.2026, 20:24:03] INFO  EURCHF: outside active session — skipping
+2026-03-26 19:24:03: [26.03.2026, 20:24:03] INFO  EURAUD: outside active session — skipping
+2026-03-26 19:24:03: [26.03.2026, 20:24:03] INFO  EURCAD: outside active session — skipping
+2026-03-26 19:24:03: [26.03.2026, 20:24:03] INFO  GBPNZD: outside active session — skipping
+2026-03-26 19:24:03: [26.03.2026, 20:24:03] INFO  GBPJPY: outside active session — skipping
+2026-03-26 19:24:04: [26.03.2026, 20:24:04] INFO  AUDJPY: outside active session — skipping
+2026-03-26 19:27:00: [26.03.2026, 20:27:00] INFO  Scanning 7 symbols (0 fast / 7 slow)
+2026-03-26 19:27:00: [26.03.2026, 20:27:00] INFO  Capital.com session created
+2026-03-26 19:27:00: [26.03.2026, 20:27:00] INFO  CHFJPY: outside active session — skipping
+2026-03-26 19:27:00: [26.03.2026, 20:27:00] INFO  GBPCHF: outside active session — skipping
+2026-03-26 19:27:00: [26.03.2026, 20:27:00] INFO  AUDNZD: outside active session — skipping
+2026-03-26 19:27:00: [26.03.2026, 20:27:00] INFO  AUDCAD: outside active session — skipping
+2026-03-26 19:27:01: [26.03.2026, 20:27:01] INFO  CADJPY: outside active session — skipping
+2026-03-26 19:27:01: [26.03.2026, 20:27:01] INFO  GBPCAD: outside active session — skipping
+2026-03-26 19:27:01: [26.03.2026, 20:27:01] INFO  GBPAUD: outside active session — skipping
+2026-03-26 19:36:00: [26.03.2026, 20:36:00] INFO  Scanning 15 symbols (0 fast / 15 slow)
+2026-03-26 19:36:00: [26.03.2026, 20:36:00] INFO  Capital.com session created
+2026-03-26 19:36:00: [26.03.2026, 20:36:00] INFO  EURUSD: outside active session — skipping
+2026-03-26 19:36:00: [26.03.2026, 20:36:00] INFO  GBPUSD: outside active session — skipping
+2026-03-26 19:36:01: [26.03.2026, 20:36:01] INFO  USDJPY: outside active session — skipping
+2026-03-26 19:36:01: [26.03.2026, 20:36:01] INFO  USDCHF: outside active session — skipping
+2026-03-26 19:36:01: [26.03.2026, 20:36:01] INFO  USDCAD: outside active session — skipping
+2026-03-26 19:36:01: [26.03.2026, 20:36:01] INFO  AUDUSD: outside active session — skipping
+2026-03-26 19:36:01: [26.03.2026, 20:36:01] INFO  NZDUSD: outside active session — skipping
+2026-03-26 19:36:02: [26.03.2026, 20:36:02] INFO  EURGBP: outside active session — skipping
+2026-03-26 19:36:02: [26.03.2026, 20:36:02] INFO  EURJPY: outside active session — skipping
+2026-03-26 19:36:02: [26.03.2026, 20:36:02] INFO  EURCHF: outside active session — skipping
+2026-03-26 19:36:02: [26.03.2026, 20:36:02] INFO  EURAUD: outside active session — skipping
+2026-03-26 19:36:02: [26.03.2026, 20:36:02] INFO  EURCAD: outside active session — skipping
+2026-03-26 19:36:03: [26.03.2026, 20:36:03] INFO  GBPNZD: outside active session — skipping
+2026-03-26 19:36:03: [26.03.2026, 20:36:03] INFO  GBPJPY: outside active session — skipping
+2026-03-26 19:36:03: [26.03.2026, 20:36:03] INFO  AUDJPY: outside active session — skipping
+2026-03-26 19:39:00: [26.03.2026, 20:39:00] INFO  Scanning 7 symbols (0 fast / 7 slow)
+2026-03-26 19:39:00: [26.03.2026, 20:39:00] INFO  Capital.com session created
+2026-03-26 19:39:00: [26.03.2026, 20:39:00] INFO  CHFJPY: outside active session — skipping
+2026-03-26 19:39:01: [26.03.2026, 20:39:01] INFO  GBPCHF: outside active session — skipping
+2026-03-26 19:39:01: [26.03.2026, 20:39:01] INFO  AUDNZD: outside active session — skipping
+2026-03-26 19:39:01: [26.03.2026, 20:39:01] INFO  AUDCAD: outside active session — skipping
+2026-03-26 19:39:01: [26.03.2026, 20:39:01] INFO  CADJPY: outside active session — skipping
+2026-03-26 19:39:01: [26.03.2026, 20:39:01] INFO  GBPCAD: outside active session — skipping
+2026-03-26 19:39:02: [26.03.2026, 20:39:02] INFO  GBPAUD: outside active session — skipping
