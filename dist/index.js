@@ -120,12 +120,20 @@ async function syncClosedTrades() {
 // ─── Analyze single symbol ────────────────────────────────────────────────────
 async function analyzeSymbol(symbol, capital, executor, telegram, strength = null) {
     lastScanned.set(symbol, Date.now());
+    // Only scan during active trading sessions (London Open / NY Open)
+    if (!(0, marketHours_1.isActiveTradingSession)()) {
+        const session = (0, marketHours_1.getActiveSession)();
+        logger_1.logger.info(`${symbol}: outside active session \u2014 skipping`);
+        return;
+    }
     const dailyCandles = await capital.getCandles(symbol, 'DAY', 20);
     await new Promise(r => setTimeout(r, 150));
     const h4Candles = await capital.getCandles(symbol, 'HOUR_4', 40);
     await new Promise(r => setTimeout(r, 150));
     const h1Candles = await capital.getCandles(symbol, 'HOUR', 60);
-    const analyzer = new fractalAnalyzer_1.FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles);
+    await new Promise(r => setTimeout(r, 150));
+    const m15Candles = await capital.getCandles(symbol, 'MINUTE_15', 80);
+    const analyzer = new fractalAnalyzer_1.FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
     const signal = analyzer.analyze();
     if (signal) {
         // Mark as active — will be polled every 3 min

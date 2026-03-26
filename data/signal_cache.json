@@ -1,14 +1,8 @@
 {
-  "GBPCHF_LONG_C3_ENTRY": {
-    "symbol": "GBPCHF",
-    "type": "LONG",
-    "phase": "C3_ENTRY",
-    "timestamp": 1774359552707
-  },
-  "GBPCAD_SHORT_C3_ENTRY": {
-    "symbol": "GBPCAD",
+  "EURAUD_SHORT_C3_ENTRY": {
+    "symbol": "EURAUD",
     "type": "SHORT",
     "phase": "C3_ENTRY",
-    "timestamp": 1774360276279
+    "timestamp": 1774504449051
   }
 }

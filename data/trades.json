@@ -187,5 +187,26 @@
     "pnlPips": 0,
     "pnlEUR": 0,
     "result": "BREAKEVEN"
+  },
+  {
+    "id": "o_1fd31ba2-e6a7-4fcc-8ae6-0f8a94a53539",
+    "symbol": "EURAUD",
+    "type": "SHORT",
+    "phase": "C3_ENTRY",
+    "entryZone": [
+      1.6649525,
+      1.6651025000000002
+    ],
+    "stopLoss": 1.667445,
+    "target1": 1.6601925000000002,
+    "target2": 1.6553575000000003,
+    "riskReward": 2,
+    "openedAt": "2026-03-26T05:54:11.316Z",
+    "dealId": "o_1fd31ba2-e6a7-4fcc-8ae6-0f8a94a53539",
+    "closedAt": "2026-03-26T05:54:20.128Z",
+    "closePrice": 1.6650275,
+    "pnlPips": 0,
+    "pnlEUR": 0,
+    "result": "BREAKEVEN"
   }
 ]

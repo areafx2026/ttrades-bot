@@ -5,7 +5,7 @@ import { FractalAnalyzer } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { TradeExecutor } from './tradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
-import { isMarketOpen } from './marketHours';
+import { isMarketOpen, isActiveTradingSession, getActiveSession } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
@@ -154,13 +154,22 @@ async function analyzeSymbol(
 ): Promise<void> {
   lastScanned.set(symbol, Date.now());
 
+  // Only scan during active trading sessions (London Open / NY Open)
+  if (!isActiveTradingSession()) {
+    const session = getActiveSession();
+    logger.info(`${symbol}: outside active session \u2014 skipping`);
+    return;
+  }
+
   const dailyCandles = await capital.getCandles(symbol, 'DAY', 20);
   await new Promise(r => setTimeout(r, 150));
   const h4Candles = await capital.getCandles(symbol, 'HOUR_4', 40);
   await new Promise(r => setTimeout(r, 150));
   const h1Candles = await capital.getCandles(symbol, 'HOUR', 60);
+  await new Promise(r => setTimeout(r, 150));
+  const m15Candles = await capital.getCandles(symbol, 'MINUTE_15', 80);
 
-  const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles);
+  const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
   const signal = analyzer.analyze();
 
   if (signal) {

@@ -37,3 +37,9 @@
 // KI-Vorschlag [25.3.2026]: Mindest-Stop-Abstand von 20 Pips für alle GBP-Cross-Pairs aufgrund hoher Volatilität - wegen unrealistischer 2-4 Pips Stops
 
 // KI-Vorschlag [25.3.2026]: Pflichtpause von 15 Minuten zwischen Trades gleicher Währungsgruppe (GBP/EUR/USD) - wegen aufeinanderfolgender impulsiver Entries ohne Reflexion
+
+// KI-Vorschlag [26.3.2026]: Sofortige Trade-Schließung nur bei Stop-Loss Hit erlaubt, alle anderen Closes erst nach Mindest-Haltezeit - wegen systematischem Versagen der Haltezeit-Filter bei EURAUD 9-Sekunden-Trade
+
+// KI-Vorschlag [26.3.2026]: Maximaler Stop-Loss von 15 Pips für alle Cross-Pairs (EUR/GBP/AUD/NZD-Kombinationen) - wegen 24-Pip Stop bei EURAUD der Risk-Reward zerstört
+
+// KI-Vorschlag [26.3.2026]: Automatischer Code-Audit nach jedem Trade unter 1 Minute Haltezeit - wegen wiederholtem Versagen implementierter Mindest-Haltezeit-Filter
