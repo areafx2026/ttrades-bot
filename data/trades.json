@@ -208,5 +208,26 @@
     "pnlPips": 0,
     "pnlEUR": 0,
     "result": "BREAKEVEN"
+  },
+  {
+    "id": "o_9cabbbd2-0279-43b0-811f-aafe5b248b5e",
+    "symbol": "EURUSD",
+    "type": "SHORT",
+    "phase": "C3_ENTRY",
+    "entryZone": [
+      1.15312,
+      1.15327
+    ],
+    "stopLoss": 1.154895,
+    "target1": 1.149795,
+    "target2": 1.1463949999999998,
+    "riskReward": 2,
+    "openedAt": "2026-03-27T07:30:08.573Z",
+    "dealId": "o_9cabbbd2-0279-43b0-811f-aafe5b248b5e",
+    "closedAt": "2026-03-27T07:30:29.935Z",
+    "closePrice": 1.153195,
+    "pnlPips": 0,
+    "pnlEUR": 0,
+    "result": "BREAKEVEN"
   }
 ]

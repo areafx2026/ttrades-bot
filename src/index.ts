@@ -82,9 +82,16 @@ async function syncClosedTrades(): Promise<void> {
     }
 
     const posRes = await axios.get(`${baseURL}/positions`, { headers });
-    const openDealIds = new Set<string>(
-      (posRes.data.positions || []).map((p: any) => p.position.dealId as string)
-    );
+    // Build set of ALL known IDs — Capital.com uses dealId internally
+    // but bot stores dealReference (o_xxx) from the order response
+    const openDealIds = new Set<string>();
+    for (const p of (posRes.data.positions || [])) {
+      if (p.position.dealId)        openDealIds.add(p.position.dealId);
+      if (p.position.dealReference) openDealIds.add(p.position.dealReference);
+      // Convert p_xxx → o_xxx to match bot's stored dealReference format
+      const oRef = (p.position.dealReference as string)?.replace(/^p_/, 'o_');
+      if (oRef) openDealIds.add(oRef);
+    }
 
     for (const trade of openTrades) {
       if (!trade.dealId || openDealIds.has(trade.dealId)) continue;

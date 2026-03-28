@@ -43,3 +43,9 @@
 // KI-Vorschlag [26.3.2026]: Maximaler Stop-Loss von 15 Pips für alle Cross-Pairs (EUR/GBP/AUD/NZD-Kombinationen) - wegen 24-Pip Stop bei EURAUD der Risk-Reward zerstört
 
 // KI-Vorschlag [26.3.2026]: Automatischer Code-Audit nach jedem Trade unter 1 Minute Haltezeit - wegen wiederholtem Versagen implementierter Mindest-Haltezeit-Filter
+
+// KI-Vorschlag [27.3.2026]: Harter London Open Block 08:00-08:30 mit Exception-freier Implementierung - wegen Trade um 08:30:08 trotz expliziter Regelwerk-Verletzung
+
+// KI-Vorschlag [27.3.2026]: Zwangs-Haltezeit von minimum 3 Minuten für alle Breakeven-Trades mit Code-Level-Block - wegen 21-Sekunden-Trade trotz mehrfacher Haltezeit-Regeln
+
+// KI-Vorschlag [27.3.2026]: Automatische 30-Minuten-Handelssperre nach jedem Breakeven-Trade unter 1 Minute - wegen systematischem Versagen der Mindest-Haltezeit-Implementation
