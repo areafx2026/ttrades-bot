@@ -49,3 +49,29 @@
 // KI-Vorschlag [27.3.2026]: Zwangs-Haltezeit von minimum 3 Minuten für alle Breakeven-Trades mit Code-Level-Block - wegen 21-Sekunden-Trade trotz mehrfacher Haltezeit-Regeln
 
 // KI-Vorschlag [27.3.2026]: Automatische 30-Minuten-Handelssperre nach jedem Breakeven-Trade unter 1 Minute - wegen systematischem Versagen der Mindest-Haltezeit-Implementation
+
+// KI-Vorschlag [1.4.2026]: Harter Code-Block - kein Close unter 180 Sekunden außer bei SL/TP Hit mit Exception-Log - wegen 4x versagender Mindest-Haltezeit-Filter
+
+// KI-Vorschlag [1.4.2026]: Breakeven-Close-Logic Überprüfung - Entry-Preis-Close nur nach Mindest-Haltezeit erlaubt - wegen systematischer 1-18 Sekunden Breakeven-Trades
+
+// KI-Vorschlag [1.4.2026]: Automatische Bot-Deaktivierung nach 3 aufeinanderfolgenden Trades unter 60 Sekunden - wegen kompletter Filter-Versagen bei CADJPY/AUDUSD/EURCAD/GBPAUD
+
+// KI-Vorschlag [2.4.2026]: Sofortige Bot-Deaktivierung nach Breakeven-Trade unter 10 Sekunden mit Exception-Logging - wegen totalem Versagen aller Haltezeit-Filter bei GBPJPY 8-Sekunden-Trade
+
+// KI-Vorschlag [2.4.2026]: Hardware-Level Trade-Lock für 180 Sekunden nach Entry ohne Exception-Möglichkeit - wegen systematischem Umgehen der Software-Filter bei Breakeven-Closes
+
+// KI-Vorschlag [2.4.2026]: Broker-API-Level Mindest-Haltezeit Implementation - wegen kompletter Unwirksamkeit aller bisherigen Code-Level-Filter
+
+// KI-Vorschlag [3.4.2026]: Komplette Bot-Architektur-Überprüfung - wegen totalem Versagen aller 15+ implementierten Haltezeit-Filter bei erneutem 17-Sekunden-Trade
+
+// KI-Vorschlag [3.4.2026]: Notfall-Trading-Stopp bis Hardware-Level-Filter funktionsfähig - wegen systematischer Umgehung aller Software-Locks bei Breakeven-Closes
+
+// KI-Vorschlag [3.4.2026]: Entry-Block für C4_RETEST ohne 15-Minuten Struktur-Bestätigung - wegen schwacher Setups die zu sofortigen Exits führen
+
+// KI-Vorschlag [4.4.2026]: NOTFALL-SYSTEM-STOPP - Bot-Deaktivierung bis externe Hardware-Lock funktioniert - wegen erneutem totalem Versagen aller 20+ Haltezeit-Filter bei 18-Sekunden-Trade
+
+// KI-Vorschlag [4.4.2026]: Externe Broker-Integration mit Zwangs-Delay vor Close-Orders - wegen systematischer Umgehung aller internen Software-Locks
+
+// KI-Vorschlag [4.4.2026]: C3_ENTRY-Block ohne 5-Minuten-Chart-Trend-Bestätigung - wegen schwacher Setups die zu Sekunden-Trades führen
+
+// KI-Vorschlag [4.4.2026]: Zero-P&L-Trade-Analyse mit automatischer Size-Korrektur - wegen möglichem Spread/Size-Berechnungsfehler

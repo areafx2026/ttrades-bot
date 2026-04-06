@@ -16,7 +16,7 @@ Phase: ${t.phase}
 Entry: ${entry}
 Stop Loss: ${t.stopLoss}
 Target 1: ${t.target1}
-Eroeffnet: ${new Date(t.openedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}
+Eröffnet: ${new Date(t.openedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}
 Geschlossen: ${t.closedAt ? new Date(t.closedAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }) : 'noch offen'}
 ${t.closePrice ? `Close Preis: ${t.closePrice}` : ''}
 ${t.pnlPips !== undefined ? `P&L: ${t.pnlPips > 0 ? '+' : ''}${t.pnlPips} Pips / ${t.pnlEUR && t.pnlEUR > 0 ? '+' : ''}€${t.pnlEUR?.toFixed(2)}` : ''}
@@ -59,34 +59,53 @@ export async function analyzeTradesWithAI(): Promise<string | null> {
 
   const prompt = `Du analysierst die Trades eines vollautomatischen Forex-Trading-Bots (TTrades Fractal Model / TTFM).
 Es gibt keinen menschlichen Trader - alle Trades werden algorithmisch ausgefuehrt.
-Bewerte ausschliesslich ob der Bot-Algorithmus korrekt funktioniert hat, nicht menschliches Verhalten.
+
+## TATSAECHLICH IMPLEMENTIERTE FILTER (nur diese existieren):
+1. Session-Filter: Nur London Open 08:30-10:30 MEZ und NY Open 14:30-16:30 MEZ
+2. Currency Strength: Top2 stark vs Bottom2 schwach
+3. Entry Distance: Max 15 Pips vom aktuellen Preis
+4. TP/D1 Distance: TP mind. 20 Pips von D1 High/Low entfernt
+5. Mindest-Stop: 8 Pips JPY, 5 Pips andere Pairs
+6. Max Size: 5000 Points hard cap
+7. Max Trades: 3 gleichzeitig
+8. Cooldown: 8h nach Trade pro Pair
+9. S/R Zonen: Rebound oder Block je nach Zonenkontext
+10. 4H Trend: HH+HL bullish, LH+LL bearish
+11. H1 Kontext: Preis ueber/unter H1 Swing
+12. M15 Entry: Protected Swing + FVG + 2 bestaetigende Kerzen
+13. Weekend Block: Fr 18:00 - Mo 08:00 MEZ
+14. NYSE Buffer: +-15 Min um 15:30 MEZ
+
+## NICHT IMPLEMENTIERT - Kommentare in rules.txt sind KEINE aktiven Filter:
+- Mindest-Haltezeit jeglicher Art
+- Hardware-Level Locks
+- Automatische Bot-Deaktivierung
+- Trade-Pause nach Breakeven
 
 ## Wichtige Hinweise:
-- Kurze Haltezeiten sind KEIN Zeichen von Impulsivitaet - sie entstehen durch Bot-Bugs (z.B. SL/TP zu nah, Size-Fehler)
-- Regelwerk-Verletzungen bedeuten dass ein Filter im Code fehlt oder versagt hat, nicht Disziplinlosigkeit
-- Analysiere ob vorhandene Filter (Currency Strength, S/R Zonen, Entry Distance, TP/D1 Distance) gegriffen haben
-- Wenn ein Filter haette greifen sollen aber nicht hat, ist das ein Code-Problem
+- Kurze Haltezeiten unter 1 Minute entstehen weil Capital.com die Position sofort schliesst
+  Moegliche Gruende: SL/TP zu nah am aktuellen Preis, Margin-Problem, oder Spread
+  Das ist ein Entry-Validierungs-Problem, kein Haltezeit-Bug
+- Breakeven mit 0 Pips bedeutet Capital.com hat Position sofort geschlossen, nicht der Bot
+- Erfinde KEINE Filter die nicht in der Liste oben stehen
 
 ## Heutige Trades:
 ${tradeDetails}
 
-## Aktuelles Regelwerk (rules.txt):
+## Aktuelles Regelwerk - Kommentare mit // sind NICHT aktiv:
 ${currentRules}
 
 ## Deine Aufgabe:
+1. **Signal-Qualitaet**: War D1 Bias, 4H Trend, H1 Kontext und M15 Entry aligned?
+2. **Filter-Check**: Welche der 14 Filter haben gegriffen? Bei sofortigem Close: welcher Entry-Validierungs-Filter fehlte?
+3. **Stop**: War der Stop sinnvoll fuer das Pair?
+4. **Size**: War die Positionsgroesse max 5000 Points?
+5. **Ergebnis**: Bei Loss - welcher konkrete Code-Fix wuerde helfen?
 
-Analysiere jeden Trade nach diesen Kriterien:
-1. **Signal-Qualitaet**: War das Setup gueltig? (Daily Bias, 4H Trend, H1 Entry alle aligned?)
-2. **Filter-Check**: Welche Filter haben gegriffen, welche haetten greifen sollen aber nicht haben?
-3. **Stop-Abstand**: War der Stop sinnvoll fuer das Pair und den Timeframe?
-4. **Size-Berechnung**: War die Positionsgroesse korrekt (max 5000 Points)?
-5. **Ergebnis-Analyse**: Bei Loss - haette ein bestehender Filter den Trade verhindert?
+Code-Vorschlag nur wenn konkret:
+// KI-Vorschlag [${today}]: [spezifischer Filter] - wegen [konkretem Problem]
 
-Dann:
-6. **Code-Vorschlag**: Wenn ein Trade durch einen neuen Filter haette verhindert werden koennen:
-   Format: // KI-Vorschlag [${today}]: [Filter/Regel] - wegen [technischem Problem beim Trade]
-
-Sei direkt und technisch. Maximal 500 Woerter.`;
+Maximal 400 Woerter. Keine Panik-Empfehlungen.`;
 
   try {
     logger.info('Sending trades to Claude for analysis...');
