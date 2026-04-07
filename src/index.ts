@@ -201,13 +201,6 @@ async function analyzeSymbol(
 ): Promise<void> {
   lastScanned.set(symbol, Date.now());
 
-  // Only scan during active trading sessions (London Open / NY Open)
-  if (!isActiveTradingSession()) {
-    const session = getActiveSession();
-    logger.info(`${symbol}: outside active session \u2014 skipping`);
-    return;
-  }
-
   const dailyCandles = await capital.getCandles(symbol, 'DAY', 20);
   await new Promise(r => setTimeout(r, 150));
   const h4Candles = await capital.getCandles(symbol, 'HOUR_4', 40);
@@ -244,6 +237,13 @@ async function analyzeSymbol(
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
     if (PAPER_TRADING) {
+      // Session filter — no new trades during London Open or NY Open
+      if (isActiveTradingSession()) {
+        const session = getActiveSession();
+        logger.info(`${symbol}: ${session} active — no new trades during session open`);
+        return;
+      }
+
       const maxTrades = getMaxTrades();
       const openPositions = await executor.getOpenPositions();
 
@@ -400,22 +400,25 @@ async function analyzeSymbol(
 // ─── Main scan ────────────────────────────────────────────────────────────────
 
 async function runScan() {
+  // Position tracking always runs 24/5 — independent of session
+  await syncClosedTrades();
+
   if (!isMarketOpen()) {
     if (marketWasOpen) {
-      logger.info('Market closed — scans paused until next open.');
+      logger.info('Market closed — signal scanning paused.');
       marketWasOpen = false;
     }
     return;
   }
   if (!marketWasOpen) {
-    logger.info('Market open — resuming scans.');
+    logger.info('Market open — signal scanning resumed.');
     marketWasOpen = true;
   }
 
   const nowMEZ = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
   const rulesCheck = isBlockedByRules(nowMEZ);
   if (rulesCheck.blocked) {
-    logger.info(`Scan skipped — ${rulesCheck.reason}`);
+    logger.info(`Signal scan skipped — ${rulesCheck.reason}`);
     return;
   }
 
