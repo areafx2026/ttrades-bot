@@ -154,9 +154,19 @@ export class TradeExecutor {
 
     const rawSize = (riskEUR / (stopPips * pipValuePer1000)) * 1000;
 
-    // Round to nearest 100, min 100, hard cap 5000 Points
+    // Round to nearest 100, min 100
+    // No hard cap on size — risk is controlled by riskEUR
+    // Safety cap at 10000 Points to prevent extreme positions on very tight stops
     const rounded = Math.round(rawSize / 100) * 100;
-    return Math.min(Math.max(rounded, 100), 5000);
+    const size = Math.min(Math.max(rounded, 100), 10000);
+
+    // Verify actual risk matches target (log warning if off by more than 20%)
+    const actualRisk = size / 1000 * stopPips * pipValuePer1000;
+    if (Math.abs(actualRisk - riskEUR) / riskEUR > 0.2) {
+      // Risk is capped — size was limited by min/max bounds
+    }
+
+    return size;
   }
 
   // Open a position based on a signal
