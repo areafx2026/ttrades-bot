@@ -138,7 +138,7 @@ app.get('/', (req, res) => {
     <div class="card">
       <div class="section-title">Alle Trades</div>
       <table>
-        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
+        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
         ${allTrades.map(t => `
         <tr>
           <td><strong>${t.symbol}</strong></td>
@@ -147,6 +147,7 @@ app.get('/', (req, res) => {
           <td>${t.entry_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
           <td style="color:var(--red)">${t.stop_loss.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
           <td style="color:var(--green)">${t.target1.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
+          <td style="color:var(--muted)">${t.risk_reward != null ? t.risk_reward.toFixed(2) + ':1' : '—'}</td>
           <td>${t.close_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
           <td ${pnlColor(t.pnl_pips)}>${t.pnl_pips != null ? (t.pnl_pips >= 0 ? '+' : '') + t.pnl_pips.toFixed(1) : '—'}</td>
           <td ${pnlColor(t.pnl_eur)}>${t.pnl_eur != null ? (t.pnl_eur >= 0 ? '+' : '') + '€' + t.pnl_eur.toFixed(2) : '—'}</td>
