@@ -266,19 +266,16 @@ export class FractalAnalyzer {
 
     let stopLoss: number, target1: number, target2: number;
 
-    // SL based on H1 swing structure (more robust than M15)
-    // Find last significant H1 swing low/high
-    const h1SwingLows: number[]  = [];
-    const h1SwingHighs: number[] = [];
-    for (let i = 1; i < this.h1.length - 1; i++) {
-      if (this.h1[i].low  < this.h1[i-1].low  && this.h1[i].low  < this.h1[i+1].low)
-        h1SwingLows.push(this.h1[i].low);
-      if (this.h1[i].high > this.h1[i-1].high && this.h1[i].high > this.h1[i+1].high)
-        h1SwingHighs.push(this.h1[i].high);
-    }
-
-    const lastH1SwingLow  = h1SwingLows.length  > 0 ? h1SwingLows[h1SwingLows.length - 1]   : m15.protectedSwing;
-    const lastH1SwingHigh = h1SwingHighs.length > 0 ? h1SwingHighs[h1SwingHighs.length - 1] : m15.protectedSwing;
+    // SL based on H1 structure — lowest low / highest high of last 20 closed H1 candles
+    // No left/right neighbor check needed — we use the structural extreme of the lookback period
+    // Exclude the last candle (still forming)
+    const h1Lookback = this.h1.slice(-21, -1); // last 20 closed candles
+    const lastH1SwingLow  = h1Lookback.length > 0
+      ? Math.min(...h1Lookback.map(c => c.low))
+      : m15.protectedSwing;
+    const lastH1SwingHigh = h1Lookback.length > 0
+      ? Math.max(...h1Lookback.map(c => c.high))
+      : m15.protectedSwing;
 
     // Fixed R:R of 1:1.5
     // SL from H1 swing structure (technical analysis)

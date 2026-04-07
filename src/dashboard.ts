@@ -59,37 +59,38 @@ app.get('/', (req, res) => {
     --amber: #f59e0b;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+  body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 15px; }
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
   header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-  header h1 { font-size: 18px; font-weight: 700; letter-spacing: 2px; color: var(--blue); }
-  header span { color: var(--muted); font-size: 11px; }
-  .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: var(--blue); }
+  header span { color: var(--muted); font-size: 13px; }
+  .container { max-width: 1920px; margin: 0 auto; padding: 1rem 2rem; }
   .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
-  .metric-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 0.5rem; }
+  .table-wrap { overflow-x: auto; width: 100%; }
+  .metric-label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 0.5rem; }
   .metric-value { font-size: 28px; font-weight: 700; }
   .metric-value.green { color: var(--green); }
   .metric-value.red { color: var(--red); }
   .metric-value.blue { color: var(--blue); }
-  .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 2px; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
   table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
-  td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 12px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
   tr:hover td { background: rgba(255,255,255,0.02); }
-  .badge { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; }
+  .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 1px; }
   .badge.win  { background: rgba(34,197,94,0.15); color: var(--green); }
   .badge.loss { background: rgba(239,68,68,0.15); color: var(--red); }
   .badge.be   { background: rgba(245,158,11,0.15); color: var(--amber); }
   .badge.open { background: rgba(59,130,246,0.15); color: var(--blue); }
   .form-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
-  input, textarea, select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.5rem 0.75rem; font-family: inherit; font-size: 12px; }
+  input, textarea, select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.5rem 0.75rem; font-family: inherit; font-size: 14px; }
   input:focus, textarea:focus { outline: none; border-color: var(--blue); }
-  button { background: var(--blue); color: white; border: none; border-radius: 6px; padding: 0.5rem 1.25rem; font-family: inherit; font-size: 12px; cursor: pointer; font-weight: 700; letter-spacing: 1px; }
+  button { background: var(--blue); color: white; border: none; border-radius: 6px; padding: 0.5rem 1.25rem; font-family: inherit; font-size: 14px; cursor: pointer; font-weight: 700; letter-spacing: 1px; }
   button:hover { opacity: 0.85; }
   .tab-nav { display: flex; gap: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
-  .tab-btn { background: none; border: none; color: var(--muted); padding: 0.75rem 1.25rem; cursor: pointer; font-family: inherit; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab-btn { background: none; border: none; color: var(--muted); padding: 0.75rem 1.25rem; cursor: pointer; font-family: inherit; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid transparent; margin-bottom: -1px; }
   .tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); }
   .tab-content { display: none; }
   .tab-content.active { display: block; }
