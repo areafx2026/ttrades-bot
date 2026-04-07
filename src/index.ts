@@ -363,7 +363,12 @@ async function analyzeSymbol(
             h1_context: signal.h1Context,
             m15_setup: signal.m15Setup,
             fvg_present: signal.fvgLevel != null ? 1 : 0,
-            size_points: undefined,
+            size_points: 0,
+            currency_strength: undefined,
+            strength_score: undefined,
+            zone_note: undefined,
+            zone_status: undefined,
+            exhaustion_detected: undefined,
             strategy_version: getCurrentStrategyVersion(),
           });
         } catch (dbErr) { logger.error('DB insert error:', dbErr); }
