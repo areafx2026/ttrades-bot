@@ -237,7 +237,18 @@ async function analyzeSymbol(
         let resolvedDealId = result.dealId;
         try {
           await new Promise(r => setTimeout(r, 1500)); // wait for position to appear
-          const posCheck = await axios.get(`${baseURL}/positions`, { headers });
+          const fillCapital = new CapitalAPI(
+            process.env.CAPITAL_API_KEY!,
+            process.env.CAPITAL_IDENTIFIER!,
+            process.env.CAPITAL_PASSWORD!,
+            process.env.CAPITAL_DEMO === 'true'
+          );
+          await fillCapital.createSession();
+          const fillBaseURL = fillCapital.isDemo
+            ? 'https://demo-api-capital.backend-capital.com/api/v1'
+            : 'https://api-capital.backend-capital.com/api/v1';
+          const fillHeaders = { 'CST': fillCapital.cst, 'X-SECURITY-TOKEN': fillCapital.securityToken };
+          const posCheck = await axios.get(`${fillBaseURL}/positions`, { headers: fillHeaders });
           const matchedPos = (posCheck.data.positions || []).find((p: any) =>
             p.market.epic === symbol &&
             p.position.direction === (signal.type === 'LONG' ? 'BUY' : 'SELL')
@@ -256,9 +267,9 @@ async function analyzeSymbol(
 
             // Update TP on Capital.com
             try {
-              await axios.put(`${baseURL}/positions/${resolvedDealId}`,
+              await axios.put(`${fillBaseURL}/positions/${resolvedDealId}`,
                 { stopLevel: signal.stopLoss, profitLevel: parseFloat(newTP.toFixed(pip2 === 0.01 ? 3 : 5)) },
-                { headers }
+                { headers: fillHeaders }
               );
               signal.target1 = newTP;
               logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
