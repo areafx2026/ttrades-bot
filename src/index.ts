@@ -245,6 +245,24 @@ async function analyzeSymbol(
           if (matchedPos) {
             resolvedDealId = matchedPos.position.dealId;
             logger.info(`Resolved Capital.com dealId: ${resolvedDealId}`);
+
+            // Recalculate TP based on actual fill price for exact 1:1.5 R:R
+            const fillPrice = matchedPos.position.level;
+            const pip2 = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
+            const risk2 = Math.abs(fillPrice - signal.stopLoss);
+            const newTP = signal.type === 'LONG'
+              ? fillPrice + risk2 * 1.5
+              : fillPrice - risk2 * 1.5;
+
+            // Update TP on Capital.com
+            try {
+              await axios.put(`${baseURL}/positions/${resolvedDealId}`,
+                { stopLevel: signal.stopLoss, profitLevel: parseFloat(newTP.toFixed(pip2 === 0.01 ? 3 : 5)) },
+                { headers }
+              );
+              signal.target1 = newTP;
+              logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
+            } catch { logger.warn('Could not update TP after fill'); }
           }
         } catch { /* use original dealId */ }
 

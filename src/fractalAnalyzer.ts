@@ -280,25 +280,25 @@ export class FractalAnalyzer {
     const lastH1SwingLow  = h1SwingLows.length  > 0 ? h1SwingLows[h1SwingLows.length - 1]   : m15.protectedSwing;
     const lastH1SwingHigh = h1SwingHighs.length > 0 ? h1SwingHighs[h1SwingHighs.length - 1] : m15.protectedSwing;
 
+    // Fixed R:R of 1:1.5
+    // SL from H1 swing structure (technical analysis)
+    // TP = Entry + Risk * 1.5 (always)
+    const RR = 1.5;
+
     if (bias === 'LONG') {
-      // SL 5 pips below last H1 swing low
       stopLoss = lastH1SwingLow - pip * 5;
-      // Fallback: if H1 SL is above entry, use M15 swing
       if (stopLoss >= entryMid) stopLoss = m15.protectedSwing - pip * 5;
-      // Last resort
       if (stopLoss >= entryMid) stopLoss = entryMid - pip * 10;
       const risk = Math.abs(entryMid - stopLoss);
-      target1 = entryMid + risk * 2;
-      target2 = entryMid + risk * 4;
+      target1 = entryMid + risk * RR;
+      target2 = entryMid + risk * RR * 2;
     } else {
-      // SL 5 pips above last H1 swing high
       stopLoss = lastH1SwingHigh + pip * 5;
-      // Fallback
       if (stopLoss <= entryMid) stopLoss = m15.protectedSwing + pip * 5;
       if (stopLoss <= entryMid) stopLoss = entryMid + pip * 10;
       const risk = Math.abs(stopLoss - entryMid);
-      target1 = entryMid - risk * 2;
-      target2 = entryMid - risk * 4;
+      target1 = entryMid - risk * RR;
+      target2 = entryMid - risk * RR * 2;
     }
 
     const risk = Math.abs(entryMid - stopLoss);
