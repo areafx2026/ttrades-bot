@@ -14,15 +14,17 @@ import { startDashboard } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
 
-// Max normal spread per pair (pips) -- blocked if > 2x normal
-const SPREAD_LIMITS: Record<string, number> = {
-  EURUSD: 1.2, GBPUSD: 2.0, USDJPY: 1.5, USDCHF: 1.5, USDCAD: 2.0,
-  AUDUSD: 1.5, NZDUSD: 2.0, EURGBP: 1.5, EURJPY: 2.0, EURCHF: 2.5,
-  EURAUD: 3.0, EURCAD: 3.0, GBPNZD: 4.0, GBPJPY: 3.0, GBPCHF: 3.0,
-  GBPCAD: 4.0, GBPAUD: 4.0, AUDJPY: 2.5, CHFJPY: 2.5, AUDNZD: 3.0,
-  AUDCAD: 3.0, CADJPY: 3.0, EURNZD: 4.0,
-};
+// Spread limits loaded from spreads.json (no restart needed after edit)
 const SPREAD_LOG = './logs/spread_log.csv';
+
+function loadSpreadLimits(): Record<string, number> {
+  try {
+    return JSON.parse(fs.readFileSync('./data/spreads.json', 'utf-8'));
+  } catch {
+    logger.warn('spreads.json not found, using defaults');
+    return { DEFAULT: 3.0 };
+  }
+}
 
 function logSpread(symbol: string, spreadPips: number, normalPips: number, blocked: boolean): void {
   const now = new Date();
@@ -262,7 +264,8 @@ async function analyzeSymbol(
         const offer = mktInfo.data.snapshot?.offer ?? 0;
         const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
         const spreadPips = (offer - bid) / pip;
-        const normalPips = SPREAD_LIMITS[symbol] ?? 3.0;
+        const spreadLimits = loadSpreadLimits();
+        const normalPips = spreadLimits[symbol] ?? spreadLimits['DEFAULT'] ?? 3.0;
         const maxPips = normalPips * 2;
         logSpread(symbol, spreadPips, normalPips, spreadPips > maxPips);
         if (spreadPips > maxPips) {
@@ -318,6 +321,11 @@ async function analyzeSymbol(
               );
               signal.target1 = newTP;
               logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
+              // Update size_points in DB from actual position size
+              try {
+                const db = getDb();
+                db.prepare('UPDATE trades SET size_points = ? WHERE id = ?').run(matchedPos.position.size, resolvedDealId);
+              } catch { /* ignore */ }
             } catch { logger.warn('Could not update TP after fill'); }
           }
         } catch { /* use original dealId */ }
@@ -355,6 +363,7 @@ async function analyzeSymbol(
             h1_context: signal.h1Context,
             m15_setup: signal.m15Setup,
             fvg_present: signal.fvgLevel != null ? 1 : 0,
+            size_points: null,
             strategy_version: getCurrentStrategyVersion(),
           });
         } catch (dbErr) { logger.error('DB insert error:', dbErr); }
