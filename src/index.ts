@@ -232,8 +232,24 @@ async function analyzeSymbol(
       const dec = signal.symbol.includes('JPY') ? 3 : 5;
 
       if (result.success && result.dealId) {
-        logger.info(`Trade opened for ${symbol}: ${result.dealId}`);
-        logOpenTrade(signal, result.dealId);
+        // Resolve real Capital.com dealId by fetching open positions
+        // The bot stores dealReference (o_xxx) but Capital.com uses a different dealId
+        let resolvedDealId = result.dealId;
+        try {
+          await new Promise(r => setTimeout(r, 1500)); // wait for position to appear
+          const posCheck = await axios.get(`${baseURL}/positions`, { headers });
+          const matchedPos = (posCheck.data.positions || []).find((p: any) =>
+            p.market.epic === symbol &&
+            p.position.direction === (signal.type === 'LONG' ? 'BUY' : 'SELL')
+          );
+          if (matchedPos) {
+            resolvedDealId = matchedPos.position.dealId;
+            logger.info(`Resolved Capital.com dealId: ${resolvedDealId}`);
+          }
+        } catch { /* use original dealId */ }
+
+        logger.info(`Trade opened for ${symbol}: ${resolvedDealId}`);
+        logOpenTrade(signal, resolvedDealId);
         savePineScript();
 
         // Insert full signal context into SQLite DB
@@ -244,7 +260,7 @@ async function analyzeSymbol(
           const entryDistPips = Math.abs(signal.currentPrice - entryMid2) / pip;
           const openedDate = new Date();
           insertTrade({
-            id: result.dealId!,
+            id: resolvedDealId,
             symbol: signal.symbol,
             type: signal.type,
             phase: signal.phase,

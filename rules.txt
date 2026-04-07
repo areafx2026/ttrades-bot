@@ -75,3 +75,5 @@
 // KI-Vorschlag [4.4.2026]: C3_ENTRY-Block ohne 5-Minuten-Chart-Trend-Bestätigung - wegen schwacher Setups die zu Sekunden-Trades führen
 
 // KI-Vorschlag [4.4.2026]: Zero-P&L-Trade-Analyse mit automatischer Size-Korrektur - wegen möglichem Spread/Size-Berechnungsfehler
+
+// KI-Vorschlag [7.4.2026]: Pre-Entry Spread-Check - Entry nur wenn Spread <3 Pips für JPY-Pairs - wegen Capital.com Immediate Close bei GBPJPY durch zu weiten Spread
