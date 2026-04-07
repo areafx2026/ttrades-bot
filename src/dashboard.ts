@@ -145,8 +145,8 @@ app.get('/', (req, res) => {
           <td>${t.type === 'LONG' ? '▲' : '▼'} ${t.type}</td>
           <td style="color:var(--muted)">${t.phase}</td>
           <td>${t.entry_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
-          <td style="color:var(--red)">${t.stop_loss.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
-          <td style="color:var(--green)">${t.target1.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
+          <td>${t.stop_loss.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
+          <td>${t.target1.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
           <td style="color:var(--muted)">${t.risk_reward != null ? t.risk_reward.toFixed(2) + ':1' : '—'}</td>
           <td>${t.close_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
           <td ${pnlColor(t.pnl_pips)}>${t.pnl_pips != null ? (t.pnl_pips >= 0 ? '+' : '') + t.pnl_pips.toFixed(1) : '—'}</td>

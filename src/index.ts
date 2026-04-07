@@ -12,6 +12,28 @@ import { sendDailyReport, checkZoneCoverage } from './reporter';
 import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
 import { startDashboard } from './dashboard';
 import { logger } from './logger';
+import * as fs from 'fs';
+
+// Max normal spread per pair (pips) -- blocked if > 2x normal
+const SPREAD_LIMITS: Record<string, number> = {
+  EURUSD: 1.2, GBPUSD: 2.0, USDJPY: 1.5, USDCHF: 1.5, USDCAD: 2.0,
+  AUDUSD: 1.5, NZDUSD: 2.0, EURGBP: 1.5, EURJPY: 2.0, EURCHF: 2.5,
+  EURAUD: 3.0, EURCAD: 3.0, GBPNZD: 4.0, GBPJPY: 3.0, GBPCHF: 3.0,
+  GBPCAD: 4.0, GBPAUD: 4.0, AUDJPY: 2.5, CHFJPY: 2.5, AUDNZD: 3.0,
+  AUDCAD: 3.0, CADJPY: 3.0, EURNZD: 4.0,
+};
+const SPREAD_LOG = './logs/spread_log.csv';
+
+function logSpread(symbol: string, spreadPips: number, normalPips: number, blocked: boolean): void {
+  const now = new Date();
+  const ts = now.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', hour12: false });
+  const status = blocked ? 'BLOCKED' : 'OK';
+  const line = ts + ',' + symbol + ',' + spreadPips.toFixed(2) + ',' + (normalPips * 2).toFixed(1) + ',' + status + '\n';
+  try { fs.appendFileSync(SPREAD_LOG, line); } catch { /* ignore */ }
+  if (blocked) {
+    logger.warn('Trade ' + symbol + ' nicht eroeffnet | Spread: ' + spreadPips.toFixed(2) + ' Pips (Max: ' + (normalPips * 2).toFixed(1) + ') | ' + ts);
+  }
+}
 import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
 import { checkZone, initZones } from './zoneManager';
 import cron from 'node-cron';
@@ -227,6 +249,29 @@ async function analyzeSymbol(
         logger.warn(`Max trades limit reached (${maxTrades}) — skipping ${symbol}`);
         return;
       }
+
+      // Spread check before opening trade
+      let spreadBlocked = false;
+      try {
+        const mktRes = await capital.getCandles(symbol, 'MINUTE', 1);
+        const mktInfo = await axios.get(
+          `${capital.isDemo ? 'https://demo-api-capital.backend-capital.com' : 'https://api-capital.backend-capital.com'}/api/v1/markets/${symbol}`,
+          { headers: { CST: capital.cst, 'X-SECURITY-TOKEN': capital.securityToken } }
+        );
+        const bid = mktInfo.data.snapshot?.bid ?? 0;
+        const offer = mktInfo.data.snapshot?.offer ?? 0;
+        const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
+        const spreadPips = (offer - bid) / pip;
+        const normalPips = SPREAD_LIMITS[symbol] ?? 3.0;
+        const maxPips = normalPips * 2;
+        logSpread(symbol, spreadPips, normalPips, spreadPips > maxPips);
+        if (spreadPips > maxPips) {
+          spreadBlocked = true;
+          activeSymbols.delete(symbol);
+        }
+      } catch { /* spread check failed, proceed anyway */ }
+
+      if (spreadBlocked) return;
 
       const result = await executor.openTrade(signal);
       const dec = signal.symbol.includes('JPY') ? 3 : 5;
