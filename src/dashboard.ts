@@ -28,6 +28,7 @@ app.get('/', (req, res) => {
   const openTrades = getOpenTrades();
   const sortAsc = req.query.sort === 'asc';
   const logSortAsc = req.query.logSort === 'asc';
+  const activeTab = (req.query.activeTab as string) ?? 'trades';
   const allTrades = getAllTrades().sort((a, b) => {
     const da = new Date(a.opened_at).getTime();
     const db2 = new Date(b.opened_at).getTime();
@@ -151,17 +152,17 @@ app.get('/', (req, res) => {
 
   <!-- Tabs -->
   <div class="tab-nav">
-    <button class="tab-btn active" onclick="showTab('trades')">Trades</button>
+    <button class="tab-btn ${activeTab==='trades'?'active ':\''}" onclick="showTab('trades')">Trades</button>
     <button class="tab-btn" onclick="showTab('maemfe')">MAE/MFE</button>
     <button class="tab-btn" onclick="showTab('symbols')">Symbole</button>
     <button class="tab-btn" onclick="showTab('versions')">Versionen</button>
     <button class="tab-btn" onclick="showTab('equity')">Equity</button>
     <button class="tab-btn" onclick="showTab('winrate')">Win Rate</button>
-    <button class="tab-btn" onclick="showTab('log')">Logbuch</button>
+    <button class="tab-btn ${activeTab==='log'?'active ':\''}" onclick="showTab('log')">Logbuch</button>
   </div>
 
   <!-- Trades -->
-  <div id="tab-trades" class="tab-content active">
+  <div id="tab-trades" class="tab-content ${activeTab==='trades'?'active ':\''}">
     <div class="card">
       <div class="section-title">Alle Trades</div>
       <table>
@@ -275,7 +276,7 @@ app.get('/', (req, res) => {
   </div>
 
   <!-- Logbuch -->
-  <div id="tab-log" class="tab-content">
+  <div id="tab-log" class="tab-content ${activeTab==='log'?'active ':\''}">
     <div class="card" style="margin-bottom:1rem">
       <div class="section-title">Strategieänderung eintragen</div>
       <form method="POST" action="/log">
@@ -326,20 +327,6 @@ function toggleSort() {
   url.searchParams.set('sort', current === 'asc' ? 'desc' : 'asc');
   window.location.href = url.toString();
 }
-
-// Restore tab on page load
-window.addEventListener('DOMContentLoaded', () => {
-  const urlTab = new URLSearchParams(window.location.search).get('activeTab');
-  if (urlTab) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    const tabEl = document.getElementById('tab-' + urlTab);
-    if (tabEl) tabEl.classList.add('active');
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      if (btn.getAttribute('onclick')?.includes("'" + urlTab + "'")) btn.classList.add('active');
-    });
-  }
-});
 
 function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
