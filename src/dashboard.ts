@@ -349,6 +349,10 @@ function showTab(name) {
   event.target.classList.add('active');
   if (name === 'equity') renderEquity();
   if (name === 'winrate') renderWinRate();
+  // Clean URL when switching tabs manually
+  if (name !== 'log') {
+    window.history.replaceState({}, '', '/');
+  }
 }
 
 let equityRendered = false;
