@@ -181,7 +181,6 @@ async function syncClosedTrades(): Promise<void> {
         );
         logger.info('Trade closed in DB: ' + trade.symbol + ' ' + result + ' ' + pnlPips + ' pips');
       } catch (dbErr) { logger.error('DB close error:', dbErr); }
-      }
 
       // Remove from active symbols
       activeSymbols.delete(trade.symbol);
