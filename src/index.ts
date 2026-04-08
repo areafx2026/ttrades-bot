@@ -257,6 +257,22 @@ async function analyzeSymbol(
         return;
       }
 
+      // Currency exposure filter — max 2 open trades per currency
+      const openPositions2 = await executor.getOpenPositions();
+      const currencies = symbol.length === 6
+        ? [symbol.slice(0, 3), symbol.slice(3, 6)]
+        : [];
+      for (const currency of currencies) {
+        const exposedTrades = openPositions2.filter((p: any) => {
+          const epic = p.market?.epic ?? p.epic ?? '';
+          return epic.includes(currency);
+        });
+        if (exposedTrades.length >= 2) {
+          logger.info(`${symbol}: currency exposure limit reached for ${currency} (${exposedTrades.length} open trades)`);
+          return;
+        }
+      }
+
       const maxTrades = getMaxTrades();
       const openPositions = await executor.getOpenPositions();
 
