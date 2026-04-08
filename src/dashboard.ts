@@ -160,13 +160,8 @@ app.get('/', (req, res) => {
   <!-- Trades -->
   <div id="tab-trades" class="tab-content active">
     <div class="card">
-      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
-        <span>Alle Trades</span>
-        <button onclick="toggleSort()" id="sortBtn" style="font-size:12px;padding:4px 12px;">
-          ${sortAsc ? 'Neueste zuerst' : 'Älteste zuerst'}
-        </button>
-      </div>
-      <div id="tradesTable"><table>
+      <div class="section-title">Alle Trades</div>
+      <table>
         <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
         ${allTrades.map(t => `
         <tr>
@@ -187,7 +182,7 @@ app.get('/', (req, res) => {
           <td style="color:var(--muted)">${formatDate(t.closed_at)}</td>
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
         </tr>`).join('')}
-      </table></div>
+      </table>
     </div>
   </div>
 
@@ -289,9 +284,14 @@ app.get('/', (req, res) => {
       </form>
     </div>
     <div class="card">
-      <div class="section-title">Strategie-Logbuch</div>
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Strategie-Logbuch</span>
+        <button onclick="toggleLogSort()" id="logSortBtn" style="font-size:12px;padding:4px 12px;">
+          ${sortAsc ? 'Neueste zuerst' : 'Älteste zuerst'}
+        </button>
+      </div>
       <table>
-        <tr><th>Datum</th><th>Version</th><th>Beschreibung</th><th>Win Rate vorher</th><th>Trades vorher</th></tr>
+        <tr><th>Datum</th><th>Version</th><th>Beschreibung</th><th>WR vorher</th><th>Trades vorher</th><th>WR nachher</th><th>Trades nachher</th></tr>
         ${strategyLog.map(e => `
         <tr>
           <td style="color:var(--muted)">${formatDate(e.changed_at)}</td>
@@ -299,6 +299,8 @@ app.get('/', (req, res) => {
           <td>${e.description}</td>
           <td>${e.win_rate_before != null ? e.win_rate_before + '%' : '—'}</td>
           <td>${e.trades_before ?? '—'}</td>
+          <td ${(e as any).win_rate_after != null ? ((e as any).win_rate_after >= (e.win_rate_before ?? 0) ? 'style="color:var(--green)"' : 'style="color:var(--red)"') : ''}>${(e as any).win_rate_after != null ? (e as any).win_rate_after + '%' : '—'}</td>
+          <td>${(e as any).trades_after ?? '—'}</td>
         </tr>`).join('')}
       </table>
     </div>
@@ -307,6 +309,13 @@ app.get('/', (req, res) => {
 </div>
 
 <script>
+function toggleLogSort() {
+  const url = new URL(window.location.href);
+  const current = url.searchParams.get('sort');
+  url.searchParams.set('sort', current === 'asc' ? 'desc' : 'asc');
+  window.location.href = url.toString() + '#tab-log';
+}
+
 function toggleSort() {
   const url = new URL(window.location.href);
   const current = url.searchParams.get('sort');

@@ -1,6 +1,7 @@
 import { loadTrades, TradeRecord } from './tradeLogger';
 import { analyzeTradesWithAI } from './aiAnalyzer';
 import { loadZones } from './zoneManager';
+import { getDb } from './database';
 import { TelegramNotifier } from './telegram';
 import { logger } from './logger';
 
@@ -40,6 +41,26 @@ export async function checkZoneCoverage(telegram: TelegramNotifier): Promise<voi
 
   await telegram.sendMessage(msg);
   logger.info(`Zone coverage warning sent: ${warnings.length} missing zones`);
+}
+
+function updateWinRateAfter(): void {
+  try {
+    const db = getDb();
+    const log = db.prepare('SELECT DISTINCT version FROM strategy_log').all() as any[];
+
+    for (const entry of log) {
+      const version = entry.version;
+      // Find trades with this strategy version
+      const trades = db.prepare('SELECT result FROM trades WHERE strategy_version = ? AND closed_at IS NOT NULL').all(version) as any[];
+      if (trades.length === 0) continue;
+      const wins = trades.filter((t: any) => t.result === 'WIN').length;
+      const winRate = Math.round(wins / trades.length * 100);
+      db.prepare('UPDATE strategy_log SET win_rate_after = ?, trades_after = ? WHERE version = ?')
+        .run(winRate, trades.length, version);
+    }
+  } catch (err) {
+    // ignore
+  }
 }
 
 export async function sendDailyReport(telegram: TelegramNotifier): Promise<void> {
@@ -124,6 +145,7 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
 
   await telegram.sendMessage(msg);
   logger.info('Daily report sent.');
+  updateWinRateAfter();
 
   // Zone coverage check
   await checkZoneCoverage(telegram);
