@@ -28,7 +28,8 @@ app.get('/', (req, res) => {
   const openTrades = getOpenTrades();
   const sortAsc = req.query.sort === 'asc';
   const logSortAsc = req.query.logSort === 'asc';
-  const activeTab = (req.query.activeTab as string) ?? 'trades';
+  // Only restore tab when coming from logSort action, otherwise always show trades
+  const activeTab = req.query.logSort !== undefined ? 'log' : 'trades';
   const allTrades = getAllTrades().sort((a, b) => {
     const da = new Date(a.opened_at).getTime();
     const db2 = new Date(b.opened_at).getTime();
@@ -330,16 +331,18 @@ function toggleSort() {
 
 // Set initial active tab without flicker
 const _initTab = '${activeTab}';
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-  const el = document.getElementById('tab-' + _initTab);
-  const btn = document.getElementById('btn-' + _initTab);
-  if (el) el.classList.add('active');
-  if (btn) btn.classList.add('active');
-  if (_initTab === 'equity') renderEquity();
-  if (_initTab === 'winrate') renderWinRate();
-});
+if (_initTab !== 'trades') {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    const el = document.getElementById('tab-' + _initTab);
+    const btn = document.getElementById('btn-' + _initTab);
+    if (el) el.classList.add('active');
+    if (btn) btn.classList.add('active');
+    if (_initTab === 'equity') renderEquity();
+    if (_initTab === 'winrate') renderWinRate();
+  });
+}
 
 function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
