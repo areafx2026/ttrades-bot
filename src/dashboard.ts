@@ -162,7 +162,7 @@ app.get('/', (req, res) => {
   </div>
 
   <!-- Trades -->
-  <div id="tab-trades" class="tab-content ${activeTab==='trades'?'active ':\''}">
+  <div id="tab-trades" class="tab-content">
     <div class="card">
       <div class="section-title">Alle Trades</div>
       <table>
@@ -276,7 +276,7 @@ app.get('/', (req, res) => {
   </div>
 
   <!-- Logbuch -->
-  <div id="tab-log" class="tab-content ${activeTab==='log'?'active ':\''}">
+  <div id="tab-log" class="tab-content">
     <div class="card" style="margin-bottom:1rem">
       <div class="section-title">Strategieänderung eintragen</div>
       <form method="POST" action="/log">
