@@ -314,7 +314,7 @@ export function insertStrategyLog(entry: StrategyLogEntry): void {
 }
 
 export function getStrategyLog(): StrategyLogEntry[] {
-  return getDb().prepare('SELECT * FROM strategy_log ORDER BY id DESC').all() as StrategyLogEntry[];
+  return getDb().prepare('SELECT * FROM strategy_log ORDER BY changed_at ASC').all() as StrategyLogEntry[];
 }
 
 // ─── Statistics ───────────────────────────────────────────────────────────────
