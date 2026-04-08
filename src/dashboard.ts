@@ -313,41 +313,54 @@ function renderWinRate() {
   const data = [${winRatePoints}];
   const markers = [${versionMarkers}];
 
-  // Version annotations as vertical lines
-  const annotations = {};
-  markers.forEach((m, i) => {
-    if (m.idx >= 0 && m.idx < data.length) {
-      annotations['v' + i] = {
-        type: 'line',
-        xMin: m.idx, xMax: m.idx,
-        borderColor: '#f59e0b',
-        borderWidth: 2,
-        borderDash: [5, 5],
-        label: {
-          display: true,
-          content: m.version,
-          position: 'start',
-          color: '#f59e0b',
-          font: { size: 11 }
-        }
-      };
-    }
-  });
+  const ctx = document.getElementById('winrateChart').getContext('2d');
 
-  new Chart(document.getElementById('winrateChart'), {
+  // Segment colors: green above 50%, red below
+  const segmentColor = (ctx2) => {
+    const y0 = ctx2.p0.parsed.y;
+    const y1 = ctx2.p1.parsed.y;
+    if (y0 >= 50 && y1 >= 50) return '#22c55e';
+    if (y0 < 50 && y1 < 50) return '#ef4444';
+    return y0 >= 50 ? '#22c55e' : '#ef4444';
+  };
+
+  // Version marker points — only show dots at version change indices
+  const versionIndices = new Set(markers.map(m => m.idx));
+  const pointRadius = data.map((_, i) => versionIndices.has(i) ? 8 : 0);
+  const pointStyle = data.map((_, i) => versionIndices.has(i) ? 'circle' : 'circle');
+  const pointColors = data.map((d, i) => versionIndices.has(i) ? '#f59e0b' : 'transparent');
+  const pointBorder = data.map((_, i) => versionIndices.has(i) ? '#f59e0b' : 'transparent');
+
+  new Chart(ctx, {
     type: 'line',
     data: {
       labels: data.map((_, i) => i + 1),
-      datasets: [{
-        label: 'Win Rate %',
-        data: data.map(d => d.y),
-        borderColor: '#22c55e',
-        backgroundColor: 'rgba(34,197,94,0.05)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 4,
-        pointBackgroundColor: data.map(d => d.y >= 50 ? '#22c55e' : '#ef4444'),
-      }]
+      datasets: [
+        // 50% reference line
+        {
+          label: '50%',
+          data: data.map(() => 50),
+          borderColor: 'rgba(255,255,255,0.4)',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0,
+        },
+        // Win rate line
+        {
+          label: 'Win Rate %',
+          data: data.map(d => d.y),
+          segment: { borderColor: segmentColor },
+          backgroundColor: 'rgba(34,197,94,0.05)',
+          fill: false,
+          tension: 0.3,
+          borderWidth: 2,
+          pointRadius: pointRadius,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: pointBorder,
+          pointHoverRadius: 8,
+        }
+      ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -355,9 +368,14 @@ function renderWinRate() {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: ctx => {
-              const d = data[ctx.dataIndex];
-              return d ? [ctx.parsed.y + '%', d.label, d.date, d.version].filter(Boolean) : [ctx.parsed.y + '%'];
+            label: ctx2 => {
+              if (ctx2.datasetIndex === 0) return '50% Linie';
+              const d = data[ctx2.dataIndex];
+              const marker = markers.find(m => m.idx === ctx2.dataIndex);
+              const lines = [ctx2.parsed.y + '%'];
+              if (marker) lines.push('Version: ' + marker.version);
+              if (d) lines.push(d.date);
+              return lines;
             }
           }
         }
@@ -372,6 +390,9 @@ function renderWinRate() {
       }
     }
   });
+
+  // Draw version labels above dots
+  // (done via afterDraw plugin workaround — labels shown in tooltip instead)
 }
 function renderEquity() {
   if (equityRendered) return;
