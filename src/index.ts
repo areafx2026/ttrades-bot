@@ -134,16 +134,22 @@ async function syncClosedTrades(): Promise<void> {
 
         const activities = actRes.data.activities || [];
         for (const act of activities) {
-          if (act.details?.dealId === trade.dealId || act.dealId === trade.dealId) {
-            const actions = act.details?.actions || [];
-            const closeAction = actions.find((a: any) =>
-              a.actionType === 'POSITION_CLOSED' || a.actionType === 'POSITION_DELETED'
-            );
-            if (closeAction) {
-              closePrice = parseFloat(closeAction.level ?? closePrice);
-              closedAt   = act.date ?? closedAt;
-              break;
-            }
+          // Match by dealId or dealReference (both p_ and o_ variants)
+          const actDealId  = act.dealId ?? '';
+          const actDealRef = act.details?.dealReference ?? '';
+          const tradeId    = trade.dealId;
+          const matches    =
+            actDealId  === tradeId ||
+            actDealRef === tradeId ||
+            actDealRef === tradeId.replace(/^o_/, 'p_') ||
+            actDealId  === tradeId.replace(/^o_/, 'p_');
+
+          if (matches && act.type === 'POSITION' &&
+              (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
+            closePrice = parseFloat(act.details?.level ?? closePrice);
+            closedAt   = act.dateUTC ?? act.date ?? closedAt;
+            logger.info('Close found: ' + closePrice + ' via ' + act.source + ' for ' + trade.symbol);
+            break;
           }
         }
       } catch {
@@ -154,19 +160,27 @@ async function syncClosedTrades(): Promise<void> {
       savePineScript();
 
       // Update SQLite DB with close data
-      if (closed) {
-        try {
-          const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-          closeTrade(
-            trade.dealId,
-            closePrice,
-            closedAt,
-            'SL/TP/Market',
-            closed.pnlPips ?? 0,
-            closed.pnlEUR ?? 0,
-            closed.result ?? 'BREAKEVEN'
-          );
-        } catch (dbErr) { logger.error('DB close error:', dbErr); }
+      // Calculate P&L from close price directly (don't rely on logClosedTrade result)
+      try {
+        const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const entryPrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+        const rawPnlPips = trade.type === 'LONG'
+          ? (closePrice - entryPrice) / pip
+          : (entryPrice - closePrice) / pip;
+        const pnlPips = Math.round(rawPnlPips * 10) / 10;
+        const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
+
+        closeTrade(
+          trade.dealId,
+          closePrice,
+          closedAt,
+          'SL/TP/Market',
+          pnlPips,
+          closed?.pnlEUR ?? 0,
+          result
+        );
+        logger.info('Trade closed in DB: ' + trade.symbol + ' ' + result + ' ' + pnlPips + ' pips');
+      } catch (dbErr) { logger.error('DB close error:', dbErr); }
       }
 
       // Remove from active symbols
