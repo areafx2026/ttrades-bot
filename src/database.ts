@@ -288,7 +288,7 @@ export interface StrategyLogEntry {
 
 export function getCurrentStrategyVersion(): string {
   const db = getDb();
-  const last = db.prepare('SELECT version FROM strategy_log ORDER BY id DESC LIMIT 1').get() as any;
+  const last = db.prepare('SELECT version FROM strategy_log ORDER BY changed_at DESC LIMIT 1').get() as any;
   return last?.version ?? 'v1.0';
 }
 
