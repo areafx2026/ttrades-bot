@@ -39,6 +39,21 @@ app.get('/', (req, res) => {
 
   const equityPoints = (stats.equity as any[]).map((e, i) => `{x:${i},y:${e.cumulative?.toFixed(2) ?? 0}}`).join(',');
 
+  // Win rate over time — rolling win rate per trade
+  const closedSorted = allTrades.filter(t => t.closed_at && t.result).sort((a, b) => new Date(a.closed_at!).getTime() - new Date(b.closed_at!).getTime());
+  let wins = 0;
+  const winRatePoints = closedSorted.map((t, i) => {
+    if (t.result === 'WIN') wins++;
+    const wr = Math.round(wins / (i + 1) * 100);
+    return `{x:${i},y:${wr},label:'${t.symbol} ${t.type}',date:'${formatDate(t.closed_at)}',version:'${t.strategy_version ?? ''}'}`;
+  }).join(',');
+
+  // Version change markers for charts
+  const versionMarkers = strategyLog.map(v => {
+    const tradeIdx = closedSorted.findIndex(t => t.closed_at && t.closed_at >= v.changed_at);
+    return `{idx:${tradeIdx},version:'${v.version}'}`;
+  }).filter(v => !v.includes('idx:-1')).join(',');
+
   const html = `<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -131,6 +146,7 @@ app.get('/', (req, res) => {
     <button class="tab-btn" onclick="showTab('symbols')">Symbole</button>
     <button class="tab-btn" onclick="showTab('versions')">Versionen</button>
     <button class="tab-btn" onclick="showTab('equity')">Equity</button>
+    <button class="tab-btn" onclick="showTab('winrate')">Win Rate</button>
     <button class="tab-btn" onclick="showTab('log')">Logbuch</button>
   </div>
 
@@ -240,6 +256,14 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
+  <!-- Win Rate -->
+  <div id="tab-winrate" class="tab-content">
+    <div class="card">
+      <div class="section-title">Win Rate Entwicklung</div>
+      <div class="canvas-wrap" style="height:300px"><canvas id="winrateChart"></canvas></div>
+    </div>
+  </div>
+
   <!-- Logbuch -->
   <div id="tab-log" class="tab-content">
     <div class="card" style="margin-bottom:1rem">
@@ -277,9 +301,78 @@ function showTab(name) {
   document.getElementById('tab-' + name).classList.add('active');
   event.target.classList.add('active');
   if (name === 'equity') renderEquity();
+  if (name === 'winrate') renderWinRate();
 }
 
 let equityRendered = false;
+let winrateRendered = false;
+
+function renderWinRate() {
+  if (winrateRendered) return;
+  winrateRendered = true;
+  const data = [${winRatePoints}];
+  const markers = [${versionMarkers}];
+
+  // Version annotations as vertical lines
+  const annotations = {};
+  markers.forEach((m, i) => {
+    if (m.idx >= 0 && m.idx < data.length) {
+      annotations['v' + i] = {
+        type: 'line',
+        xMin: m.idx, xMax: m.idx,
+        borderColor: '#f59e0b',
+        borderWidth: 2,
+        borderDash: [5, 5],
+        label: {
+          display: true,
+          content: m.version,
+          position: 'start',
+          color: '#f59e0b',
+          font: { size: 11 }
+        }
+      };
+    }
+  });
+
+  new Chart(document.getElementById('winrateChart'), {
+    type: 'line',
+    data: {
+      labels: data.map((_, i) => i + 1),
+      datasets: [{
+        label: 'Win Rate %',
+        data: data.map(d => d.y),
+        borderColor: '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.05)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 4,
+        pointBackgroundColor: data.map(d => d.y >= 50 ? '#22c55e' : '#ef4444'),
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = data[ctx.dataIndex];
+              return d ? [ctx.parsed.y + '%', d.label, d.date, d.version].filter(Boolean) : [ctx.parsed.y + '%'];
+            }
+          }
+        }
+      },
+      scales: {
+        x: { display: false },
+        y: {
+          min: 0, max: 100,
+          grid: { color: '#1e1e2e' },
+          ticks: { color: '#64748b', callback: v => v + '%' }
+        }
+      }
+    }
+  });
+}
 function renderEquity() {
   if (equityRendered) return;
   equityRendered = true;
