@@ -27,14 +27,17 @@ app.get('/', (req, res) => {
   const stats = getStats();
   const openTrades = getOpenTrades();
   const sortAsc = req.query.sort === 'asc';
+  const logSortAsc = req.query.logSort === 'asc';
   const allTrades = getAllTrades().sort((a, b) => {
     const da = new Date(a.opened_at).getTime();
     const db2 = new Date(b.opened_at).getTime();
     return sortAsc ? da - db2 : db2 - da;
   });
-  const strategyLog = getStrategyLog().sort((a, b) =>
-    new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
-  );
+  const strategyLog = getStrategyLog().sort((a, b) => {
+    const da = new Date(a.changed_at).getTime();
+    const db2 = new Date(b.changed_at).getTime();
+    return logSortAsc ? da - db2 : db2 - da;
+  });
   const version = getCurrentStrategyVersion();
 
   const totalClosed = allTrades.filter(t => t.closed_at);
@@ -287,7 +290,7 @@ app.get('/', (req, res) => {
       <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
         <span>Strategie-Logbuch</span>
         <button onclick="toggleLogSort()" id="logSortBtn" style="font-size:12px;padding:4px 12px;">
-          ${sortAsc ? 'Neueste zuerst' : 'Älteste zuerst'}
+          ${logSortAsc ? 'Neueste zuerst' : 'Älteste zuerst'}
         </button>
       </div>
       <table>
@@ -311,9 +314,10 @@ app.get('/', (req, res) => {
 <script>
 function toggleLogSort() {
   const url = new URL(window.location.href);
-  const current = url.searchParams.get('sort');
-  url.searchParams.set('sort', current === 'asc' ? 'desc' : 'asc');
-  window.location.href = url.toString() + '#tab-log';
+  const current = url.searchParams.get('logSort');
+  url.searchParams.set('logSort', current === 'asc' ? 'desc' : 'asc');
+  url.searchParams.set('activeTab', 'log');
+  window.location.href = url.toString();
 }
 
 function toggleSort() {
@@ -322,6 +326,20 @@ function toggleSort() {
   url.searchParams.set('sort', current === 'asc' ? 'desc' : 'asc');
   window.location.href = url.toString();
 }
+
+// Restore tab on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const urlTab = new URLSearchParams(window.location.search).get('activeTab');
+  if (urlTab) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    const tabEl = document.getElementById('tab-' + urlTab);
+    if (tabEl) tabEl.classList.add('active');
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      if (btn.getAttribute('onclick')?.includes("'" + urlTab + "'")) btn.classList.add('active');
+    });
+  }
+});
 
 function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
