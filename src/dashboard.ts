@@ -331,18 +331,16 @@ function toggleSort() {
 
 // Set initial active tab without flicker
 const _initTab = '${activeTab}';
-if (_initTab !== 'trades') {
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-    const el = document.getElementById('tab-' + _initTab);
-    const btn = document.getElementById('btn-' + _initTab);
-    if (el) el.classList.add('active');
-    if (btn) btn.classList.add('active');
-    if (_initTab === 'equity') renderEquity();
-    if (_initTab === 'winrate') renderWinRate();
-  });
-}
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('tab-' + _initTab);
+  const btn = document.getElementById('btn-' + _initTab);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (_initTab === 'equity') renderEquity();
+  if (_initTab === 'winrate') renderWinRate();
+});
 
 function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
