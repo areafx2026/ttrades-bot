@@ -152,13 +152,13 @@ app.get('/', (req, res) => {
 
   <!-- Tabs -->
   <div class="tab-nav">
-    <button class="tab-btn ${activeTab==='trades'?'active ':\''}" onclick="showTab('trades')">Trades</button>
-    <button class="tab-btn" onclick="showTab('maemfe')">MAE/MFE</button>
-    <button class="tab-btn" onclick="showTab('symbols')">Symbole</button>
-    <button class="tab-btn" onclick="showTab('versions')">Versionen</button>
-    <button class="tab-btn" onclick="showTab('equity')">Equity</button>
-    <button class="tab-btn" onclick="showTab('winrate')">Win Rate</button>
-    <button class="tab-btn ${activeTab==='log'?'active ':\''}" onclick="showTab('log')">Logbuch</button>
+    <button class="tab-btn" id="btn-trades" onclick="showTab('trades')">Trades</button>
+    <button class="tab-btn" id="btn-maemfe" onclick="showTab('maemfe')">MAE/MFE</button>
+    <button class="tab-btn" id="btn-symbols" onclick="showTab('symbols')">Symbole</button>
+    <button class="tab-btn" id="btn-versions" onclick="showTab('versions')">Versionen</button>
+    <button class="tab-btn" id="btn-equity" onclick="showTab('equity')">Equity</button>
+    <button class="tab-btn" id="btn-winrate" onclick="showTab('winrate')">Win Rate</button>
+    <button class="tab-btn" id="btn-log" onclick="showTab('log')">Logbuch</button>
   </div>
 
   <!-- Trades -->
@@ -327,6 +327,19 @@ function toggleSort() {
   url.searchParams.set('sort', current === 'asc' ? 'desc' : 'asc');
   window.location.href = url.toString();
 }
+
+// Set initial active tab without flicker
+const _initTab = '${activeTab}';
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('tab-' + _initTab);
+  const btn = document.getElementById('btn-' + _initTab);
+  if (el) el.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (_initTab === 'equity') renderEquity();
+  if (_initTab === 'winrate') renderWinRate();
+});
 
 function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
