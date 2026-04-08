@@ -26,8 +26,15 @@ function pnlColor(val?: number): string {
 app.get('/', (req, res) => {
   const stats = getStats();
   const openTrades = getOpenTrades();
-  const allTrades = getAllTrades();
-  const strategyLog = getStrategyLog();
+  const sortAsc = req.query.sort === 'asc';
+  const allTrades = getAllTrades().sort((a, b) => {
+    const da = new Date(a.opened_at).getTime();
+    const db2 = new Date(b.opened_at).getTime();
+    return sortAsc ? da - db2 : db2 - da;
+  });
+  const strategyLog = getStrategyLog().sort((a, b) =>
+    new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()
+  );
   const version = getCurrentStrategyVersion();
 
   const totalClosed = allTrades.filter(t => t.closed_at);
@@ -153,8 +160,13 @@ app.get('/', (req, res) => {
   <!-- Trades -->
   <div id="tab-trades" class="tab-content active">
     <div class="card">
-      <div class="section-title">Alle Trades</div>
-      <table>
+      <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Alle Trades</span>
+        <button onclick="toggleSort()" id="sortBtn" style="font-size:12px;padding:4px 12px;">
+          ${sortAsc ? 'Neueste zuerst' : 'Älteste zuerst'}
+        </button>
+      </div>
+      <div id="tradesTable"><table>
         <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
         ${allTrades.map(t => `
         <tr>
@@ -175,7 +187,7 @@ app.get('/', (req, res) => {
           <td style="color:var(--muted)">${formatDate(t.closed_at)}</td>
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
         </tr>`).join('')}
-      </table>
+      </table></div>
     </div>
   </div>
 
@@ -295,6 +307,13 @@ app.get('/', (req, res) => {
 </div>
 
 <script>
+function toggleSort() {
+  const url = new URL(window.location.href);
+  const current = url.searchParams.get('sort');
+  url.searchParams.set('sort', current === 'asc' ? 'desc' : 'asc');
+  window.location.href = url.toString();
+}
+
 function showTab(name) {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
