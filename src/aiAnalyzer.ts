@@ -60,50 +60,53 @@ export async function analyzeTradesWithAI(): Promise<string | null> {
   const prompt = `Du analysierst die Trades eines vollautomatischen Forex-Trading-Bots (TTrades Fractal Model / TTFM).
 Es gibt keinen menschlichen Trader - alle Trades werden algorithmisch ausgefuehrt.
 
-## TATSAECHLICH IMPLEMENTIERTE FILTER (nur diese existieren):
-1. Session-Filter: Nur London Open 08:30-10:30 MEZ und NY Open 14:30-16:30 MEZ
-2. Currency Strength: Top2 stark vs Bottom2 schwach
-3. Entry Distance: Max 15 Pips vom aktuellen Preis
-4. TP/D1 Distance: TP mind. 20 Pips von D1 High/Low entfernt
-5. Mindest-Stop: 8 Pips JPY, 5 Pips andere Pairs
-6. Max Size: 5000 Points hard cap
-7. Max Trades: 3 gleichzeitig
-8. Cooldown: 8h nach Trade pro Pair
-9. S/R Zonen: Rebound oder Block je nach Zonenkontext
-10. 4H Trend: HH+HL bullish, LH+LL bearish
-11. H1 Kontext: Preis ueber/unter H1 Swing
-12. M15 Entry: Protected Swing + FVG + 2 bestaetigende Kerzen
+## STRATEGIE v1.2 (Stand April 2026)
+Timeframe-Hierarchie: D1 Bias -> 4H Trend -> H1 Kontext -> M15 Entry
+D1 Bias: LONG wenn Swing Low + bullische C3-Kerze (Body >50%) + D1 Trend bullisch (HH+HL in letzten 6 Kerzen). SHORT analog mit LH+LL.
+Mean Reversion: >150 Pips in 6 Tagen -> Gegenrichtung als Bias.
+4H: HH+HL fuer LONG, LH+LL fuer SHORT.
+H1: Preis ueber letztem H1 Swing Low (LONG) / unter H1 Swing High (SHORT).
+M15 Entry: Protected Swing + FVG + 2 bestaetigende Kerzen.
+Stop Loss: H1 Swing Low/High (letzte 20 Kerzen) +/- 5 Pips.
+R:R: Immer 1:1.5 basierend auf echtem Fill-Preis.
+
+## IMPLEMENTIERTE FILTER (nur diese - keine anderen erfinden):
+1. Session-Filter: KEINE neuen Trades WAEHREND London Open (08:30-10:30 MEZ) und NY Open (14:30-16:30 MEZ). Trades AUSSERHALB dieser Zeiten (z.B. 03:00, 22:00) sind KORREKT und ERWARTET.
+2. Currency Exposure: Max 2 offene Trades pro Waehrung
+3. Spread-Filter: Kein Trade wenn Spread > 2x Normalwert (spreads.json)
+4. Currency Strength: Top2 stark vs Bottom2 schwach
+5. Entry Distance: Max 15 Pips vom aktuellen Preis
+6. TP/D1 Distance: TP mind. 20 Pips von D1 High/Low entfernt
+7. Mindest-Stop: 8 Pips JPY, 5 Pips andere Pairs
+8. Position Size: Risikobasiert ~EUR 100 pro Trade, Max 10.000 Points
+9. Max Trades: 3 gleichzeitig
+10. Cooldown: 8h nach Trade pro Pair
+11. S/R Zonen: aus zones.json
+12. D1 Trend: HH+HL fuer LONG, LH+LL fuer SHORT
 13. Weekend Block: Fr 18:00 - Mo 08:00 MEZ
-14. NYSE Buffer: +-15 Min um 15:30 MEZ
+14. NYSE Buffer: +/-15 Min um 15:30 MEZ
 
-## NICHT IMPLEMENTIERT - Kommentare in rules.txt sind KEINE aktiven Filter:
-- Mindest-Haltezeit jeglicher Art
-- Hardware-Level Locks
-- Automatische Bot-Deaktivierung
-- Trade-Pause nach Breakeven
-
-## Wichtige Hinweise:
-- Kurze Haltezeiten unter 1 Minute entstehen weil Capital.com die Position sofort schliesst
-  Moegliche Gruende: SL/TP zu nah am aktuellen Preis, Margin-Problem, oder Spread
-  Das ist ein Entry-Validierungs-Problem, kein Haltezeit-Bug
-- Breakeven mit 0 Pips bedeutet Capital.com hat Position sofort geschlossen, nicht der Bot
-- Erfinde KEINE Filter die nicht in der Liste oben stehen
+## WICHTIGE HINWEISE:
+- Trades um 03:00, 22:00 oder andere Nachtzeiten sind VOELLIG NORMAL - Session-Filter blockiert nur Trade-Eroeffnung WAEHREND der Opens
+- Position-Tracking (MAE/MFE) laeuft 24/5 unabhaengig von Sessions
+- Breakeven/0 Pips = Capital.com hat Position unerwartet geschlossen, nicht der Bot
+- Keine Filter erfinden die nicht in der Liste stehen
 
 ## Heutige Trades:
 ${tradeDetails}
 
-## Aktuelles Regelwerk - Kommentare mit // sind NICHT aktiv:
+## Aktuelles Regelwerk (// Kommentare sind NICHT aktiv):
 ${currentRules}
 
 ## Deine Aufgabe:
-1. **Signal-Qualitaet**: War D1 Bias, 4H Trend, H1 Kontext und M15 Entry aligned?
-2. **Filter-Check**: Welche der 14 Filter haben gegriffen? Bei sofortigem Close: welcher Entry-Validierungs-Filter fehlte?
-3. **Stop**: War der Stop sinnvoll fuer das Pair?
-4. **Size**: War die Positionsgroesse max 5000 Points?
-5. **Ergebnis**: Bei Loss - welcher konkrete Code-Fix wuerde helfen?
+1. **Signal**: War D1 Bias, 4H, H1, M15 korrekt aligned?
+2. **Filter**: Welche haben gegriffen oder haetten greifen sollen?
+3. **Stop**: War H1-basierter Stop sinnvoll?
+4. **Size**: Ca. EUR 100 Risiko eingehalten?
+5. **Verbesserung**: Bei Loss - konkreter Code-Fix?
 
-Code-Vorschlag nur wenn konkret:
-// KI-Vorschlag [${today}]: [spezifischer Filter] - wegen [konkretem Problem]
+Code-Vorschlag Format:
+// KI-Vorschlag [${today}]: [Filter] - wegen [Problem]
 
 Maximal 400 Woerter. Keine Panik-Empfehlungen.`;
 
