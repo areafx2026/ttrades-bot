@@ -68,17 +68,29 @@ export class FractalAnalyzer {
   // STEP 1: Daily Bias
   private getDailyBias(): SignalType | null {
     const candles = this.daily;
-    if (candles.length < 5) return null;
+    if (candles.length < 8) return null;
 
     const last = candles[candles.length - 1];
     const pip = this.pipSize();
+
+    // Filter 1: D1 Trend structure (HH+HL for LONG, LH+LL for SHORT)
+    // Use last 6 D1 candles to determine trend direction
+    const d1Highs = candles.slice(-6).map(c => c.high);
+    const d1Lows  = candles.slice(-6).map(c => c.low);
+    const d1Bullish =
+      d1Highs[d1Highs.length - 1] > d1Highs[d1Highs.length - 3] && // HH
+      d1Lows[d1Lows.length - 1]   > d1Lows[d1Lows.length - 3];     // HL
+    const d1Bearish =
+      d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3] && // LH
+      d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];     // LL
 
     const swingLow = this.detectSwingLow(candles, candles.length - 3);
     if (swingLow) {
       const c3 = candles[candles.length - 2];
       const c3Body = c3.close - c3.open;
       const c3Range = c3.high - c3.low;
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5) return 'LONG';
+      // Require D1 trend to be bullish for LONG
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish) return 'LONG';
     }
 
     const swingHigh = this.detectSwingHigh(candles, candles.length - 3);
@@ -86,17 +98,18 @@ export class FractalAnalyzer {
       const c3 = candles[candles.length - 2];
       const c3Body = c3.open - c3.close;
       const c3Range = c3.high - c3.low;
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5) return 'SHORT';
+      // Require D1 trend to be bearish for SHORT
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bearish) return 'SHORT';
     }
 
-    // Mean reversion: extended move >200 pips in 6 days
+    // Filter 2: Mean reversion — reduced threshold to 150 pips
     const recentHigh = Math.max(...candles.slice(-6).map(c => c.high));
     const pipDrop = (recentHigh - last.close) / pip;
-    if (pipDrop > 200 && last.close > last.open) return 'LONG';
+    if (pipDrop > 150 && last.close > last.open) return 'LONG';
 
     const recentLow = Math.min(...candles.slice(-6).map(c => c.low));
     const pipRise = (last.close - recentLow) / pip;
-    if (pipRise > 200 && last.close < last.open) return 'SHORT';
+    if (pipRise > 150 && last.close < last.open) return 'SHORT';
 
     return null;
   }

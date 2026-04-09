@@ -77,3 +77,5 @@
 // KI-Vorschlag [4.4.2026]: Zero-P&L-Trade-Analyse mit automatischer Size-Korrektur - wegen möglichem Spread/Size-Berechnungsfehler
 
 // KI-Vorschlag [7.4.2026]: Pre-Entry Spread-Check - Entry nur wenn Spread <3 Pips für JPY-Pairs - wegen Capital.com Immediate Close bei GBPJPY durch zu weiten Spread
+
+// KI-Vorschlag [8.4.2026]: Harter Session-Filter-Block - Entry nur während London Open 08:30-10:30 und NY Open 14:30-16:30 MEZ mit Exception-freier Implementierung - wegen GBPAUD Entry um 03:03 außerhalb erlaubter Sessions führt zu Capital.com Immediate Close
