@@ -127,12 +127,12 @@ export class TradeExecutor {
     return positions.some(p => p.epic === epic);
   }
 
-  // Calculate position size in Points (Capital.com unit)
+  // v1.3: ATR-normalized position sizing
+  // Position size scaled by inverse ATR — volatile pairs get smaller size
+  // Base risk stays EUR 100, but size adjusts so that a 1-ATR adverse move
+  // has roughly equal EUR impact across all pairs
+  //
   // Capital.com uses Points, not Lots. Min 100 points, increment 100.
-  // For EURUSD: 1 point = 1 USD unit
-  // Pip value per 1000 points ≈ €1 (at EURUSD ~1.10)
-  // Formula: size = (riskEUR / stopPips) * pointsPerPip
-  // pointsPerPip for non-JPY = 10 (1 pip = 10 points movement on price)
   private calculateLotSize(signal: TradeSignal): number {
     const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
     const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
@@ -152,18 +152,24 @@ export class TradeExecutor {
       pipValuePer1000 = 0.08;
     }
 
-    const rawSize = (riskEUR / (stopPips * pipValuePer1000)) * 1000;
+    // v1.3: ATR-based volatility scaling
+    // Reference ATR: 80 pips (typical major pair D1 ATR)
+    // If ATR is 160 pips (GBP/JPY), scale factor = 80/160 = 0.5 (half size)
+    // If ATR is 40 pips (EUR/CHF), scale factor = 80/40 = 2.0 (double size, capped)
+    const ATR_REFERENCE = 80; // pips — calibrated to major pair average
+    const atr14 = signal.atr14 ?? ATR_REFERENCE;
+    const atrFactor = atr14 > 0 ? Math.min(ATR_REFERENCE / atr14, 2.0) : 1.0;
+    // Floor at 0.3 to avoid tiny positions on extremely volatile pairs
+    const clampedFactor = Math.max(atrFactor, 0.3);
 
-    // Round to nearest 100, min 100
-    // No hard cap on size — risk is controlled by riskEUR
-    // Safety cap at 10000 Points to prevent extreme positions on very tight stops
+    const rawSize = (riskEUR / (stopPips * pipValuePer1000)) * 1000 * clampedFactor;
+
+    // Round to nearest 100, min 100, max 10000
     const rounded = Math.round(rawSize / 100) * 100;
     const size = Math.min(Math.max(rounded, 100), 10000);
 
-    // Verify actual risk matches target (log warning if off by more than 20%)
-    const actualRisk = size / 1000 * stopPips * pipValuePer1000;
-    if (Math.abs(actualRisk - riskEUR) / riskEUR > 0.2) {
-      // Risk is capped — size was limited by min/max bounds
+    if (atr14 !== ATR_REFERENCE) {
+      logger.info(`Size calc: ${signal.symbol} ATR(14)=${atr14.toFixed(0)} pips, factor=${clampedFactor.toFixed(2)}, raw=${rawSize.toFixed(0)}, final=${size} pts`);
     }
 
     return size;

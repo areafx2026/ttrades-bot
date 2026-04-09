@@ -60,15 +60,17 @@ export async function analyzeTradesWithAI(): Promise<string | null> {
   const prompt = `Du analysierst die Trades eines vollautomatischen Forex-Trading-Bots (TTrades Fractal Model / TTFM).
 Es gibt keinen menschlichen Trader - alle Trades werden algorithmisch ausgefuehrt.
 
-## STRATEGIE v1.2 (Stand April 2026)
+## STRATEGIE v1.3 (Stand April 2026)
 Timeframe-Hierarchie: D1 Bias -> 4H Trend -> H1 Kontext -> M15 Entry
-D1 Bias: LONG wenn Swing Low + bullische C3-Kerze (Body >50%) + D1 Trend bullisch (HH+HL in letzten 6 Kerzen). SHORT analog mit LH+LL.
-Mean Reversion: >150 Pips in 6 Tagen -> Gegenrichtung als Bias.
+D1 Bias: LONG wenn Swing Low + bullische C3-Kerze (Body >50%) + D1 Trend bullisch (HH+HL in letzten 6 Kerzen) + HP-Filter-Trend nicht BEARISH. SHORT analog mit LH+LL + HP-Filter nicht BULLISH.
+HP-Filter: Hodrick-Prescott-Glaettung der D1 Closes filtert Noise. Doppelpass-Exponentialglaettung mit lambda=1600.
+Mean Reversion: Relativer z-Score cross-pair statt fester Pips. z = (Ri - Rm) / sigma_i. |z| > 1.5 blockiert Trade in ueberextendierter Richtung. Extremfall-Fallback bei >300 Pips.
 4H: HH+HL fuer LONG, LH+LL fuer SHORT.
 H1: Preis ueber letztem H1 Swing Low (LONG) / unter H1 Swing High (SHORT).
 M15 Entry: Protected Swing + FVG + 2 bestaetigende Kerzen.
 Stop Loss: H1 Swing Low/High (letzte 20 Kerzen) +/- 5 Pips.
 R:R: Immer 1:1.5 basierend auf echtem Fill-Preis.
+Position Sizing: ATR(14)-normiert. Referenz-ATR 80 Pips, Faktor 0.3-2.0. Volatile Pairs (GBP/JPY) = kleinere Size. Ruhige Pairs (EUR/CHF) = groessere Size.
 
 ## IMPLEMENTIERTE FILTER (nur diese - keine anderen erfinden):
 1. Session-Filter: KEINE neuen Trades WAEHREND London Open (08:30-10:30 MEZ) und NY Open (14:30-16:30 MEZ). Trades AUSSERHALB dieser Zeiten (z.B. 03:00, 22:00) sind KORREKT und ERWARTET.
@@ -78,13 +80,15 @@ R:R: Immer 1:1.5 basierend auf echtem Fill-Preis.
 5. Entry Distance: Max 15 Pips vom aktuellen Preis
 6. TP/D1 Distance: TP mind. 20 Pips von D1 High/Low entfernt
 7. Mindest-Stop: 8 Pips JPY, 5 Pips andere Pairs
-8. Position Size: Risikobasiert ~EUR 100 pro Trade, Max 10.000 Points
+8. Position Size: ATR(14)-normiert, Basis ~EUR 100 pro Trade, Max 10.000 Points. ATR-Referenz 80 Pips, Faktor 0.3-2.0.
 9. Max Trades: 3 gleichzeitig
 10. Cooldown: 8h nach Trade pro Pair
 11. S/R Zonen: aus zones.json
 12. D1 Trend: HH+HL fuer LONG, LH+LL fuer SHORT
 13. Weekend Block: Fr 18:00 - Mo 08:00 MEZ
 14. NYSE Buffer: +/-15 Min um 15:30 MEZ
+15. HP-Filter: D1 Close-Glaettung, blockiert LONG wenn HP-Trend BEARISH, SHORT wenn BULLISH
+16. Mean-Reversion z-Score: Cross-pair relativ, |z| > 1.5 blockiert Trade in ueberextendierter Richtung
 
 ## WICHTIGE HINWEISE:
 - Trades um 03:00, 22:00 oder andere Nachtzeiten sind VOELLIG NORMAL - Session-Filter blockiert nur Trade-Eroeffnung WAEHREND der Opens

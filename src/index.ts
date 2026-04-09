@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import axios from 'axios';
 import { CapitalAPI } from './capitalApi';
-import { FractalAnalyzer } from './fractalAnalyzer';
+import { FractalAnalyzer, TradeSignal } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { TradeExecutor } from './tradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
@@ -9,7 +9,7 @@ import { isMarketOpen, isActiveTradingSession, getActiveSession } from './market
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
-import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
+import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, getTrade } from './database';
 import { startDashboard } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
@@ -120,6 +120,29 @@ async function syncClosedTrades(): Promise<void> {
     for (const trade of openTrades) {
       if (!trade.dealId || openDealIds.has(trade.dealId)) continue;
 
+      // v1.3 fix: Check if already closed in SQLite — if so, force-update trades.json and skip
+      try {
+        const dbCheck = getTrade(trade.dealId);
+        if (dbCheck?.closed_at) {
+          // trades.json is out of sync — repair it
+          const allJsonTrades = loadTrades();
+          const idx = allJsonTrades.findIndex(t => t.id === trade.dealId || t.dealId === trade.dealId);
+          if (idx !== -1 && !allJsonTrades[idx].closedAt) {
+            allJsonTrades[idx].closedAt = dbCheck.closed_at;
+            allJsonTrades[idx].closePrice = dbCheck.close_price;
+            allJsonTrades[idx].pnlPips = dbCheck.pnl_pips;
+            allJsonTrades[idx].pnlEUR = dbCheck.pnl_eur;
+            allJsonTrades[idx].result = dbCheck.result as any;
+            const fs2 = require('fs');
+            const path2 = require('path');
+            fs2.writeFileSync(path2.join(process.cwd(), 'data', 'trades.json'), JSON.stringify(allJsonTrades, null, 2), 'utf-8');
+            logger.info(`Fixed trades.json for ${trade.symbol} [${trade.dealId}] — was closed in DB but open in JSON`);
+          }
+          activeSymbols.delete(trade.symbol);
+          continue;
+        }
+      } catch { /* DB check failed, proceed with normal close flow */ }
+
       logger.info(`Closed trade detected: ${trade.symbol} [${trade.dealId}]`);
 
       let closePrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
@@ -203,6 +226,40 @@ async function syncClosedTrades(): Promise<void> {
   }
 }
 
+// ─── v1.3: Cached weekly returns for mean-reversion z-score ──────────────────
+
+let cachedWeeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = [];
+let weeklyReturnsCacheTime = 0;
+const WEEKLY_RETURNS_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+async function getCachedWeeklyReturns(capital: CapitalAPI): Promise<{ symbol: string; returnPips: number; volatility: number }[]> {
+  if (cachedWeeklyReturns.length > 0 && Date.now() - weeklyReturnsCacheTime < WEEKLY_RETURNS_CACHE_TTL) {
+    return cachedWeeklyReturns;
+  }
+
+  const results: { symbol: string; returnPips: number; volatility: number }[] = [];
+  for (const sym of SYMBOLS) {
+    try {
+      const d1 = await capital.getCandles(sym, 'DAY', 7);
+      await new Promise(r => setTimeout(r, 150));
+      if (d1.length >= 2) {
+        const pip = sym.includes('JPY') ? 0.01 : 0.0001;
+        const weekReturn = (d1[d1.length - 1].close - d1[0].open) / pip;
+        const ranges = d1.slice(-6).map(c => (c.high - c.low) / pip);
+        const avgRange = ranges.reduce((s, v) => s + v, 0) / ranges.length;
+        results.push({ symbol: sym, returnPips: weekReturn, volatility: avgRange });
+      }
+    } catch { /* skip pair */ }
+  }
+
+  if (results.length >= 5) {
+    cachedWeeklyReturns = results;
+    weeklyReturnsCacheTime = Date.now();
+    logger.info(`Mean-reversion data cached: ${results.length} pairs`);
+  }
+  return results;
+}
+
 // ─── Analyze single symbol ────────────────────────────────────────────────────
 
 async function analyzeSymbol(
@@ -210,7 +267,8 @@ async function analyzeSymbol(
   capital: CapitalAPI,
   executor: TradeExecutor,
   telegram: TelegramNotifier,
-  strength: import('./currencyStrength').StrengthResult | null = null
+  strength: import('./currencyStrength').StrengthResult | null = null,
+  weeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = []
 ): Promise<void> {
   lastScanned.set(symbol, Date.now());
 
@@ -243,6 +301,25 @@ async function analyzeSymbol(
         return;
       }
       logger.info(`${symbol}: strength aligned — ${strengthCheck.reason}`);
+    }
+
+    // v1.3: Relative mean-reversion filter (cross-pair z-score)
+    if (weeklyReturns.length >= 5) {
+      const symbolData = weeklyReturns.find(r => r.symbol === symbol);
+      if (symbolData) {
+        const zScore = FractalAnalyzer.calculateMeanReversionZScore(
+          symbolData.returnPips,
+          weeklyReturns
+        );
+        signal.meanRevZScore = zScore;
+        const mrCheck = FractalAnalyzer.isMeanReversionBlocked(signal.type, zScore);
+        if (mrCheck.blocked) {
+          logger.info(`${symbol}: ${mrCheck.reason}`);
+          activeSymbols.delete(symbol);
+          return;
+        }
+        logger.info(`${symbol}: mean-reversion ${mrCheck.reason}`);
+      }
     }
 
     logger.info(`Signal found for ${symbol}: ${signal.type}`);
@@ -487,6 +564,15 @@ async function runScan() {
       logger.warn('Currency strength calculation failed — filter disabled for this scan');
     }
 
+    // v1.3: Calculate weekly returns + ATR for relative mean-reversion filter
+    // Cached for 1 hour to avoid rate-limiting (22 extra D1 fetches per scan)
+    let weeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = [];
+    try {
+      weeklyReturns = await getCachedWeeklyReturns(capital);
+    } catch {
+      logger.warn('Weekly returns calculation failed — mean-reversion filter disabled');
+    }
+
     const executor = new TradeExecutor(
       capital.apiKey,
       capital.isDemo,
@@ -500,7 +586,7 @@ async function runScan() {
 
     for (const symbol of [...active, ...passive]) {
       try {
-        await analyzeSymbol(symbol, capital, executor, telegram);
+        await analyzeSymbol(symbol, capital, executor, telegram, strength, weeklyReturns);
       } catch (err) {
         logger.error(`Error analyzing ${symbol}:`, err);
       }
