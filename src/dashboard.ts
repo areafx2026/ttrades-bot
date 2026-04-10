@@ -301,7 +301,7 @@ app.get('/', (req, res) => {
         <tr>
           <td style="color:var(--muted)">${formatDate(e.changed_at)}</td>
           <td><strong>${e.version}</strong></td>
-          <td>${e.description}</td>
+          <td>${e.description.replace(/(.{130}[^ ]*) /g, '$1<br>')}</td>
           <td>${e.win_rate_before != null ? e.win_rate_before + '%' : '—'}</td>
           <td>${e.trades_before ?? '—'}</td>
           <td ${(e as any).win_rate_after != null ? ((e as any).win_rate_after >= (e.win_rate_before ?? 0) ? 'style="color:var(--green)"' : 'style="color:var(--red)"') : ''}>${(e as any).win_rate_after != null ? (e as any).win_rate_after + '%' : '—'}</td>

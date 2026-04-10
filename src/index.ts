@@ -53,6 +53,8 @@ let marketWasOpen = true;
 
 // Track which symbols have active signals or open trades — these get polled every 3 min
 const activeSymbols = new Set<string>();
+// Track which trades already had their SL moved to breakeven (avoid repeated API calls)
+const trailingApplied = new Set<string>();
 // Track last scan time per symbol
 const lastScanned = new Map<string, number>();
 const FAST_INTERVAL_MS = 3  * 60 * 1000; // 3 minutes
@@ -102,6 +104,53 @@ async function syncClosedTrades(): Promise<void> {
         const priceRes = await axios.get(`${baseURL}/markets/${dbTrade.symbol}`, { headers });
         const mid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
         recordPriceTick(dbTrade.id, mid);
+
+        // v1.3: Breakeven trailing stop
+        // When price reaches 80% of TP distance, move SL to entry + 5 pips
+        const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const entryMid = (dbTrade.entry_zone_low + dbTrade.entry_zone_high) / 2;
+        const tpDist = Math.abs(dbTrade.target1 - entryMid);
+        const threshold = tpDist * 0.8;
+        const breakevenSL = dbTrade.type === 'LONG'
+          ? entryMid + pip * 5
+          : entryMid - pip * 5;
+
+        // Check if price has reached 80% of TP
+        const currentProfit = dbTrade.type === 'LONG'
+          ? mid - entryMid
+          : entryMid - mid;
+
+        if (currentProfit >= threshold) {
+          // Only move SL if it hasn't been moved yet (current SL is worse than breakeven)
+          const slNeedsUpdate = dbTrade.type === 'LONG'
+            ? dbTrade.stop_loss < breakevenSL
+            : dbTrade.stop_loss > breakevenSL;
+
+          if (slNeedsUpdate && !trailingApplied.has(dbTrade.id)) {
+            const dec = dbTrade.symbol.includes('JPY') ? 3 : 5;
+            try {
+              await axios.put(`${baseURL}/positions/${dbTrade.id}`,
+                { stopLevel: parseFloat(breakevenSL.toFixed(dec)), profitLevel: dbTrade.target1 },
+                { headers }
+              );
+              trailingApplied.add(dbTrade.id);
+
+              // Update DB
+              const db = getDb();
+              db.prepare('UPDATE trades SET stop_loss = ? WHERE id = ?').run(breakevenSL, dbTrade.id);
+
+              logger.info(`BE-Trailing: ${dbTrade.symbol} SL moved to ${breakevenSL.toFixed(dec)} (+5 pips over entry) — price at 80% of TP`);
+              await telegram.sendMessage(
+                `🔒 <b>SL nachgezogen — ${dbTrade.symbol}</b>\n` +
+                `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type}\n` +
+                `Neuer SL: <code>${breakevenSL.toFixed(dec)}</code> (+5 Pips über Entry)\n` +
+                `Preis: <code>${mid.toFixed(dec)}</code> (80% Richtung TP erreicht)`
+              );
+            } catch (slErr: any) {
+              logger.warn(`BE-Trailing failed for ${dbTrade.symbol}: ${slErr.response?.data?.errorCode || slErr.message}`);
+            }
+          }
+        }
       } catch { /* skip */ }
     }
 
@@ -207,6 +256,7 @@ async function syncClosedTrades(): Promise<void> {
 
       // Remove from active symbols
       activeSymbols.delete(trade.symbol);
+      trailingApplied.delete(trade.dealId!);
 
       if (closed) {
         const dec = trade.symbol.includes('JPY') ? 3 : 5;
