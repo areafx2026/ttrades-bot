@@ -19,7 +19,7 @@ const MAX_REQUESTS_PER_SEC = 8;
 const WINDOW_MS = 1000;
 const requestTimestamps: number[] = [];
 
-async function throttle(): Promise<void> {
+export async function throttle(): Promise<void> {
   const now = Date.now();
   // Remove timestamps older than 1 second
   while (requestTimestamps.length > 0 && requestTimestamps[0] <= now - WINDOW_MS) {

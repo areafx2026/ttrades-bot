@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { TradeSignal } from './fractalAnalyzer';
+import { throttle } from './capitalApi';
 import { logger } from './logger';
 
 interface OpenPosition {
@@ -49,6 +50,7 @@ export class TradeExecutor {
   // Fetch open positions
   async getOpenPositions(): Promise<OpenPosition[]> {
     try {
+      await throttle();
       const res = await this.client.get('/positions', { headers: this.authHeaders });
       return (res.data.positions || []).map((p: any) => ({
         dealId: p.position.dealId,
@@ -71,6 +73,7 @@ export class TradeExecutor {
       // Capital.com expects date in format: YYYY-MM-DDTHH:MM:SS
       const fromDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const from = fromDate.toISOString().slice(0, 19); // strip milliseconds and Z
+      await throttle();
       const res = await this.client.get('/history/activity', {
         headers: this.authHeaders,
         params: { from, detailed: true },
@@ -198,6 +201,7 @@ export class TradeExecutor {
     // 4. Get current price and validate SL/TP are still on correct side
     let currentPrice: number;
     try {
+      await throttle();
       const priceRes = await this.client.get(`/markets/${signal.symbol}`, { headers: this.authHeaders });
       const snap = priceRes.data.snapshot;
       currentPrice = signal.type === 'LONG'
@@ -268,6 +272,7 @@ export class TradeExecutor {
     logger.info(`Opening ${direction} ${signal.symbol} | Entry: ${currentPrice.toFixed(dec)} | Size: ${lotSize} pts | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
 
     try {
+      await throttle();
       const res = await this.client.post('/positions', body, { headers: this.authHeaders });
       const dealId = res.data.dealReference || res.data.dealId || 'unknown';
       return { success: true, dealId, message: `Trade geöffnet: ${dealId}` };

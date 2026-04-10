@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import axios from 'axios';
-import { CapitalAPI } from './capitalApi';
+import { CapitalAPI, throttle } from './capitalApi';
 import { FractalAnalyzer, TradeSignal } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { TradeExecutor } from './tradeExecutor';
@@ -101,6 +101,7 @@ async function syncClosedTrades(): Promise<void> {
     const dbOpenTrades = getDbOpenTrades();
     for (const dbTrade of dbOpenTrades) {
       try {
+        await throttle();
         const priceRes = await axios.get(`${baseURL}/markets/${dbTrade.symbol}`, { headers });
         const mid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
         recordPriceTick(dbTrade.id, mid);
@@ -129,6 +130,7 @@ async function syncClosedTrades(): Promise<void> {
           if (slNeedsUpdate && !trailingApplied.has(dbTrade.id)) {
             const dec = dbTrade.symbol.includes('JPY') ? 3 : 5;
             try {
+              await throttle();
               await axios.put(`${baseURL}/positions/${dbTrade.id}`,
                 { stopLevel: parseFloat(breakevenSL.toFixed(dec)), profitLevel: dbTrade.target1 },
                 { headers }
@@ -154,6 +156,7 @@ async function syncClosedTrades(): Promise<void> {
       } catch { /* skip */ }
     }
 
+    await throttle();
     const posRes = await axios.get(`${baseURL}/positions`, { headers });
     // Build set of ALL known IDs — Capital.com uses dealId internally
     // but bot stores dealReference (o_xxx) from the order response
@@ -199,6 +202,7 @@ async function syncClosedTrades(): Promise<void> {
 
       try {
         const from = new Date(trade.openedAt).toISOString().slice(0, 19);
+        await throttle();
         const actRes = await axios.get(`${baseURL}/history/activity`, {
           headers,
           params: { from, detailed: true },
@@ -415,6 +419,7 @@ async function analyzeSymbol(
       let spreadBlocked = false;
       try {
         const mktRes = await capital.getCandles(symbol, 'MINUTE', 1);
+        await throttle();
         const mktInfo = await axios.get(
           `${capital.isDemo ? 'https://demo-api-capital.backend-capital.com' : 'https://api-capital.backend-capital.com'}/api/v1/markets/${symbol}`,
           { headers: { CST: capital.cst, 'X-SECURITY-TOKEN': capital.securityToken } }
@@ -455,6 +460,7 @@ async function analyzeSymbol(
             ? 'https://demo-api-capital.backend-capital.com/api/v1'
             : 'https://api-capital.backend-capital.com/api/v1';
           const fillHeaders = { 'CST': fillCapital.cst, 'X-SECURITY-TOKEN': fillCapital.securityToken };
+          await throttle();
           const posCheck = await axios.get(`${fillBaseURL}/positions`, { headers: fillHeaders });
           const matchedPos = (posCheck.data.positions || []).find((p: any) =>
             p.market.epic === symbol &&
@@ -474,6 +480,7 @@ async function analyzeSymbol(
 
             // Update TP on Capital.com
             try {
+              await throttle();
               await axios.put(`${fillBaseURL}/positions/${resolvedDealId}`,
                 { stopLevel: signal.stopLoss, profitLevel: parseFloat(newTP.toFixed(pip2 === 0.01 ? 3 : 5)) },
                 { headers: fillHeaders }
