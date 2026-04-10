@@ -13,6 +13,33 @@ export type Resolution =
   | 'MINUTE' | 'MINUTE_5' | 'MINUTE_15' | 'MINUTE_30'
   | 'HOUR' | 'HOUR_4' | 'DAY' | 'WEEK';
 
+// ─── Global request throttle ─────────────────────────────────────────────────
+// Capital.com allows 10 req/sec — we cap at 8 to leave headroom
+const MAX_REQUESTS_PER_SEC = 8;
+const WINDOW_MS = 1000;
+const requestTimestamps: number[] = [];
+
+async function throttle(): Promise<void> {
+  const now = Date.now();
+  // Remove timestamps older than 1 second
+  while (requestTimestamps.length > 0 && requestTimestamps[0] <= now - WINDOW_MS) {
+    requestTimestamps.shift();
+  }
+  // If at limit, wait until the oldest request falls out of the window
+  if (requestTimestamps.length >= MAX_REQUESTS_PER_SEC) {
+    const waitMs = requestTimestamps[0] + WINDOW_MS - now + 10; // +10ms buffer
+    if (waitMs > 0) {
+      await new Promise(r => setTimeout(r, waitMs));
+    }
+    // Clean up again after waiting
+    const now2 = Date.now();
+    while (requestTimestamps.length > 0 && requestTimestamps[0] <= now2 - WINDOW_MS) {
+      requestTimestamps.shift();
+    }
+  }
+  requestTimestamps.push(Date.now());
+}
+
 export class CapitalAPI {
   private client: AxiosInstance;
   public cst: string = '';
@@ -32,6 +59,7 @@ export class CapitalAPI {
   }
 
   async createSession(): Promise<void> {
+    await throttle();
     const res = await this.client.post(
       '/session',
       { identifier: this.identifier, password: this.password, encryptedPassword: false },
@@ -51,6 +79,7 @@ export class CapitalAPI {
   }
 
   async getCandles(epic: string, resolution: Resolution, max: number = 20): Promise<Candle[]> {
+    await throttle();
     const res = await this.client.get(`/prices/${epic}`, {
       headers: this.authHeaders,
       params: { resolution, max, pageSize: max },
