@@ -9,6 +9,7 @@ export interface TradeRecord {
   type: 'LONG' | 'SHORT';
   phase: string;
   entryZone: [number, number];
+  fillPrice?: number;       // v1.3: real fill price from Capital.com
   stopLoss: number;
   target1: number;
   target2: number;
@@ -52,6 +53,7 @@ export function logOpenTrade(signal: TradeSignal, dealId: string): TradeRecord {
     type: signal.type,
     phase: signal.phase,
     entryZone: signal.entryZone,
+    fillPrice: signal.currentPrice, // v1.3: real fill price from Capital.com
     stopLoss: signal.stopLoss,
     target1: signal.target1,
     target2: signal.target2,
@@ -76,13 +78,14 @@ export function logClosedTrade(
 
   const trade = trades[idx];
   const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-  const entryMid = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+  // v1.3: Use fill price if available, otherwise fall back to entry zone midpoint
+  const entryRef = trade.fillPrice ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
   const pnlPips = trade.type === 'LONG'
-    ? (closePrice - entryMid) / pip
-    : (entryMid - closePrice) / pip;
+    ? (closePrice - entryRef) / pip
+    : (entryRef - closePrice) / pip;
 
   const pipValueEUR = 8.5;
-  const stopPips = Math.abs(entryMid - trade.stopLoss) / pip;
+  const stopPips = Math.abs(entryRef - trade.stopLoss) / pip;
   const lotSize = Math.min(Math.max(Math.round(100 / (stopPips * pipValueEUR) * 100) / 100, 0.01), 10);
   const pnlEUR = pnlPips * pipValueEUR * lotSize;
 

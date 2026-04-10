@@ -107,19 +107,20 @@ async function syncClosedTrades(): Promise<void> {
         recordPriceTick(dbTrade.id, mid);
 
         // v1.3: Breakeven trailing stop
-        // When price reaches 80% of TP distance, move SL to entry + 5 pips
+        // When price reaches 80% of TP distance, move SL to fill price + 5 pips
         const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
-        const entryMid = (dbTrade.entry_zone_low + dbTrade.entry_zone_high) / 2;
-        const tpDist = Math.abs(dbTrade.target1 - entryMid);
+        // Use real fill price if available, fall back to entry zone midpoint
+        const fillPrice = dbTrade.entry_price ?? (dbTrade.entry_zone_low + dbTrade.entry_zone_high) / 2;
+        const tpDist = Math.abs(dbTrade.target1 - fillPrice);
         const threshold = tpDist * 0.8;
         const breakevenSL = dbTrade.type === 'LONG'
-          ? entryMid + pip * 5
-          : entryMid - pip * 5;
+          ? fillPrice + pip * 5
+          : fillPrice - pip * 5;
 
         // Check if price has reached 80% of TP
         const currentProfit = dbTrade.type === 'LONG'
-          ? mid - entryMid
-          : entryMid - mid;
+          ? mid - fillPrice
+          : fillPrice - mid;
 
         if (currentProfit >= threshold) {
           // Only move SL if it hasn't been moved yet (current SL is worse than breakeven)
@@ -236,10 +237,11 @@ async function syncClosedTrades(): Promise<void> {
       savePineScript();
 
       // Update SQLite DB with close data
-      // Calculate P&L from close price directly (don't rely on logClosedTrade result)
+      // v1.3 fix: Use real fill price (entry_price) for P&L, not entry zone midpoint
       try {
         const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-        const entryPrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+        const dbTradeData = getTrade(trade.dealId!);
+        const entryPrice = dbTradeData?.entry_price ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
         const rawPnlPips = trade.type === 'LONG'
           ? (closePrice - entryPrice) / pip
           : (entryPrice - closePrice) / pip;
@@ -468,7 +470,11 @@ async function analyzeSymbol(
           );
           if (matchedPos) {
             resolvedDealId = matchedPos.position.dealId;
-            logger.info(`Resolved Capital.com dealId: ${resolvedDealId}`);
+            const fillPrice = matchedPos.position.level;
+            logger.info(`Resolved Capital.com dealId: ${resolvedDealId}, fill price: ${fillPrice}`);
+
+            // v1.3 fix: Store real fill price for accurate P&L and BE-trailing
+            signal.currentPrice = fillPrice;
 
             // Recalculate TP based on actual fill price for exact 1:1.5 R:R
             const fillPrice = matchedPos.position.level;

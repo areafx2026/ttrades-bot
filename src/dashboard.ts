@@ -167,17 +167,23 @@ app.get('/', (req, res) => {
     <div class="card">
       <div class="section-title">Alle Trades</div>
       <table>
-        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
-        ${allTrades.map(t => `
+        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Signal</th><th>Fill</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
+        ${allTrades.map(t => {
+          const dec = t.symbol.includes('JPY') ? 3 : 5;
+          const zoneMid = ((t.entry_zone_low + t.entry_zone_high) / 2);
+          const fillDiff = t.entry_price ? Math.abs(t.entry_price - zoneMid) / (t.symbol.includes('JPY') ? 0.01 : 0.0001) : 0;
+          const fillColor = fillDiff > 3 ? 'color:var(--amber)' : '';
+          return `
         <tr>
           <td><strong>${t.symbol}</strong></td>
           <td>${t.type === 'LONG' ? '▲' : '▼'} ${t.type}</td>
           <td style="color:var(--muted)">${t.phase}</td>
-          <td>${t.entry_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
-          <td>${t.stop_loss.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
-          <td>${t.target1.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
+          <td style="color:var(--muted)">${zoneMid.toFixed(dec)}</td>
+          <td style="${fillColor}">${t.entry_price?.toFixed(dec) ?? '—'}</td>
+          <td>${t.stop_loss.toFixed(dec)}</td>
+          <td>${t.target1.toFixed(dec)}</td>
           <td style="color:var(--muted)">${t.risk_reward != null ? t.risk_reward.toFixed(2) + ':1' : '—'}</td>
-          <td>${t.close_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
+          <td>${t.close_price?.toFixed(dec) ?? '—'}</td>
           <td ${pnlColor(t.pnl_pips)}>${t.pnl_pips != null ? (t.pnl_pips >= 0 ? '+' : '') + t.pnl_pips.toFixed(1) : '—'}</td>
           <td ${pnlColor(t.pnl_eur)}>${t.pnl_eur != null ? (t.pnl_eur >= 0 ? '+' : '') + '€' + t.pnl_eur.toFixed(2) : '—'}</td>
           <td style="color:var(--red)">${t.mae_pips?.toFixed(1) ?? '—'}</td>
@@ -186,7 +192,7 @@ app.get('/', (req, res) => {
           <td style="color:var(--muted)">${formatDate(t.opened_at)}</td>
           <td style="color:var(--muted)">${formatDate(t.closed_at)}</td>
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
-        </tr>`).join('')}
+        </tr>`}).join('')}
       </table>
     </div>
   </div>
