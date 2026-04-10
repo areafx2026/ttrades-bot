@@ -231,9 +231,12 @@ async function syncClosedTrades(): Promise<void> {
 let cachedWeeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = [];
 let weeklyReturnsCacheTime = 0;
 const WEEKLY_RETURNS_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+// Offset initial cache by 30 min so it doesn't refresh at the same time as currency strength
+const WEEKLY_RETURNS_INITIAL_OFFSET = 30 * 60 * 1000;
 
 async function getCachedWeeklyReturns(capital: CapitalAPI): Promise<{ symbol: string; returnPips: number; volatility: number }[]> {
-  if (cachedWeeklyReturns.length > 0 && Date.now() - weeklyReturnsCacheTime < WEEKLY_RETURNS_CACHE_TTL) {
+  const effectiveCacheTime = weeklyReturnsCacheTime || (Date.now() - WEEKLY_RETURNS_CACHE_TTL + WEEKLY_RETURNS_INITIAL_OFFSET);
+  if (cachedWeeklyReturns.length > 0 && Date.now() - effectiveCacheTime < WEEKLY_RETURNS_CACHE_TTL) {
     return cachedWeeklyReturns;
   }
 
@@ -241,7 +244,7 @@ async function getCachedWeeklyReturns(capital: CapitalAPI): Promise<{ symbol: st
   for (const sym of SYMBOLS) {
     try {
       const d1 = await capital.getCandles(sym, 'DAY', 7);
-      await new Promise(r => setTimeout(r, 150));
+      await new Promise(r => setTimeout(r, 300)); // 300ms to stay under rate limit
       if (d1.length >= 2) {
         const pip = sym.includes('JPY') ? 0.01 : 0.0001;
         const weekReturn = (d1[d1.length - 1].close - d1[0].open) / pip;
@@ -565,7 +568,7 @@ async function runScan() {
     }
 
     // v1.3: Calculate weekly returns + ATR for relative mean-reversion filter
-    // Cached for 1 hour to avoid rate-limiting (22 extra D1 fetches per scan)
+    // Cached for 1 hour, staggered 30 min after currency strength to avoid burst
     let weeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = [];
     try {
       weeklyReturns = await getCachedWeeklyReturns(capital);
@@ -591,11 +594,6 @@ async function runScan() {
         logger.error(`Error analyzing ${symbol}:`, err);
       }
       await new Promise(r => setTimeout(r, 200));
-    }
-
-    // Sync closed trades
-    if (PAPER_TRADING) {
-      await syncClosedTrades();
     }
 
   } catch (err) {
