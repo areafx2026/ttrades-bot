@@ -79,3 +79,7 @@
 // KI-Vorschlag [7.4.2026]: Pre-Entry Spread-Check - Entry nur wenn Spread <3 Pips für JPY-Pairs - wegen Capital.com Immediate Close bei GBPJPY durch zu weiten Spread
 
 // KI-Vorschlag [8.4.2026]: Harter Session-Filter-Block - Entry nur während London Open 08:30-10:30 und NY Open 14:30-16:30 MEZ mit Exception-freier Implementierung - wegen GBPAUD Entry um 03:03 außerhalb erlaubter Sessions führt zu Capital.com Immediate Close
+
+// KI-Vorschlag [11.4.2026]: Harter Session-Filter mit Liquiditäts-Exception - Entry nur 08:30-10:30 + 14:30-16:30 MEZ, außer bei ATR>120 Pips UND Spread<1.5 Pips - wegen systematischen Regel-Verstößen um 03:03 trotz erfolgreicher Trades
+
+// KI-Vorschlag [11.4.2026]: C4_RETEST-Block außerhalb Haupt-Sessions ohne 30-Minuten Struktur-Bestätigung - wegen Entries in illiquiden Zeiten die zu unvorhersehbaren Fills führen können

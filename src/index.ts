@@ -477,7 +477,6 @@ async function analyzeSymbol(
             signal.currentPrice = fillPrice;
 
             // Recalculate TP based on actual fill price for exact 1:1.5 R:R
-            const fillPrice = matchedPos.position.level;
             const pip2 = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
             const risk2 = Math.abs(fillPrice - signal.stopLoss);
             const newTP = signal.type === 'LONG'

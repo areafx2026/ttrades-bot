@@ -1,7 +1,6 @@
-import { loadTrades, TradeRecord } from './tradeLogger';
 import { analyzeTradesWithAI } from './aiAnalyzer';
 import { loadZones } from './zoneManager';
-import { getDb } from './database';
+import { getDb, getAllTrades, getOpenTrades, DbTrade } from './database';
 import { TelegramNotifier } from './telegram';
 import { logger } from './logger';
 
@@ -22,7 +21,6 @@ export async function checkZoneCoverage(telegram: TelegramNotifier): Promise<voi
     const hasResistance = symbolZones.some(z => z.type === 'resistance');
 
     if (!hasSupport && !hasResistance) {
-      // No zones at all — only warn for symbols user has started defining zones for
       continue;
     }
     if (!hasSupport) {
@@ -50,7 +48,6 @@ function updateWinRateAfter(): void {
 
     for (const entry of log) {
       const version = entry.version;
-      // Find trades with this strategy version
       const trades = db.prepare('SELECT result FROM trades WHERE strategy_version = ? AND closed_at IS NOT NULL').all(version) as any[];
       if (trades.length === 0) continue;
       const wins = trades.filter((t: any) => t.result === 'WIN').length;
@@ -63,21 +60,25 @@ function updateWinRateAfter(): void {
   }
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+}
+
 export async function sendDailyReport(telegram: TelegramNotifier): Promise<void> {
   logger.info('Generating daily report...');
 
-  const allTrades = loadTrades();
+  // v1.3: All data from SQLite DB — single source of truth
+  const allDbTrades = getAllTrades();
+  const openDbTrades = getOpenTrades();
   const now = new Date();
 
-  // Yesterday 09:00 UTC+1 → today 09:00 UTC+1 = 08:00 UTC window
   const windowStart = new Date(now);
   windowStart.setUTCHours(windowStart.getUTCHours() - 24);
+  const windowISO = windowStart.toISOString();
 
-  const openTrades    = allTrades.filter(t => !t.closedAt);
-  const closedToday   = allTrades.filter(t => {
-    if (!t.closedAt) return false;
-    return new Date(t.closedAt) >= windowStart;
-  });
+  const closedToday = allDbTrades.filter(t =>
+    t.closed_at && t.closed_at >= windowISO
+  );
 
   const wins      = closedToday.filter(t => t.result === 'WIN');
   const losses    = closedToday.filter(t => t.result === 'LOSS');
@@ -85,8 +86,8 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
   const longs     = closedToday.filter(t => t.type === 'LONG');
   const shorts    = closedToday.filter(t => t.type === 'SHORT');
 
-  const totalPnlEUR  = closedToday.reduce((sum, t) => sum + (t.pnlEUR  ?? 0), 0);
-  const totalPnlPips = closedToday.reduce((sum, t) => sum + (t.pnlPips ?? 0), 0);
+  const totalPnlEUR  = closedToday.reduce((sum, t) => sum + (t.pnl_eur ?? 0), 0);
+  const totalPnlPips = closedToday.reduce((sum, t) => sum + (t.pnl_pips ?? 0), 0);
   const winRate      = closedToday.length > 0
     ? Math.round((wins.length / closedToday.length) * 100)
     : 0;
@@ -110,29 +111,31 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
     closedToday.forEach(t => {
       const resultEmoji = t.result === 'WIN' ? '✅' : t.result === 'LOSS' ? '❌' : '➖';
       const dir = t.type === 'LONG' ? '📈' : '📉';
-      msg += `${resultEmoji} ${dir} ${t.symbol}  ${t.pnlPips && t.pnlPips >= 0 ? '+' : ''}${t.pnlPips?.toFixed(1)} pips  (${t.pnlEUR && t.pnlEUR >= 0 ? '+' : ''}€${t.pnlEUR?.toFixed(2)})\n`;
+      const pips = t.pnl_pips ?? 0;
+      const eur = t.pnl_eur ?? 0;
+      msg += `${resultEmoji} ${dir} ${t.symbol}  ${pips >= 0 ? '+' : ''}${pips.toFixed(1)} pips  (${eur >= 0 ? '+' : ''}€${eur.toFixed(2)})\n`;
     });
   } else {
     msg += `\nKeine abgeschlossenen Trades in den letzten 24h.\n`;
   }
 
   // Open positions
-  msg += `\n<b>📂 Offene Positionen (${openTrades.length})</b>\n`;
-  if (openTrades.length > 0) {
-    openTrades.forEach(t => {
+  msg += `\n<b>📂 Offene Positionen (${openDbTrades.length})</b>\n`;
+  if (openDbTrades.length > 0) {
+    openDbTrades.forEach(t => {
       const dir = t.type === 'LONG' ? '📈' : '📉';
-      const since = new Date(t.openedAt).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' });
+      const since = formatDate(t.opened_at);
       const dec = t.symbol.includes('JPY') ? 3 : 5;
-      msg += `${dir} ${t.symbol}  SL: <code>${t.stopLoss.toFixed(dec)}</code>  TP: <code>${t.target1.toFixed(dec)}</code>  seit ${since}\n`;
+      msg += `${dir} ${t.symbol}  SL: <code>${t.stop_loss.toFixed(dec)}</code>  TP: <code>${t.target1.toFixed(dec)}</code>  seit ${since}\n`;
     });
   } else {
     msg += `Keine offenen Positionen.\n`;
   }
 
-  // All-time stats
-  const allClosed  = allTrades.filter(t => t.closedAt);
+  // All-time stats from DB
+  const allClosed  = allDbTrades.filter(t => t.closed_at);
   const allWins    = allClosed.filter(t => t.result === 'WIN');
-  const allPnlEUR  = allClosed.reduce((sum, t) => sum + (t.pnlEUR ?? 0), 0);
+  const allPnlEUR  = allClosed.reduce((sum, t) => sum + (t.pnl_eur ?? 0), 0);
   const allWinRate = allClosed.length > 0 ? Math.round((allWins.length / allClosed.length) * 100) : 0;
   const allPnlEmoji = allPnlEUR >= 0 ? '🟢' : '🔴';
 
@@ -151,12 +154,7 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
   await checkZoneCoverage(telegram);
 
   // AI analysis — only if there were closed trades
-  const closedToday2 = loadTrades().filter(t => {
-    if (!t.closedAt) return false;
-    return new Date(t.closedAt) >= windowStart;
-  });
-
-  if (closedToday2.length > 0) {
+  if (closedToday.length > 0) {
     logger.info('Requesting AI trade analysis...');
     const analysis = await analyzeTradesWithAI();
     if (analysis) {
