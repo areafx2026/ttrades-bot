@@ -122,6 +122,48 @@ app.get('/', (req, res) => {
   .tab-content { display: none; }
   .tab-content.active { display: block; }
   .canvas-wrap { position: relative; height: 200px; }
+
+  /* ─── Mobile / Responsive ─────────────────────────────────────────── */
+  @media (max-width: 1024px) {
+    .grid4 { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .container { padding: 0.75rem 1rem; }
+    header { padding: 1rem 1rem; }
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 13px; }
+    .grid4 { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .grid2 { grid-template-columns: 1fr; }
+    .container { padding: 0.5rem 0.5rem; }
+    header { padding: 0.75rem 0.75rem; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
+    header h1 { font-size: 17px; }
+    header span { font-size: 11px; }
+    .metric-value { font-size: 22px; }
+    .metric-label { font-size: 10px; }
+    .card { padding: 0.75rem; border-radius: 6px; }
+    .section-title { font-size: 11px; letter-spacing: 1px; }
+
+    /* Tabs: horizontal scroll on mobile */
+    .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-wrap: nowrap; }
+    .tab-nav::-webkit-scrollbar { display: none; }
+    .tab-btn { font-size: 11px; padding: 0.6rem 0.75rem; white-space: nowrap; flex-shrink: 0; }
+
+    /* Tables: scroll horizontally, smaller text */
+    .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table { min-width: 700px; }
+    th { font-size: 10px; padding: 0.4rem 0.5rem; }
+    td { font-size: 12px; padding: 0.4rem 0.5rem; }
+    .badge { font-size: 10px; padding: 2px 6px; }
+
+    /* Form row stacks on mobile */
+    .form-row { flex-direction: column; }
+    .form-row input { width: 100% !important; }
+    button { width: 100%; padding: 0.6rem; }
+
+    /* Charts smaller */
+    .canvas-wrap { height: 160px; }
+  }
 </style>
 </head>
 <body>
