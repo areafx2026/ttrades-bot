@@ -198,9 +198,15 @@ async function syncClosedTrades(): Promise<void> {
 
       logger.info(`Closed trade detected: ${trade.symbol} [${trade.dealId}]`);
 
-      let closePrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
-      let closedAt   = new Date().toISOString();
+      // v1.3 fix: Smart close price detection with multiple fallback layers
+      const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
+      const dbTradeData = getTrade(trade.dealId!);
+      const entryPrice = dbTradeData?.entry_price ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
+      let closePrice: number | null = null;
+      let closedAt = new Date().toISOString();
+      let closeSource = 'unknown';
 
+      // Layer 1: Try to find close in activity history
       try {
         const from = new Date(trade.openedAt).toISOString().slice(0, 19);
         await throttle();
@@ -210,54 +216,114 @@ async function syncClosedTrades(): Promise<void> {
         });
 
         const activities = actRes.data.activities || [];
+
         for (const act of activities) {
-          // Match by dealId or dealReference (both p_ and o_ variants)
+          // Match by dealId or dealReference (all known variants)
           const actDealId  = act.dealId ?? '';
           const actDealRef = act.details?.dealReference ?? '';
-          const tradeId    = trade.dealId;
-          const matches    =
+          const tradeId    = trade.dealId!;
+          const matches =
             actDealId  === tradeId ||
             actDealRef === tradeId ||
             actDealRef === tradeId.replace(/^o_/, 'p_') ||
-            actDealId  === tradeId.replace(/^o_/, 'p_');
+            actDealId  === tradeId.replace(/^o_/, 'p_') ||
+            // Also match by stripping prefix entirely
+            actDealId.replace(/^[a-z]_/, '') === tradeId.replace(/^[a-z]_/, '');
 
           if (matches && act.type === 'POSITION' &&
               (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
-            closePrice = parseFloat(act.details?.level ?? closePrice);
+            closePrice = parseFloat(act.details?.level ?? '0');
             closedAt   = act.dateUTC ?? act.date ?? closedAt;
-            logger.info('Close found: ' + closePrice + ' via ' + act.source + ' for ' + trade.symbol);
+            closeSource = act.source;
+            logger.info(`Close found via activity: ${closePrice} via ${closeSource} for ${trade.symbol}`);
             break;
           }
         }
+
+        // Layer 2: If no match by dealId, try matching by symbol + time window
+        if (closePrice === null) {
+          const recentCloses = activities.filter((act: any) => {
+            const epic = act.details?.epic ?? act.epic ?? '';
+            return epic === trade.symbol &&
+              act.type === 'POSITION' &&
+              (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM') &&
+              act.details?.level;
+          });
+
+          if (recentCloses.length > 0) {
+            // Take the most recent close for this symbol
+            const latest = recentCloses[recentCloses.length - 1];
+            closePrice = parseFloat(latest.details.level);
+            closedAt = latest.dateUTC ?? latest.date ?? closedAt;
+            closeSource = latest.source + ' (symbol-match)';
+            logger.info(`Close found via symbol match: ${closePrice} via ${closeSource} for ${trade.symbol}`);
+          }
+        }
       } catch {
-        logger.warn(`Could not fetch close price for ${trade.dealId}, using fallback`);
+        logger.warn(`Could not fetch activity history for ${trade.dealId}`);
       }
+
+      // Layer 3: If still no close price, determine from SL/TP proximity
+      if (closePrice === null) {
+        // Fetch current price to determine which level was likely hit
+        try {
+          await throttle();
+          const priceRes = await axios.get(`${baseURL}/markets/${trade.symbol}`, { headers });
+          const currentMid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
+
+          const tpDist = Math.abs(currentMid - trade.target1);
+          const slDist = Math.abs(currentMid - trade.stopLoss);
+
+          // If current price is very close to TP (within 5 pips), assume TP hit
+          if (tpDist < pip * 5) {
+            closePrice = trade.target1;
+            closeSource = 'TP (inferred)';
+          } else if (slDist < pip * 5) {
+            closePrice = trade.stopLoss;
+            closeSource = 'SL (inferred)';
+          } else {
+            // Use current market price as best estimate
+            closePrice = currentMid;
+            closeSource = 'market (fallback)';
+          }
+          logger.info(`Close inferred: ${closePrice} via ${closeSource} for ${trade.symbol}`);
+        } catch {
+          // Absolute last resort — use TP if MFE suggests it was reached
+          const mfe = dbTradeData?.mfe_pips ?? 0;
+          const tpPips = Math.abs(trade.target1 - entryPrice) / pip;
+          if (mfe >= tpPips * 0.9) {
+            closePrice = trade.target1;
+            closeSource = 'TP (MFE-inferred)';
+          } else {
+            closePrice = trade.stopLoss;
+            closeSource = 'SL (MFE-inferred)';
+          }
+          logger.warn(`Close fallback: ${closePrice} via ${closeSource} for ${trade.symbol}`);
+        }
+      }
+
+      // Calculate P&L from fill price
+      const rawPnlPips = trade.type === 'LONG'
+        ? (closePrice - entryPrice) / pip
+        : (entryPrice - closePrice) / pip;
+      const pnlPips = Math.round(rawPnlPips * 10) / 10;
+      const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
 
       const closed = logClosedTrade(trade.dealId, closePrice, closedAt);
       savePineScript();
 
-      // Update SQLite DB with close data
-      // v1.3 fix: Use real fill price (entry_price) for P&L, not entry zone midpoint
+      // Update SQLite DB
       try {
-        const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-        const dbTradeData = getTrade(trade.dealId!);
-        const entryPrice = dbTradeData?.entry_price ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
-        const rawPnlPips = trade.type === 'LONG'
-          ? (closePrice - entryPrice) / pip
-          : (entryPrice - closePrice) / pip;
-        const pnlPips = Math.round(rawPnlPips * 10) / 10;
-        const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
-
         closeTrade(
           trade.dealId,
           closePrice,
           closedAt,
-          'SL/TP/Market',
+          closeSource,
           pnlPips,
           closed?.pnlEUR ?? 0,
           result
         );
-        logger.info('Trade closed in DB: ' + trade.symbol + ' ' + result + ' ' + pnlPips + ' pips');
+        logger.info(`Trade closed in DB: ${trade.symbol} ${result} ${pnlPips} pips via ${closeSource}`);
       } catch (dbErr) { logger.error('DB close error:', dbErr); }
 
       // Remove from active symbols
