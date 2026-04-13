@@ -159,25 +159,22 @@ async function syncClosedTrades(): Promise<void> {
 
     await throttle();
     const posRes = await axios.get(`${baseURL}/positions`, { headers });
-    // Build set of ALL known IDs — Capital.com uses dealId internally
-    // but bot stores dealReference (o_xxx) from the order response
-    const openDealIds = new Set<string>();
-    for (const p of (posRes.data.positions || [])) {
-      if (p.position.dealId)        openDealIds.add(p.position.dealId);
-      if (p.position.dealReference) openDealIds.add(p.position.dealReference);
-      // Convert p_xxx → o_xxx to match bot's stored dealReference format
-      const oRef = (p.position.dealReference as string)?.replace(/^p_/, 'o_');
-      if (oRef) openDealIds.add(oRef);
+    const openApiPositions = (posRes.data.positions || []) as any[];
+
+    // Build map: symbol+direction → position (what Capital.com currently has open)
+    const openBySymbolDir = new Map<string, any>();
+    for (const p of openApiPositions) {
+      const key = `${p.market.epic}_${p.position.direction}`;
+      openBySymbolDir.set(key, p);
     }
 
     for (const trade of openTrades) {
-      if (!trade.dealId || openDealIds.has(trade.dealId)) continue;
+      if (!trade.dealId) continue;
 
       // v1.3 fix: Check if already closed in SQLite — if so, force-update trades.json and skip
       try {
         const dbCheck = getTrade(trade.dealId);
         if (dbCheck?.closed_at) {
-          // trades.json is out of sync — repair it
           const allJsonTrades = loadTrades();
           const idx = allJsonTrades.findIndex(t => t.id === trade.dealId || t.dealId === trade.dealId);
           if (idx !== -1 && !allJsonTrades[idx].closedAt) {
@@ -196,9 +193,14 @@ async function syncClosedTrades(): Promise<void> {
         }
       } catch { /* DB check failed, proceed with normal close flow */ }
 
+      // Match by symbol + direction — no dealId matching needed
+      const direction = trade.type === 'LONG' ? 'BUY' : 'SELL';
+      const key = `${trade.symbol}_${direction}`;
+      if (openBySymbolDir.has(key)) continue; // still open on Capital.com
+
       logger.info(`Closed trade detected: ${trade.symbol} [${trade.dealId}]`);
 
-      // v1.3 fix: Smart close price detection with multiple fallback layers
+      // Get close price from Capital.com transaction history
       const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
       const dbTradeData = getTrade(trade.dealId!);
       const entryPrice = dbTradeData?.entry_price ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
@@ -206,7 +208,6 @@ async function syncClosedTrades(): Promise<void> {
       let closedAt = new Date().toISOString();
       let closeSource = 'unknown';
 
-      // Layer 1: Try to find close in activity history
       try {
         const from = new Date(trade.openedAt).toISOString().slice(0, 19);
         await throttle();
@@ -217,78 +218,49 @@ async function syncClosedTrades(): Promise<void> {
 
         const activities = actRes.data.activities || [];
 
-        for (const act of activities) {
-          // Match by dealId or dealReference (all known variants)
-          const actDealId  = act.dealId ?? '';
-          const actDealRef = act.details?.dealReference ?? '';
-          const tradeId    = trade.dealId!;
-          const matches =
-            actDealId  === tradeId ||
-            actDealRef === tradeId ||
-            actDealRef === tradeId.replace(/^o_/, 'p_') ||
-            actDealId  === tradeId.replace(/^o_/, 'p_') ||
-            // Also match by stripping prefix entirely
-            actDealId.replace(/^[a-z]_/, '') === tradeId.replace(/^[a-z]_/, '');
+        // Match by symbol — find the most recent close for this symbol+direction
+        const matchingCloses = activities.filter((act: any) => {
+          const epic = act.details?.epic ?? act.epic ?? '';
+          const actDir = act.details?.direction ?? '';
+          const isClose = act.type === 'POSITION' &&
+            (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM');
+          // Match by symbol — direction in activity is the original trade direction
+          return epic === trade.symbol && isClose && act.details?.level;
+        });
 
-          if (matches && act.type === 'POSITION' &&
-              (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
-            closePrice = parseFloat(act.details?.level ?? '0');
-            closedAt   = act.dateUTC ?? act.date ?? closedAt;
-            closeSource = act.source;
-            logger.info(`Close found via activity: ${closePrice} via ${closeSource} for ${trade.symbol}`);
-            break;
-          }
-        }
-
-        // Layer 2: If no match by dealId, try matching by symbol + time window
-        if (closePrice === null) {
-          const recentCloses = activities.filter((act: any) => {
-            const epic = act.details?.epic ?? act.epic ?? '';
-            return epic === trade.symbol &&
-              act.type === 'POSITION' &&
-              (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM') &&
-              act.details?.level;
-          });
-
-          if (recentCloses.length > 0) {
-            // Take the most recent close for this symbol
-            const latest = recentCloses[recentCloses.length - 1];
-            closePrice = parseFloat(latest.details.level);
-            closedAt = latest.dateUTC ?? latest.date ?? closedAt;
-            closeSource = latest.source + ' (symbol-match)';
-            logger.info(`Close found via symbol match: ${closePrice} via ${closeSource} for ${trade.symbol}`);
-          }
+        if (matchingCloses.length > 0) {
+          // Take the most recent
+          const latest = matchingCloses[matchingCloses.length - 1];
+          closePrice = parseFloat(latest.details.level);
+          closedAt = latest.dateUTC ?? latest.date ?? closedAt;
+          closeSource = latest.source;
+          logger.info(`Close found: ${closePrice} via ${closeSource} for ${trade.symbol}`);
         }
       } catch {
-        logger.warn(`Could not fetch activity history for ${trade.dealId}`);
+        logger.warn(`Could not fetch activity history for ${trade.symbol}`);
       }
 
-      // Layer 3: If still no close price, determine from SL/TP proximity
+      // Fallback: determine from TP/SL proximity or MFE
       if (closePrice === null) {
-        // Fetch current price to determine which level was likely hit
         try {
           await throttle();
           const priceRes = await axios.get(`${baseURL}/markets/${trade.symbol}`, { headers });
           const currentMid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
-
           const tpDist = Math.abs(currentMid - trade.target1);
           const slDist = Math.abs(currentMid - trade.stopLoss);
 
-          // If current price is very close to TP (within 5 pips), assume TP hit
           if (tpDist < pip * 5) {
             closePrice = trade.target1;
-            closeSource = 'TP (inferred)';
+            closeSource = 'TP (price-inferred)';
           } else if (slDist < pip * 5) {
             closePrice = trade.stopLoss;
-            closeSource = 'SL (inferred)';
+            closeSource = 'SL (price-inferred)';
           } else {
-            // Use current market price as best estimate
             closePrice = currentMid;
-            closeSource = 'market (fallback)';
+            closeSource = 'market-price';
           }
-          logger.info(`Close inferred: ${closePrice} via ${closeSource} for ${trade.symbol}`);
         } catch {
-          // Absolute last resort — use TP if MFE suggests it was reached
+          // Last resort: use MFE to guess
           const mfe = dbTradeData?.mfe_pips ?? 0;
           const tpPips = Math.abs(trade.target1 - entryPrice) / pip;
           if (mfe >= tpPips * 0.9) {
@@ -298,8 +270,8 @@ async function syncClosedTrades(): Promise<void> {
             closePrice = trade.stopLoss;
             closeSource = 'SL (MFE-inferred)';
           }
-          logger.warn(`Close fallback: ${closePrice} via ${closeSource} for ${trade.symbol}`);
         }
+        logger.info(`Close inferred: ${closePrice} via ${closeSource} for ${trade.symbol}`);
       }
 
       // Calculate P&L from fill price
@@ -312,7 +284,6 @@ async function syncClosedTrades(): Promise<void> {
       const closed = logClosedTrade(trade.dealId, closePrice, closedAt);
       savePineScript();
 
-      // Update SQLite DB
       try {
         closeTrade(
           trade.dealId,
@@ -551,34 +522,27 @@ async function analyzeSymbol(
       const dec = signal.symbol.includes('JPY') ? 3 : 5;
 
       if (result.success && result.dealId) {
-        // Resolve real Capital.com dealId by fetching open positions
-        // The bot stores dealReference (o_xxx) but Capital.com uses a different dealId
-        let resolvedDealId = result.dealId;
-        try {
-          await new Promise(r => setTimeout(r, 1500)); // wait for position to appear
-          const fillCapital = new CapitalAPI(
-            process.env.CAPITAL_API_KEY!,
-            process.env.CAPITAL_IDENTIFIER!,
-            process.env.CAPITAL_PASSWORD!,
-            process.env.CAPITAL_DEMO === 'true'
-          );
-          await fillCapital.createSession();
-          const fillBaseURL = fillCapital.isDemo
-            ? 'https://demo-api-capital.backend-capital.com/api/v1'
-            : 'https://api-capital.backend-capital.com/api/v1';
-          const fillHeaders = { 'CST': fillCapital.cst, 'X-SECURITY-TOKEN': fillCapital.securityToken };
-          await throttle();
-          const posCheck = await axios.get(`${fillBaseURL}/positions`, { headers: fillHeaders });
-          const matchedPos = (posCheck.data.positions || []).find((p: any) =>
-            p.market.epic === symbol &&
-            p.position.direction === (signal.type === 'LONG' ? 'BUY' : 'SELL')
-          );
-          if (matchedPos) {
-            resolvedDealId = matchedPos.position.dealId;
-            const fillPrice = matchedPos.position.level;
-            logger.info(`Resolved Capital.com dealId: ${resolvedDealId}, fill price: ${fillPrice}`);
+        const dealReference = result.dealId;
+        let resolvedDealId = dealReference;
+        const baseURL2 = capital.isDemo
+          ? 'https://demo-api-capital.backend-capital.com/api/v1'
+          : 'https://api-capital.backend-capital.com/api/v1';
+        const headers2 = { 'CST': capital.cst, 'X-SECURITY-TOKEN': capital.securityToken };
 
-            // v1.3 fix: Store real fill price for accurate P&L and BE-trailing
+        // Use GET /confirms/{dealReference} — the official Capital.com way
+        // to get the real dealId, fill price and status
+        try {
+          await new Promise(r => setTimeout(r, 1000)); // brief wait for order processing
+          await throttle();
+          const confirmRes = await axios.get(`${baseURL2}/confirms/${dealReference}`, { headers: headers2 });
+          const confirm = confirmRes.data;
+
+          if (confirm.dealStatus === 'ACCEPTED' && confirm.status === 'OPEN') {
+            resolvedDealId = confirm.dealId;
+            const fillPrice = confirm.level;
+            logger.info(`Trade confirmed: dealId=${resolvedDealId}, fill=${fillPrice}, size=${confirm.size}, direction=${confirm.direction}`);
+
+            // Store real fill price
             signal.currentPrice = fillPrice;
 
             // Recalculate TP based on actual fill price for exact 1:1.5 R:R
@@ -588,23 +552,35 @@ async function analyzeSymbol(
               ? fillPrice + risk2 * 1.5
               : fillPrice - risk2 * 1.5;
 
-            // Update TP on Capital.com
+            // Update TP on Capital.com using the confirmed dealId
             try {
               await throttle();
-              await axios.put(`${fillBaseURL}/positions/${resolvedDealId}`,
+              await axios.put(`${baseURL2}/positions/${resolvedDealId}`,
                 { stopLevel: signal.stopLoss, profitLevel: parseFloat(newTP.toFixed(pip2 === 0.01 ? 3 : 5)) },
-                { headers: fillHeaders }
+                { headers: headers2 }
               );
               signal.target1 = newTP;
               logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
-              // Update size_points in DB from actual position size
               try {
                 const db = getDb();
-                db.prepare('UPDATE trades SET size_points = ? WHERE id = ?').run(matchedPos.position.size, resolvedDealId);
+                db.prepare('UPDATE trades SET size_points = ? WHERE id = ?').run(confirm.size, resolvedDealId);
               } catch { /* ignore */ }
             } catch { logger.warn('Could not update TP after fill'); }
+
+            // Also check affectedDeals for the actual position dealId (can differ)
+            if (confirm.affectedDeals?.length > 0) {
+              const openedDeal = confirm.affectedDeals.find((d: any) => d.status === 'OPENED');
+              if (openedDeal && openedDeal.dealId !== resolvedDealId) {
+                logger.info(`AffectedDeals: position dealId=${openedDeal.dealId} (differs from order dealId=${resolvedDealId})`);
+                resolvedDealId = openedDeal.dealId;
+              }
+            }
+          } else {
+            logger.warn(`Trade not confirmed: status=${confirm.dealStatus}, reason=${confirm.reason ?? 'unknown'}`);
           }
-        } catch { /* use original dealId */ }
+        } catch (confirmErr: any) {
+          logger.warn(`GET /confirms/${dealReference} failed: ${confirmErr.response?.data?.errorCode || confirmErr.message} — using dealReference as fallback`);
+        }
 
         logger.info(`Trade opened for ${symbol}: ${resolvedDealId}`);
         logOpenTrade(signal, resolvedDealId);
