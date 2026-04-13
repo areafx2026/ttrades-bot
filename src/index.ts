@@ -409,6 +409,45 @@ async function analyzeSymbol(
         }
       }
 
+      // v1.3: Directional conflict filter — no contradicting exposure on same currency
+      // AUDJPY LONG = AUD long-exposed, JPY short-exposed
+      // AUDCAD SHORT = AUD short-exposed, CAD long-exposed
+      // → AUD both LONG and SHORT = conflict → block
+      const newBase = symbol.slice(0, 3);
+      const newQuote = symbol.slice(3, 6);
+      // New trade implies: base is LONG-exposed if LONG, SHORT-exposed if SHORT
+      // Quote is the opposite
+      const newBaseDir = signal.type; // LONG = base goes up
+      const newQuoteDir = signal.type === 'LONG' ? 'SHORT' : 'LONG';
+
+      for (const pos of openPositions2) {
+        const posEpic = pos.epic ?? '';
+        if (posEpic.length !== 6) continue;
+        const posBase = posEpic.slice(0, 3);
+        const posQuote = posEpic.slice(3, 6);
+        const posDir = pos.direction === 'BUY' ? 'LONG' : 'SHORT';
+        const posBaseDir = posDir;
+        const posQuoteDir = posDir === 'LONG' ? 'SHORT' : 'LONG';
+
+        // Check if any shared currency has opposing direction
+        if (newBase === posBase && newBaseDir !== posBaseDir) {
+          logger.info(`${symbol}: directional conflict — ${newBase} already ${posBaseDir} via ${posEpic}, new trade wants ${newBaseDir}`);
+          return;
+        }
+        if (newBase === posQuote && newBaseDir !== posQuoteDir) {
+          logger.info(`${symbol}: directional conflict — ${newBase} already ${posQuoteDir} via ${posEpic} (quote), new trade wants ${newBaseDir}`);
+          return;
+        }
+        if (newQuote === posBase && newQuoteDir !== posBaseDir) {
+          logger.info(`${symbol}: directional conflict — ${newQuote} already ${posBaseDir} via ${posEpic}, new trade wants ${newQuoteDir}`);
+          return;
+        }
+        if (newQuote === posQuote && newQuoteDir !== posQuoteDir) {
+          logger.info(`${symbol}: directional conflict — ${newQuote} already ${posQuoteDir} via ${posEpic} (quote), new trade wants ${newQuoteDir}`);
+          return;
+        }
+      }
+
       const maxTrades = getMaxTrades();
       const openPositions = await executor.getOpenPositions();
 
