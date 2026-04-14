@@ -186,20 +186,27 @@ async function syncClosedTrades(): Promise<void> {
                   : (fillPrice - mid) / pip) * 10) / 10;
                 const resultStr = pnlPips2 > 0.5 ? 'WIN' : pnlPips2 < -0.5 ? 'LOSS' : 'BREAKEVEN';
 
-                // Update DB
+                // Calculate EUR P&L from position size
+                const sizePoints = dbTrade.size_points ?? 1000;
+                let pipValuePer1000 = 0.08;
+                if (dbTrade.symbol.includes('JPY')) pipValuePer1000 = 0.07;
+                else if (dbTrade.symbol.startsWith('USD') || dbTrade.symbol.endsWith('USD')) pipValuePer1000 = 0.09;
+                const pnlEur2 = Math.round(pnlPips2 * pipValuePer1000 * (sizePoints / 1000) * 100) / 100;
+
+                // Update trades.json first (so logClosedTrade has the data)
+                logClosedTrade(dbTrade.id, mid, new Date().toISOString());
+                savePineScript();
+
+                // Update DB with calculated EUR P&L
                 closeTrade(
                   dbTrade.id,
                   mid,
                   new Date().toISOString(),
                   `TIME_CLOSE (${holdHours.toFixed(0)}h, ${(progressPct * 100).toFixed(0)}% progress)`,
                   pnlPips2,
-                  0, // EUR P&L calculated by logClosedTrade
+                  pnlEur2,
                   resultStr
                 );
-
-                // Update trades.json
-                logClosedTrade(dbTrade.id, mid, new Date().toISOString());
-                savePineScript();
 
                 activeSymbols.delete(dbTrade.symbol);
                 trailingApplied.delete(dbTrade.id);
