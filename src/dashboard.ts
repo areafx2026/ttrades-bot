@@ -11,7 +11,9 @@ function formatDate(iso?: string): string {
   return new Date(iso).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function resultBadge(result?: string): string {
+function resultBadge(result?: string, closeReason?: string): string {
+  const isTimeClose = closeReason?.startsWith('TIME_CLOSE');
+  if (isTimeClose) return '<span class="badge timeout">⏰ TIME</span>';
   if (result === 'WIN')  return '<span class="badge win">WIN</span>';
   if (result === 'LOSS') return '<span class="badge loss">LOSS</span>';
   if (result === 'BREAKEVEN') return '<span class="badge be">BE</span>';
@@ -48,6 +50,9 @@ app.get('/', (req, res) => {
   const winRate     = totalClosed.length > 0 ? Math.round(totalWins / totalClosed.length * 100) : 0;
   const avgMAE      = totalClosed.filter(t => t.mae_pips).reduce((s, t) => s + (t.mae_pips ?? 0), 0) / (totalClosed.filter(t => t.mae_pips).length || 1);
   const avgMFE      = totalClosed.filter(t => t.mfe_pips).reduce((s, t) => s + (t.mfe_pips ?? 0), 0) / (totalClosed.filter(t => t.mfe_pips).length || 1);
+  const timeCloses  = totalClosed.filter(t => t.close_reason?.startsWith('TIME_CLOSE')).length;
+  const avgHoldMin  = totalClosed.filter(t => t.hold_duration_min).reduce((s, t) => s + (t.hold_duration_min ?? 0), 0) / (totalClosed.filter(t => t.hold_duration_min).length || 1);
+  const avgHoldStr  = avgHoldMin >= 1440 ? (avgHoldMin / 1440).toFixed(1) + 'd' : avgHoldMin >= 60 ? (avgHoldMin / 60).toFixed(1) + 'h' : Math.round(avgHoldMin) + 'min';
 
   const equityPoints = (stats.equity as any[]).map((e, i) => `{x:${i},y:${e.cumulative?.toFixed(2) ?? 0}}`).join(',');
 
@@ -111,6 +116,7 @@ app.get('/', (req, res) => {
   .badge.loss { background: rgba(239,68,68,0.15); color: var(--red); }
   .badge.be   { background: rgba(245,158,11,0.15); color: var(--amber); }
   .badge.open { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .badge.timeout { background: rgba(168,85,247,0.15); color: #a855f7; }
   .form-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
   input, textarea, select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.5rem 0.75rem; font-family: inherit; font-size: 14px; }
   input:focus, textarea:focus { outline: none; border-color: var(--blue); }
@@ -174,7 +180,7 @@ app.get('/', (req, res) => {
 <div class="container">
 
   <!-- KPIs -->
-  <div class="grid4">
+  <div class="grid4" style="grid-template-columns: repeat(3, 1fr);">
     <div class="card">
       <div class="metric-label">Gesamt P&amp;L</div>
       <div class="metric-value ${totalPnL >= 0 ? 'green' : 'red'}">${totalPnL >= 0 ? '+' : ''}€${totalPnL.toFixed(2)}</div>
@@ -190,6 +196,14 @@ app.get('/', (req, res) => {
     <div class="card">
       <div class="metric-label">Ø MAE / MFE</div>
       <div class="metric-value" style="font-size:20px"><span style="color:var(--red)">${avgMAE.toFixed(1)}</span> / <span style="color:var(--green)">${avgMFE.toFixed(1)}</span> <span style="font-size:11px;color:var(--muted)">pips</span></div>
+    </div>
+    <div class="card">
+      <div class="metric-label">Ø Haltezeit</div>
+      <div class="metric-value blue" style="font-size:22px">${avgHoldStr}</div>
+    </div>
+    <div class="card">
+      <div class="metric-label">Time-Closes</div>
+      <div class="metric-value" style="font-size:22px;color:#a855f7">${timeCloses} <span style="font-size:12px;color:var(--muted)">von ${totalClosed.length}</span></div>
     </div>
   </div>
 
@@ -209,12 +223,19 @@ app.get('/', (req, res) => {
     <div class="card">
       <div class="section-title">Alle Trades</div>
       <table>
-        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Signal</th><th>Fill</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
+        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Signal</th><th>Fill</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Haltezeit</th><th>Close Grund</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
         ${allTrades.map(t => {
           const dec = t.symbol.includes('JPY') ? 3 : 5;
           const zoneMid = ((t.entry_zone_low + t.entry_zone_high) / 2);
           const fillDiff = t.entry_price ? Math.abs(t.entry_price - zoneMid) / (t.symbol.includes('JPY') ? 0.01 : 0.0001) : 0;
           const fillColor = fillDiff > 3 ? 'color:var(--amber)' : '';
+          const holdMin = t.hold_duration_min;
+          const holdStr = holdMin != null
+            ? (holdMin >= 1440 ? (holdMin / 1440).toFixed(1) + 'd' : holdMin >= 60 ? (holdMin / 60).toFixed(1) + 'h' : holdMin + 'min')
+            : (t.closed_at ? '—' : (() => { const m = Math.round((Date.now() - new Date(t.opened_at).getTime()) / 60000); return m >= 1440 ? '<b>' + (m/1440).toFixed(1) + 'd</b>' : m >= 60 ? (m/60).toFixed(1) + 'h' : m + 'min'; })());
+          const holdColor = holdMin != null && holdMin > 48 * 60 ? 'color:var(--amber)' : '';
+          const closeReason = t.close_reason ?? '';
+          const reasonShort = closeReason.startsWith('TIME_CLOSE') ? '⏰ Time' : closeReason === 'TP' ? '🎯 TP' : closeReason === 'SL' ? '🛑 SL' : closeReason || '—';
           return `
         <tr>
           <td><strong>${t.symbol}</strong></td>
@@ -230,7 +251,9 @@ app.get('/', (req, res) => {
           <td ${pnlColor(t.pnl_eur)}>${t.pnl_eur != null ? (t.pnl_eur >= 0 ? '+' : '') + '€' + t.pnl_eur.toFixed(2) : '—'}</td>
           <td style="color:var(--red)">${t.mae_pips?.toFixed(1) ?? '—'}</td>
           <td style="color:var(--green)">${t.mfe_pips?.toFixed(1) ?? '—'}</td>
-          <td>${resultBadge(t.result ?? undefined)}</td>
+          <td>${resultBadge(t.result ?? undefined, t.close_reason ?? undefined)}</td>
+          <td style="${holdColor}">${holdStr}</td>
+          <td style="color:var(--muted);font-size:11px">${reasonShort}</td>
           <td style="color:var(--muted)">${formatDate(t.opened_at)}</td>
           <td style="color:var(--muted)">${formatDate(t.closed_at)}</td>
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
@@ -254,7 +277,7 @@ app.get('/', (req, res) => {
           const tpQuality = t.mfe_pips != null && t.result === 'LOSS' ? (t.mfe_pips > 5 ? '⚠️ TP zu weit' : '—') : t.mfe_pips != null && t.result === 'WIN' ? '✅ Erreicht' : '—';
           return `<tr>
             <td><strong>${t.symbol}</strong></td>
-            <td>${resultBadge(t.result ?? undefined)}</td>
+            <td>${resultBadge(t.result ?? undefined, t.close_reason ?? undefined)}</td>
             <td style="color:var(--red)">${t.mae_pips?.toFixed(1) ?? '—'}</td>
             <td style="color:var(--green)">${t.mfe_pips?.toFixed(1) ?? '—'}</td>
             <td>${entryMid.toFixed(dec)}</td>

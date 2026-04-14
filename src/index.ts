@@ -154,6 +154,74 @@ async function syncClosedTrades(): Promise<void> {
             }
           }
         }
+
+        // v1.3: Time-based auto-close
+        // If trade is open >48h and hasn't reached 50% of TP distance, close at market
+        const MAX_HOLD_HOURS = 48;
+        const MIN_PROGRESS_PCT = 0.5; // must have reached 50% of TP distance
+        const openedMs = new Date(dbTrade.opened_at).getTime();
+        const holdHours = (Date.now() - openedMs) / (1000 * 60 * 60);
+
+        if (holdHours >= MAX_HOLD_HOURS) {
+          const progressPct = tpDist > 0 ? Math.max(currentProfit, 0) / tpDist : 0;
+
+          if (progressPct < MIN_PROGRESS_PCT) {
+            const dec2 = dbTrade.symbol.includes('JPY') ? 3 : 5;
+            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h, progress ${(progressPct * 100).toFixed(0)}% of TP — closing`);
+
+            try {
+              // Close on Capital.com
+              const executor2 = new TradeExecutor(
+                process.env.CAPITAL_API_KEY!,
+                capital.isDemo,
+                capital.cst,
+                capital.securityToken
+              );
+              const closeResult = await executor2.closePosition(dbTrade.id);
+
+              if (closeResult.success) {
+                // Calculate P&L
+                const pnlPips2 = Math.round((dbTrade.type === 'LONG'
+                  ? (mid - fillPrice) / pip
+                  : (fillPrice - mid) / pip) * 10) / 10;
+                const resultStr = pnlPips2 > 0.5 ? 'WIN' : pnlPips2 < -0.5 ? 'LOSS' : 'BREAKEVEN';
+
+                // Update DB
+                closeTrade(
+                  dbTrade.id,
+                  mid,
+                  new Date().toISOString(),
+                  `TIME_CLOSE (${holdHours.toFixed(0)}h, ${(progressPct * 100).toFixed(0)}% progress)`,
+                  pnlPips2,
+                  0, // EUR P&L calculated by logClosedTrade
+                  resultStr
+                );
+
+                // Update trades.json
+                logClosedTrade(dbTrade.id, mid, new Date().toISOString());
+                savePineScript();
+
+                activeSymbols.delete(dbTrade.symbol);
+                trailingApplied.delete(dbTrade.id);
+
+                const resultEmoji = resultStr === 'WIN' ? '✅' : resultStr === 'LOSS' ? '❌' : '➖';
+                await telegram.sendMessage(
+                  `⏰ <b>Time-based Close — ${dbTrade.symbol}</b>\n` +
+                  `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${resultStr}\n` +
+                  `Offen seit: <b>${holdHours.toFixed(0)}h</b> (Max: ${MAX_HOLD_HOURS}h)\n` +
+                  `Fortschritt: <b>${(progressPct * 100).toFixed(0)}%</b> Richtung TP (Min: ${MIN_PROGRESS_PCT * 100}%)\n` +
+                  `Close: <code>${mid.toFixed(dec2)}</code>\n` +
+                  `P&L: <b>${pnlPips2 >= 0 ? '+' : ''}${pnlPips2.toFixed(1)} pips</b>`
+                );
+                logger.info(`Time-based close done: ${dbTrade.symbol} ${resultStr} ${pnlPips2} pips after ${holdHours.toFixed(0)}h`);
+              } else {
+                logger.warn(`Time-based close failed for ${dbTrade.symbol}: ${closeResult.message}`);
+              }
+            } catch (timeCloseErr: any) {
+              logger.error(`Time-based close error for ${dbTrade.symbol}:`, timeCloseErr.message);
+            }
+          }
+        }
       } catch { /* skip */ }
     }
 

@@ -130,7 +130,20 @@ export class TradeExecutor {
     return positions.some(p => p.epic === epic);
   }
 
-  // v1.3: ATR-normalized position sizing
+  // Close a position by dealId (DELETE /positions/{dealId})
+  async closePosition(dealId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      await throttle();
+      await this.client.delete(`/positions/${dealId}`, { headers: this.authHeaders });
+      return { success: true, message: `Position ${dealId} closed` };
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.errorCode || err.message || 'Unknown error';
+      logger.error(`Failed to close position ${dealId}:`, errorMsg);
+      return { success: false, message: errorMsg };
+    }
+  }
+
+  // Calculate position size in Points (Capital.com unit)
   // Position size scaled by inverse ATR — volatile pairs get smaller size
   // Base risk stays EUR 100, but size adjusts so that a 1-ATR adverse move
   // has roughly equal EUR impact across all pairs
