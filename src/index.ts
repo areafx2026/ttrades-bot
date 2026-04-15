@@ -494,6 +494,14 @@ async function analyzeSymbol(
     }
 
     logger.info(`Signal found for ${symbol}: ${signal.type}`);
+
+    // Don't send signal or open trade if position already open for this symbol
+    const openJsonTrades = loadTrades().filter(t => !t.closedAt);
+    if (openJsonTrades.some(t => t.symbol === symbol)) {
+      logger.info(`${symbol}: trade already open — skipping signal and execution`);
+      return;
+    }
+
     await telegram.sendSignal(signal);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
