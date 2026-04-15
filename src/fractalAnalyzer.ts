@@ -217,18 +217,32 @@ export class FractalAnalyzer {
       d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3] && // LH
       d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];     // LL
 
-    const swingLow = this.detectSwingLow(candles, candles.length - 3);
-    if (swingLow) {
-      const c3 = candles[candles.length - 2];
+    // Search for the most recent swing low/high in last 8 candles (not just one fixed position)
+    // C3 = the candle immediately after the swing point
+    let lastSwingLowIdx = -1;
+    let lastSwingHighIdx = -1;
+    for (let i = candles.length - 2; i >= candles.length - 8 && i >= 1; i--) {
+      if (lastSwingLowIdx === -1 && this.detectSwingLow(candles, i)) {
+        lastSwingLowIdx = i;
+      }
+      if (lastSwingHighIdx === -1 && this.detectSwingHigh(candles, i)) {
+        lastSwingHighIdx = i;
+      }
+      if (lastSwingLowIdx !== -1 && lastSwingHighIdx !== -1) break;
+    }
+
+    if (lastSwingLowIdx !== -1 && lastSwingLowIdx < candles.length - 1) {
+      // C3 is the candle after the swing low
+      const c3 = candles[lastSwingLowIdx + 1];
       const c3Body = c3.close - c3.open;
       const c3Range = c3.high - c3.low;
       // v1.3: Require D1 trend bullish AND HP-filter not bearish
       if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish && hpTrend !== 'BEARISH') return 'LONG';
     }
 
-    const swingHigh = this.detectSwingHigh(candles, candles.length - 3);
-    if (swingHigh) {
-      const c3 = candles[candles.length - 2];
+    if (lastSwingHighIdx !== -1 && lastSwingHighIdx < candles.length - 1) {
+      // C3 is the candle after the swing high
+      const c3 = candles[lastSwingHighIdx + 1];
       const c3Body = c3.open - c3.close;
       const c3Range = c3.high - c3.low;
       // v1.3: Require D1 trend bearish AND HP-filter not bullish
