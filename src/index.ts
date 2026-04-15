@@ -599,6 +599,7 @@ async function analyzeSymbol(
       if (result.success && result.dealId) {
         const dealReference = result.dealId;
         let resolvedDealId = dealReference;
+        let confirmedSize = 0;
         const baseURL2 = capital.isDemo
           ? 'https://demo-api-capital.backend-capital.com/api/v1'
           : 'https://api-capital.backend-capital.com/api/v1';
@@ -620,6 +621,18 @@ async function analyzeSymbol(
             // Store real fill price
             signal.currentPrice = fillPrice;
 
+            // Check affectedDeals FIRST — the position dealId can differ from the order dealId
+            if (confirm.affectedDeals?.length > 0) {
+              const openedDeal = confirm.affectedDeals.find((d: any) => d.status === 'OPENED');
+              if (openedDeal && openedDeal.dealId !== resolvedDealId) {
+                logger.info(`AffectedDeals: position dealId=${openedDeal.dealId} (differs from order dealId=${resolvedDealId})`);
+                resolvedDealId = openedDeal.dealId;
+              }
+            }
+
+            // Store confirmed size for later use
+            confirmedSize = confirm.size ?? 0;
+
             // Recalculate TP based on actual fill price for exact 1:1.5 R:R
             const pip2 = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
             const risk2 = Math.abs(fillPrice - signal.stopLoss);
@@ -627,7 +640,7 @@ async function analyzeSymbol(
               ? fillPrice + risk2 * 1.5
               : fillPrice - risk2 * 1.5;
 
-            // Update TP on Capital.com using the confirmed dealId
+            // Update TP on Capital.com using the resolved position dealId
             try {
               await throttle();
               await axios.put(`${baseURL2}/positions/${resolvedDealId}`,
@@ -636,20 +649,7 @@ async function analyzeSymbol(
               );
               signal.target1 = newTP;
               logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
-              try {
-                const db = getDb();
-                db.prepare('UPDATE trades SET size_points = ? WHERE id = ?').run(confirm.size, resolvedDealId);
-              } catch { /* ignore */ }
             } catch { logger.warn('Could not update TP after fill'); }
-
-            // Also check affectedDeals for the actual position dealId (can differ)
-            if (confirm.affectedDeals?.length > 0) {
-              const openedDeal = confirm.affectedDeals.find((d: any) => d.status === 'OPENED');
-              if (openedDeal && openedDeal.dealId !== resolvedDealId) {
-                logger.info(`AffectedDeals: position dealId=${openedDeal.dealId} (differs from order dealId=${resolvedDealId})`);
-                resolvedDealId = openedDeal.dealId;
-              }
-            }
           } else {
             logger.warn(`Trade not confirmed: status=${confirm.dealStatus}, reason=${confirm.reason ?? 'unknown'}`);
           }
@@ -690,7 +690,7 @@ async function analyzeSymbol(
             h1_context: signal.h1Context,
             m15_setup: signal.m15Setup,
             fvg_present: signal.fvgLevel != null ? 1 : 0,
-            size_points: 0,
+            size_points: confirmedSize,
             currency_strength: undefined,
             strength_score: undefined,
             zone_note: undefined,
