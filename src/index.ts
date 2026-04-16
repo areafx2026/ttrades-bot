@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import axios from 'axios';
-import { CapitalAPI, throttle } from './capitalApi';
-import { FractalAnalyzer, TradeSignal } from './fractalAnalyzer';
+import { CapitalAPI } from './capitalApi';
+import { FractalAnalyzer } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { TradeExecutor } from './tradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
@@ -9,10 +9,21 @@ import { isMarketOpen, isActiveTradingSession, getActiveSession } from './market
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
-import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, getTrade } from './database';
+import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
 import { startDashboard } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
+
+// Log filter rejections to SQLite for dashboard stats
+function logFilterRejection(symbol: string, reason: string): void {
+  try {
+    const db = getDb();
+    db.prepare(`
+      INSERT INTO filter_rejections (symbol, reason, rejected_at)
+      VALUES (?, ?, ?)
+    `).run(symbol, reason, new Date().toISOString());
+  } catch { /* table may not exist yet */ }
+}
 
 // Spread limits loaded from spreads.json (no restart needed after edit)
 const SPREAD_LOG = './logs/spread_log.csv';
@@ -53,8 +64,6 @@ let marketWasOpen = true;
 
 // Track which symbols have active signals or open trades — these get polled every 3 min
 const activeSymbols = new Set<string>();
-// Track which trades already had their SL moved to breakeven (avoid repeated API calls)
-const trailingApplied = new Set<string>();
 // Track last scan time per symbol
 const lastScanned = new Map<string, number>();
 const FAST_INTERVAL_MS = 3  * 60 * 1000; // 3 minutes
@@ -101,280 +110,91 @@ async function syncClosedTrades(): Promise<void> {
     const dbOpenTrades = getDbOpenTrades();
     for (const dbTrade of dbOpenTrades) {
       try {
-        await throttle();
         const priceRes = await axios.get(`${baseURL}/markets/${dbTrade.symbol}`, { headers });
         const mid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
         recordPriceTick(dbTrade.id, mid);
-
-        // v1.3: Breakeven trailing stop
-        // When price reaches 80% of TP distance, move SL to fill price + 5 pips
-        const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
-        // Use real fill price if available, fall back to entry zone midpoint
-        const fillPrice = dbTrade.entry_price ?? (dbTrade.entry_zone_low + dbTrade.entry_zone_high) / 2;
-        const tpDist = Math.abs(dbTrade.target1 - fillPrice);
-        const threshold = tpDist * 0.8;
-        const breakevenSL = dbTrade.type === 'LONG'
-          ? fillPrice + pip * 5
-          : fillPrice - pip * 5;
-
-        // Check if price has reached 80% of TP
-        const currentProfit = dbTrade.type === 'LONG'
-          ? mid - fillPrice
-          : fillPrice - mid;
-
-        if (currentProfit >= threshold) {
-          // Only move SL if it hasn't been moved yet (current SL is worse than breakeven)
-          const slNeedsUpdate = dbTrade.type === 'LONG'
-            ? dbTrade.stop_loss < breakevenSL
-            : dbTrade.stop_loss > breakevenSL;
-
-          if (slNeedsUpdate && !trailingApplied.has(dbTrade.id)) {
-            const dec = dbTrade.symbol.includes('JPY') ? 3 : 5;
-            try {
-              await throttle();
-              await axios.put(`${baseURL}/positions/${dbTrade.id}`,
-                { stopLevel: parseFloat(breakevenSL.toFixed(dec)), profitLevel: dbTrade.target1 },
-                { headers }
-              );
-              trailingApplied.add(dbTrade.id);
-
-              // Update DB
-              const db = getDb();
-              db.prepare('UPDATE trades SET stop_loss = ? WHERE id = ?').run(breakevenSL, dbTrade.id);
-
-              logger.info(`BE-Trailing: ${dbTrade.symbol} SL moved to ${breakevenSL.toFixed(dec)} (+5 pips over entry) — price at 80% of TP`);
-              await telegram.sendMessage(
-                `🔒 <b>SL nachgezogen — ${dbTrade.symbol}</b>\n` +
-                `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type}\n` +
-                `Neuer SL: <code>${breakevenSL.toFixed(dec)}</code> (+5 Pips über Entry)\n` +
-                `Preis: <code>${mid.toFixed(dec)}</code> (80% Richtung TP erreicht)`
-              );
-            } catch (slErr: any) {
-              logger.warn(`BE-Trailing failed for ${dbTrade.symbol}: ${slErr.response?.data?.errorCode || slErr.message}`);
-            }
-          }
-        }
-
-        // v1.3: Time-based auto-close
-        // If trade is open >48h and hasn't reached 50% of TP distance, close at market
-        const MAX_HOLD_HOURS = 48;
-        const MIN_PROGRESS_PCT = 0.5; // must have reached 50% of TP distance
-        const openedMs = new Date(dbTrade.opened_at).getTime();
-        const holdHours = (Date.now() - openedMs) / (1000 * 60 * 60);
-
-        if (holdHours >= MAX_HOLD_HOURS) {
-          const progressPct = tpDist > 0 ? Math.max(currentProfit, 0) / tpDist : 0;
-
-          if (progressPct < MIN_PROGRESS_PCT) {
-            const dec2 = dbTrade.symbol.includes('JPY') ? 3 : 5;
-            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h, progress ${(progressPct * 100).toFixed(0)}% of TP — closing`);
-
-            try {
-              // Close on Capital.com
-              const executor2 = new TradeExecutor(
-                process.env.CAPITAL_API_KEY!,
-                capital.isDemo,
-                capital.cst,
-                capital.securityToken
-              );
-              const closeResult = await executor2.closePosition(dbTrade.id);
-
-              if (closeResult.success) {
-                // Calculate P&L
-                const pnlPips2 = Math.round((dbTrade.type === 'LONG'
-                  ? (mid - fillPrice) / pip
-                  : (fillPrice - mid) / pip) * 10) / 10;
-                const resultStr = pnlPips2 > 0.5 ? 'WIN' : pnlPips2 < -0.5 ? 'LOSS' : 'BREAKEVEN';
-
-                // Calculate EUR P&L from position size
-                const sizePoints = dbTrade.size_points ?? 1000;
-                let pipValuePer1000 = 0.08;
-                if (dbTrade.symbol.includes('JPY')) pipValuePer1000 = 0.07;
-                else if (dbTrade.symbol.startsWith('USD') || dbTrade.symbol.endsWith('USD')) pipValuePer1000 = 0.09;
-                const pnlEur2 = Math.round(pnlPips2 * pipValuePer1000 * (sizePoints / 1000) * 100) / 100;
-
-                // Update trades.json first (so logClosedTrade has the data)
-                logClosedTrade(dbTrade.id, mid, new Date().toISOString());
-                savePineScript();
-
-                // Update DB with calculated EUR P&L
-                closeTrade(
-                  dbTrade.id,
-                  mid,
-                  new Date().toISOString(),
-                  `TIME_CLOSE (${holdHours.toFixed(0)}h, ${(progressPct * 100).toFixed(0)}% progress)`,
-                  pnlPips2,
-                  pnlEur2,
-                  resultStr
-                );
-
-                activeSymbols.delete(dbTrade.symbol);
-                trailingApplied.delete(dbTrade.id);
-
-                const resultEmoji = resultStr === 'WIN' ? '✅' : resultStr === 'LOSS' ? '❌' : '➖';
-                await telegram.sendMessage(
-                  `⏰ <b>Time-based Close — ${dbTrade.symbol}</b>\n` +
-                  `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${resultStr}\n` +
-                  `Offen seit: <b>${holdHours.toFixed(0)}h</b> (Max: ${MAX_HOLD_HOURS}h)\n` +
-                  `Fortschritt: <b>${(progressPct * 100).toFixed(0)}%</b> Richtung TP (Min: ${MIN_PROGRESS_PCT * 100}%)\n` +
-                  `Close: <code>${mid.toFixed(dec2)}</code>\n` +
-                  `P&L: <b>${pnlPips2 >= 0 ? '+' : ''}${pnlPips2.toFixed(1)} pips</b>`
-                );
-                logger.info(`Time-based close done: ${dbTrade.symbol} ${resultStr} ${pnlPips2} pips after ${holdHours.toFixed(0)}h`);
-              } else {
-                logger.warn(`Time-based close failed for ${dbTrade.symbol}: ${closeResult.message}`);
-              }
-            } catch (timeCloseErr: any) {
-              logger.error(`Time-based close error for ${dbTrade.symbol}:`, timeCloseErr.message);
-            }
-          }
-        }
       } catch { /* skip */ }
     }
 
-    await throttle();
     const posRes = await axios.get(`${baseURL}/positions`, { headers });
-    const openApiPositions = (posRes.data.positions || []) as any[];
-
-    // Build map: symbol+direction → position (what Capital.com currently has open)
-    const openBySymbolDir = new Map<string, any>();
-    for (const p of openApiPositions) {
-      const key = `${p.market.epic}_${p.position.direction}`;
-      openBySymbolDir.set(key, p);
+    // Build set of ALL known IDs — Capital.com uses dealId internally
+    // but bot stores dealReference (o_xxx) from the order response
+    const openDealIds = new Set<string>();
+    for (const p of (posRes.data.positions || [])) {
+      if (p.position.dealId)        openDealIds.add(p.position.dealId);
+      if (p.position.dealReference) openDealIds.add(p.position.dealReference);
+      // Convert p_xxx → o_xxx to match bot's stored dealReference format
+      const oRef = (p.position.dealReference as string)?.replace(/^p_/, 'o_');
+      if (oRef) openDealIds.add(oRef);
     }
 
     for (const trade of openTrades) {
-      if (!trade.dealId) continue;
-
-      // v1.3 fix: Check if already closed in SQLite — if so, force-update trades.json and skip
-      try {
-        const dbCheck = getTrade(trade.dealId);
-        if (dbCheck?.closed_at) {
-          const allJsonTrades = loadTrades();
-          const idx = allJsonTrades.findIndex(t => t.id === trade.dealId || t.dealId === trade.dealId);
-          if (idx !== -1 && !allJsonTrades[idx].closedAt) {
-            allJsonTrades[idx].closedAt = dbCheck.closed_at;
-            allJsonTrades[idx].closePrice = dbCheck.close_price;
-            allJsonTrades[idx].pnlPips = dbCheck.pnl_pips;
-            allJsonTrades[idx].pnlEUR = dbCheck.pnl_eur;
-            allJsonTrades[idx].result = dbCheck.result as any;
-            const fs2 = require('fs');
-            const path2 = require('path');
-            fs2.writeFileSync(path2.join(process.cwd(), 'data', 'trades.json'), JSON.stringify(allJsonTrades, null, 2), 'utf-8');
-            logger.info(`Fixed trades.json for ${trade.symbol} [${trade.dealId}] — was closed in DB but open in JSON`);
-          }
-          activeSymbols.delete(trade.symbol);
-          continue;
-        }
-      } catch { /* DB check failed, proceed with normal close flow */ }
-
-      // Match by symbol + direction — no dealId matching needed
-      const direction = trade.type === 'LONG' ? 'BUY' : 'SELL';
-      const key = `${trade.symbol}_${direction}`;
-      if (openBySymbolDir.has(key)) continue; // still open on Capital.com
+      if (!trade.dealId || openDealIds.has(trade.dealId)) continue;
 
       logger.info(`Closed trade detected: ${trade.symbol} [${trade.dealId}]`);
 
-      // Get close price from Capital.com transaction history
-      const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-      const dbTradeData = getTrade(trade.dealId!);
-      const entryPrice = dbTradeData?.entry_price ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
-      let closePrice: number | null = null;
-      let closedAt = new Date().toISOString();
-      let closeSource = 'unknown';
+      let closePrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+      let closedAt   = new Date().toISOString();
 
       try {
         const from = new Date(trade.openedAt).toISOString().slice(0, 19);
-        await throttle();
         const actRes = await axios.get(`${baseURL}/history/activity`, {
           headers,
           params: { from, detailed: true },
         });
 
         const activities = actRes.data.activities || [];
+        for (const act of activities) {
+          // Match by dealId or dealReference (both p_ and o_ variants)
+          const actDealId  = act.dealId ?? '';
+          const actDealRef = act.details?.dealReference ?? '';
+          const tradeId    = trade.dealId;
+          const matches    =
+            actDealId  === tradeId ||
+            actDealRef === tradeId ||
+            actDealRef === tradeId.replace(/^o_/, 'p_') ||
+            actDealId  === tradeId.replace(/^o_/, 'p_');
 
-        // Match by symbol — find the most recent close for this symbol+direction
-        const matchingCloses = activities.filter((act: any) => {
-          const epic = act.details?.epic ?? act.epic ?? '';
-          const actDir = act.details?.direction ?? '';
-          const isClose = act.type === 'POSITION' &&
-            (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM');
-          // Match by symbol — direction in activity is the original trade direction
-          return epic === trade.symbol && isClose && act.details?.level;
-        });
-
-        if (matchingCloses.length > 0) {
-          // Take the most recent
-          const latest = matchingCloses[matchingCloses.length - 1];
-          closePrice = parseFloat(latest.details.level);
-          closedAt = latest.dateUTC ?? latest.date ?? closedAt;
-          closeSource = latest.source;
-          logger.info(`Close found: ${closePrice} via ${closeSource} for ${trade.symbol}`);
+          if (matches && act.type === 'POSITION' &&
+              (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
+            closePrice = parseFloat(act.details?.level ?? closePrice);
+            closedAt   = act.dateUTC ?? act.date ?? closedAt;
+            logger.info('Close found: ' + closePrice + ' via ' + act.source + ' for ' + trade.symbol);
+            break;
+          }
         }
       } catch {
-        logger.warn(`Could not fetch activity history for ${trade.symbol}`);
+        logger.warn(`Could not fetch close price for ${trade.dealId}, using fallback`);
       }
-
-      // Fallback: determine from TP/SL proximity or MFE
-      if (closePrice === null) {
-        try {
-          await throttle();
-          const priceRes = await axios.get(`${baseURL}/markets/${trade.symbol}`, { headers });
-          const currentMid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
-          const tpDist = Math.abs(currentMid - trade.target1);
-          const slDist = Math.abs(currentMid - trade.stopLoss);
-
-          if (tpDist < pip * 5) {
-            closePrice = trade.target1;
-            closeSource = 'TP (price-inferred)';
-          } else if (slDist < pip * 5) {
-            closePrice = trade.stopLoss;
-            closeSource = 'SL (price-inferred)';
-          } else {
-            closePrice = currentMid;
-            closeSource = 'market-price';
-          }
-        } catch {
-          // Last resort: use MFE to guess
-          const mfe = dbTradeData?.mfe_pips ?? 0;
-          const tpPips = Math.abs(trade.target1 - entryPrice) / pip;
-          if (mfe >= tpPips * 0.9) {
-            closePrice = trade.target1;
-            closeSource = 'TP (MFE-inferred)';
-          } else {
-            closePrice = trade.stopLoss;
-            closeSource = 'SL (MFE-inferred)';
-          }
-        }
-        logger.info(`Close inferred: ${closePrice} via ${closeSource} for ${trade.symbol}`);
-      }
-
-      // Calculate P&L from fill price
-      const rawPnlPips = trade.type === 'LONG'
-        ? (closePrice - entryPrice) / pip
-        : (entryPrice - closePrice) / pip;
-      const pnlPips = Math.round(rawPnlPips * 10) / 10;
-      const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
 
       const closed = logClosedTrade(trade.dealId, closePrice, closedAt);
       savePineScript();
 
+      // Update SQLite DB with close data
+      // Calculate P&L from close price directly (don't rely on logClosedTrade result)
       try {
+        const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const entryPrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+        const rawPnlPips = trade.type === 'LONG'
+          ? (closePrice - entryPrice) / pip
+          : (entryPrice - closePrice) / pip;
+        const pnlPips = Math.round(rawPnlPips * 10) / 10;
+        const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
+
         closeTrade(
           trade.dealId,
           closePrice,
           closedAt,
-          closeSource,
+          'SL/TP/Market',
           pnlPips,
           closed?.pnlEUR ?? 0,
           result
         );
-        logger.info(`Trade closed in DB: ${trade.symbol} ${result} ${pnlPips} pips via ${closeSource}`);
+        logger.info('Trade closed in DB: ' + trade.symbol + ' ' + result + ' ' + pnlPips + ' pips');
       } catch (dbErr) { logger.error('DB close error:', dbErr); }
 
       // Remove from active symbols
       activeSymbols.delete(trade.symbol);
-      trailingApplied.delete(trade.dealId!);
 
       if (closed) {
         const dec = trade.symbol.includes('JPY') ? 3 : 5;
@@ -394,43 +214,6 @@ async function syncClosedTrades(): Promise<void> {
   }
 }
 
-// ─── v1.3: Cached weekly returns for mean-reversion z-score ──────────────────
-
-let cachedWeeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = [];
-let weeklyReturnsCacheTime = 0;
-const WEEKLY_RETURNS_CACHE_TTL = 60 * 60 * 1000; // 1 hour
-// Offset initial cache by 30 min so it doesn't refresh at the same time as currency strength
-const WEEKLY_RETURNS_INITIAL_OFFSET = 30 * 60 * 1000;
-
-async function getCachedWeeklyReturns(capital: CapitalAPI): Promise<{ symbol: string; returnPips: number; volatility: number }[]> {
-  const effectiveCacheTime = weeklyReturnsCacheTime || (Date.now() - WEEKLY_RETURNS_CACHE_TTL + WEEKLY_RETURNS_INITIAL_OFFSET);
-  if (cachedWeeklyReturns.length > 0 && Date.now() - effectiveCacheTime < WEEKLY_RETURNS_CACHE_TTL) {
-    return cachedWeeklyReturns;
-  }
-
-  const results: { symbol: string; returnPips: number; volatility: number }[] = [];
-  for (const sym of SYMBOLS) {
-    try {
-      const d1 = await capital.getCandles(sym, 'DAY', 7);
-      await new Promise(r => setTimeout(r, 300)); // 300ms to stay under rate limit
-      if (d1.length >= 2) {
-        const pip = sym.includes('JPY') ? 0.01 : 0.0001;
-        const weekReturn = (d1[d1.length - 1].close - d1[0].open) / pip;
-        const ranges = d1.slice(-6).map(c => (c.high - c.low) / pip);
-        const avgRange = ranges.reduce((s, v) => s + v, 0) / ranges.length;
-        results.push({ symbol: sym, returnPips: weekReturn, volatility: avgRange });
-      }
-    } catch { /* skip pair */ }
-  }
-
-  if (results.length >= 5) {
-    cachedWeeklyReturns = results;
-    weeklyReturnsCacheTime = Date.now();
-    logger.info(`Mean-reversion data cached: ${results.length} pairs`);
-  }
-  return results;
-}
-
 // ─── Analyze single symbol ────────────────────────────────────────────────────
 
 async function analyzeSymbol(
@@ -438,8 +221,7 @@ async function analyzeSymbol(
   capital: CapitalAPI,
   executor: TradeExecutor,
   telegram: TelegramNotifier,
-  strength: import('./currencyStrength').StrengthResult | null = null,
-  weeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = []
+  strength: import('./currencyStrength').StrengthResult | null = null
 ): Promise<void> {
   lastScanned.set(symbol, Date.now());
 
@@ -452,7 +234,14 @@ async function analyzeSymbol(
   const m15Candles = await capital.getCandles(symbol, 'MINUTE_15', 80);
 
   const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
-  const signal = analyzer.analyze();
+  const analyzeResult = analyzer.analyze();
+  const signal = analyzeResult.signal;
+
+  // Log rejection if a full setup was found but filtered out
+  if (analyzeResult.rejected && analyzeResult.reason) {
+    logger.info(`${symbol}: Setup REJECTED — ${analyzeResult.reason}`);
+    logFilterRejection(symbol, analyzeResult.reason);
+  }
 
   if (signal) {
     // Mark as active — will be polled every 3 min
@@ -474,34 +263,7 @@ async function analyzeSymbol(
       logger.info(`${symbol}: strength aligned — ${strengthCheck.reason}`);
     }
 
-    // v1.3: Relative mean-reversion filter (cross-pair z-score)
-    if (weeklyReturns.length >= 5) {
-      const symbolData = weeklyReturns.find(r => r.symbol === symbol);
-      if (symbolData) {
-        const zScore = FractalAnalyzer.calculateMeanReversionZScore(
-          symbolData.returnPips,
-          weeklyReturns
-        );
-        signal.meanRevZScore = zScore;
-        const mrCheck = FractalAnalyzer.isMeanReversionBlocked(signal.type, zScore);
-        if (mrCheck.blocked) {
-          logger.info(`${symbol}: ${mrCheck.reason}`);
-          activeSymbols.delete(symbol);
-          return;
-        }
-        logger.info(`${symbol}: mean-reversion ${mrCheck.reason}`);
-      }
-    }
-
     logger.info(`Signal found for ${symbol}: ${signal.type}`);
-
-    // Don't send signal or open trade if position already open for this symbol
-    const openJsonTrades = loadTrades().filter(t => !t.closedAt);
-    if (openJsonTrades.some(t => t.symbol === symbol)) {
-      logger.info(`${symbol}: trade already open — skipping signal and execution`);
-      return;
-    }
-
     await telegram.sendSignal(signal);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
@@ -529,45 +291,6 @@ async function analyzeSymbol(
         }
       }
 
-      // v1.3: Directional conflict filter — no contradicting exposure on same currency
-      // AUDJPY LONG = AUD long-exposed, JPY short-exposed
-      // AUDCAD SHORT = AUD short-exposed, CAD long-exposed
-      // → AUD both LONG and SHORT = conflict → block
-      const newBase = symbol.slice(0, 3);
-      const newQuote = symbol.slice(3, 6);
-      // New trade implies: base is LONG-exposed if LONG, SHORT-exposed if SHORT
-      // Quote is the opposite
-      const newBaseDir = signal.type; // LONG = base goes up
-      const newQuoteDir = signal.type === 'LONG' ? 'SHORT' : 'LONG';
-
-      for (const pos of openPositions2) {
-        const posEpic = pos.epic ?? '';
-        if (posEpic.length !== 6) continue;
-        const posBase = posEpic.slice(0, 3);
-        const posQuote = posEpic.slice(3, 6);
-        const posDir = pos.direction === 'BUY' ? 'LONG' : 'SHORT';
-        const posBaseDir = posDir;
-        const posQuoteDir = posDir === 'LONG' ? 'SHORT' : 'LONG';
-
-        // Check if any shared currency has opposing direction
-        if (newBase === posBase && newBaseDir !== posBaseDir) {
-          logger.info(`${symbol}: directional conflict — ${newBase} already ${posBaseDir} via ${posEpic}, new trade wants ${newBaseDir}`);
-          return;
-        }
-        if (newBase === posQuote && newBaseDir !== posQuoteDir) {
-          logger.info(`${symbol}: directional conflict — ${newBase} already ${posQuoteDir} via ${posEpic} (quote), new trade wants ${newBaseDir}`);
-          return;
-        }
-        if (newQuote === posBase && newQuoteDir !== posBaseDir) {
-          logger.info(`${symbol}: directional conflict — ${newQuote} already ${posBaseDir} via ${posEpic}, new trade wants ${newQuoteDir}`);
-          return;
-        }
-        if (newQuote === posQuote && newQuoteDir !== posQuoteDir) {
-          logger.info(`${symbol}: directional conflict — ${newQuote} already ${posQuoteDir} via ${posEpic} (quote), new trade wants ${newQuoteDir}`);
-          return;
-        }
-      }
-
       const maxTrades = getMaxTrades();
       const openPositions = await executor.getOpenPositions();
 
@@ -580,7 +303,6 @@ async function analyzeSymbol(
       let spreadBlocked = false;
       try {
         const mktRes = await capital.getCandles(symbol, 'MINUTE', 1);
-        await throttle();
         const mktInfo = await axios.get(
           `${capital.isDemo ? 'https://demo-api-capital.backend-capital.com' : 'https://api-capital.backend-capital.com'}/api/v1/markets/${symbol}`,
           { headers: { CST: capital.cst, 'X-SECURITY-TOKEN': capital.securityToken } }
@@ -605,65 +327,55 @@ async function analyzeSymbol(
       const dec = signal.symbol.includes('JPY') ? 3 : 5;
 
       if (result.success && result.dealId) {
-        const dealReference = result.dealId;
-        let resolvedDealId = dealReference;
-        let confirmedSize = 0;
-        const baseURL2 = capital.isDemo
-          ? 'https://demo-api-capital.backend-capital.com/api/v1'
-          : 'https://api-capital.backend-capital.com/api/v1';
-        const headers2 = { 'CST': capital.cst, 'X-SECURITY-TOKEN': capital.securityToken };
-
-        // Use GET /confirms/{dealReference} — the official Capital.com way
-        // to get the real dealId, fill price and status
+        // Resolve real Capital.com dealId by fetching open positions
+        // The bot stores dealReference (o_xxx) but Capital.com uses a different dealId
+        let resolvedDealId = result.dealId;
         try {
-          await new Promise(r => setTimeout(r, 1000)); // brief wait for order processing
-          await throttle();
-          const confirmRes = await axios.get(`${baseURL2}/confirms/${dealReference}`, { headers: headers2 });
-          const confirm = confirmRes.data;
-
-          if (confirm.dealStatus === 'ACCEPTED' && confirm.status === 'OPEN') {
-            resolvedDealId = confirm.dealId;
-            const fillPrice = confirm.level;
-            logger.info(`Trade confirmed: dealId=${resolvedDealId}, fill=${fillPrice}, size=${confirm.size}, direction=${confirm.direction}`);
-
-            // Store real fill price
-            signal.currentPrice = fillPrice;
-
-            // Check affectedDeals FIRST — the position dealId can differ from the order dealId
-            if (confirm.affectedDeals?.length > 0) {
-              const openedDeal = confirm.affectedDeals.find((d: any) => d.status === 'OPENED');
-              if (openedDeal && openedDeal.dealId !== resolvedDealId) {
-                logger.info(`AffectedDeals: position dealId=${openedDeal.dealId} (differs from order dealId=${resolvedDealId})`);
-                resolvedDealId = openedDeal.dealId;
-              }
-            }
-
-            // Store confirmed size for later use
-            confirmedSize = confirm.size ?? 0;
+          await new Promise(r => setTimeout(r, 1500)); // wait for position to appear
+          const fillCapital = new CapitalAPI(
+            process.env.CAPITAL_API_KEY!,
+            process.env.CAPITAL_IDENTIFIER!,
+            process.env.CAPITAL_PASSWORD!,
+            process.env.CAPITAL_DEMO === 'true'
+          );
+          await fillCapital.createSession();
+          const fillBaseURL = fillCapital.isDemo
+            ? 'https://demo-api-capital.backend-capital.com/api/v1'
+            : 'https://api-capital.backend-capital.com/api/v1';
+          const fillHeaders = { 'CST': fillCapital.cst, 'X-SECURITY-TOKEN': fillCapital.securityToken };
+          const posCheck = await axios.get(`${fillBaseURL}/positions`, { headers: fillHeaders });
+          const matchedPos = (posCheck.data.positions || []).find((p: any) =>
+            p.market.epic === symbol &&
+            p.position.direction === (signal.type === 'LONG' ? 'BUY' : 'SELL')
+          );
+          if (matchedPos) {
+            resolvedDealId = matchedPos.position.dealId;
+            logger.info(`Resolved Capital.com dealId: ${resolvedDealId}`);
 
             // Recalculate TP based on actual fill price for exact 1:1.5 R:R
+            const fillPrice = matchedPos.position.level;
             const pip2 = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
             const risk2 = Math.abs(fillPrice - signal.stopLoss);
             const newTP = signal.type === 'LONG'
               ? fillPrice + risk2 * 1.5
               : fillPrice - risk2 * 1.5;
 
-            // Update TP on Capital.com using the resolved position dealId
+            // Update TP on Capital.com
             try {
-              await throttle();
-              await axios.put(`${baseURL2}/positions/${resolvedDealId}`,
+              await axios.put(`${fillBaseURL}/positions/${resolvedDealId}`,
                 { stopLevel: signal.stopLoss, profitLevel: parseFloat(newTP.toFixed(pip2 === 0.01 ? 3 : 5)) },
-                { headers: headers2 }
+                { headers: fillHeaders }
               );
               signal.target1 = newTP;
               logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
+              // Update size_points in DB from actual position size
+              try {
+                const db = getDb();
+                db.prepare('UPDATE trades SET size_points = ? WHERE id = ?').run(matchedPos.position.size, resolvedDealId);
+              } catch { /* ignore */ }
             } catch { logger.warn('Could not update TP after fill'); }
-          } else {
-            logger.warn(`Trade not confirmed: status=${confirm.dealStatus}, reason=${confirm.reason ?? 'unknown'}`);
           }
-        } catch (confirmErr: any) {
-          logger.warn(`GET /confirms/${dealReference} failed: ${confirmErr.response?.data?.errorCode || confirmErr.message} — using dealReference as fallback`);
-        }
+        } catch { /* use original dealId */ }
 
         logger.info(`Trade opened for ${symbol}: ${resolvedDealId}`);
         logOpenTrade(signal, resolvedDealId);
@@ -698,7 +410,7 @@ async function analyzeSymbol(
             h1_context: signal.h1Context,
             m15_setup: signal.m15Setup,
             fvg_present: signal.fvgLevel != null ? 1 : 0,
-            size_points: confirmedSize,
+            size_points: 0,
             currency_strength: undefined,
             strength_score: undefined,
             zone_note: undefined,
@@ -793,15 +505,6 @@ async function runScan() {
       logger.warn('Currency strength calculation failed — filter disabled for this scan');
     }
 
-    // v1.3: Calculate weekly returns + ATR for relative mean-reversion filter
-    // Cached for 1 hour, staggered 30 min after currency strength to avoid burst
-    let weeklyReturns: { symbol: string; returnPips: number; volatility: number }[] = [];
-    try {
-      weeklyReturns = await getCachedWeeklyReturns(capital);
-    } catch {
-      logger.warn('Weekly returns calculation failed — mean-reversion filter disabled');
-    }
-
     const executor = new TradeExecutor(
       capital.apiKey,
       capital.isDemo,
@@ -815,11 +518,16 @@ async function runScan() {
 
     for (const symbol of [...active, ...passive]) {
       try {
-        await analyzeSymbol(symbol, capital, executor, telegram, strength, weeklyReturns);
+        await analyzeSymbol(symbol, capital, executor, telegram);
       } catch (err) {
         logger.error(`Error analyzing ${symbol}:`, err);
       }
       await new Promise(r => setTimeout(r, 200));
+    }
+
+    // Sync closed trades
+    if (PAPER_TRADING) {
+      await syncClosedTrades();
     }
 
   } catch (err) {

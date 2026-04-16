@@ -72,6 +72,13 @@ function initSchema(): void {
       notes TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS filter_rejections (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol      TEXT NOT NULL,
+      reason      TEXT NOT NULL,
+      rejected_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS strategy_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       changed_at TEXT NOT NULL,
@@ -315,6 +322,35 @@ export function insertStrategyLog(entry: StrategyLogEntry): void {
 
 export function getStrategyLog(): StrategyLogEntry[] {
   return getDb().prepare('SELECT * FROM strategy_log ORDER BY changed_at ASC').all() as StrategyLogEntry[];
+}
+
+export function getFilterRejections(days: number = 7): any[] {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return getDb().prepare(`
+    SELECT
+      reason,
+      COUNT(*) as count,
+      MAX(rejected_at) as last_seen
+    FROM filter_rejections
+    WHERE rejected_at >= ?
+    GROUP BY reason
+    ORDER BY count DESC
+  `).all(since) as any[];
+}
+
+export function getFilterRejectionsBySymbol(days: number = 7): any[] {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return getDb().prepare(`
+    SELECT
+      symbol,
+      reason,
+      COUNT(*) as count
+    FROM filter_rejections
+    WHERE rejected_at >= ?
+    GROUP BY symbol, reason
+    ORDER BY count DESC
+    LIMIT 50
+  `).all(since) as any[];
 }
 
 // ─── Statistics ───────────────────────────────────────────────────────────────

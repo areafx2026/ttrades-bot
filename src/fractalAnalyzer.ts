@@ -29,6 +29,7 @@ export interface TradeSignal {
   fvgLevel: number | null;
   timestamp: string;
   keyLevels: { label: string; price: number }[];
+  atr14?: number; // H1 ATR14 in pips
 }
 
 export class FractalAnalyzer {
@@ -375,6 +376,9 @@ export class FractalAnalyzer {
       ? `C3 ${bias === 'LONG' ? 'Bullish' : 'Bearish'} Expansion`
       : `C4 Retest ${bias === 'LONG' ? 'bullish' : 'bearish'}`;
 
+    // Include ATR14 in pips for position sizing in tradeExecutor
+    const atr14Pips = atrValue !== null ? Math.round(atrValue / pip) : undefined;
+
     return {
       symbol: this.symbol,
       type: bias,
@@ -394,6 +398,7 @@ export class FractalAnalyzer {
       fvgLevel: m15.fvg,
       timestamp: new Date().toISOString(),
       keyLevels,
+      atr14: atr14Pips,
     };
   }
 

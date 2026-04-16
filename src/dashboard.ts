@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllTrades, getOpenTrades, getStrategyLog, getStats, insertStrategyLog, getCurrentStrategyVersion, DbTrade } from './database';
+import { getAllTrades, getOpenTrades, getStrategyLog, getStats, insertStrategyLog, getCurrentStrategyVersion, getFilterRejections, getFilterRejectionsBySymbol, DbTrade } from './database';
 import { logger } from './logger';
 
 const app = express();
@@ -11,9 +11,7 @@ function formatDate(iso?: string): string {
   return new Date(iso).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function resultBadge(result?: string, closeReason?: string): string {
-  const isTimeClose = closeReason?.startsWith('TIME_CLOSE');
-  if (isTimeClose) return '<span class="badge timeout">⏰ TIME</span>';
+function resultBadge(result?: string): string {
   if (result === 'WIN')  return '<span class="badge win">WIN</span>';
   if (result === 'LOSS') return '<span class="badge loss">LOSS</span>';
   if (result === 'BREAKEVEN') return '<span class="badge be">BE</span>';
@@ -30,6 +28,8 @@ app.get('/', (req, res) => {
   const openTrades = getOpenTrades();
   const sortAsc = req.query.sort === 'asc';
   const logSortAsc = req.query.logSort === 'asc';
+  const filterStats = getFilterRejections(7);
+  const filterBySymbol = getFilterRejectionsBySymbol(7);
   // Only restore tab when coming from logSort action, otherwise always show trades
   const activeTab = req.query.logSort !== undefined ? 'log' : 'trades';
   const allTrades = getAllTrades().sort((a, b) => {
@@ -50,9 +50,6 @@ app.get('/', (req, res) => {
   const winRate     = totalClosed.length > 0 ? Math.round(totalWins / totalClosed.length * 100) : 0;
   const avgMAE      = totalClosed.filter(t => t.mae_pips).reduce((s, t) => s + (t.mae_pips ?? 0), 0) / (totalClosed.filter(t => t.mae_pips).length || 1);
   const avgMFE      = totalClosed.filter(t => t.mfe_pips).reduce((s, t) => s + (t.mfe_pips ?? 0), 0) / (totalClosed.filter(t => t.mfe_pips).length || 1);
-  const timeCloses  = totalClosed.filter(t => t.close_reason?.startsWith('TIME_CLOSE')).length;
-  const avgHoldMin  = totalClosed.filter(t => t.hold_duration_min).reduce((s, t) => s + (t.hold_duration_min ?? 0), 0) / (totalClosed.filter(t => t.hold_duration_min).length || 1);
-  const avgHoldStr  = avgHoldMin >= 1440 ? (avgHoldMin / 1440).toFixed(1) + 'd' : avgHoldMin >= 60 ? (avgHoldMin / 60).toFixed(1) + 'h' : Math.round(avgHoldMin) + 'min';
 
   const equityPoints = (stats.equity as any[]).map((e, i) => `{x:${i},y:${e.cumulative?.toFixed(2) ?? 0}}`).join(',');
 
@@ -116,7 +113,6 @@ app.get('/', (req, res) => {
   .badge.loss { background: rgba(239,68,68,0.15); color: var(--red); }
   .badge.be   { background: rgba(245,158,11,0.15); color: var(--amber); }
   .badge.open { background: rgba(59,130,246,0.15); color: var(--blue); }
-  .badge.timeout { background: rgba(168,85,247,0.15); color: #a855f7; }
   .form-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
   input, textarea, select { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.5rem 0.75rem; font-family: inherit; font-size: 14px; }
   input:focus, textarea:focus { outline: none; border-color: var(--blue); }
@@ -128,48 +124,6 @@ app.get('/', (req, res) => {
   .tab-content { display: none; }
   .tab-content.active { display: block; }
   .canvas-wrap { position: relative; height: 200px; }
-
-  /* ─── Mobile / Responsive ─────────────────────────────────────────── */
-  @media (max-width: 1024px) {
-    .grid4 { grid-template-columns: repeat(2, 1fr); }
-    .grid2 { grid-template-columns: 1fr; }
-    .container { padding: 0.75rem 1rem; }
-    header { padding: 1rem 1rem; }
-  }
-
-  @media (max-width: 640px) {
-    body { font-size: 13px; }
-    .grid4 { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-    .grid2 { grid-template-columns: 1fr; }
-    .container { padding: 0.5rem 0.5rem; }
-    header { padding: 0.75rem 0.75rem; flex-direction: column; align-items: flex-start; gap: 0.25rem; }
-    header h1 { font-size: 17px; }
-    header span { font-size: 11px; }
-    .metric-value { font-size: 22px; }
-    .metric-label { font-size: 10px; }
-    .card { padding: 0.75rem; border-radius: 6px; }
-    .section-title { font-size: 11px; letter-spacing: 1px; }
-
-    /* Tabs: horizontal scroll on mobile */
-    .tab-nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; flex-wrap: nowrap; }
-    .tab-nav::-webkit-scrollbar { display: none; }
-    .tab-btn { font-size: 11px; padding: 0.6rem 0.75rem; white-space: nowrap; flex-shrink: 0; }
-
-    /* Tables: scroll horizontally, smaller text */
-    .card { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    table { min-width: 700px; }
-    th { font-size: 10px; padding: 0.4rem 0.5rem; }
-    td { font-size: 12px; padding: 0.4rem 0.5rem; }
-    .badge { font-size: 10px; padding: 2px 6px; }
-
-    /* Form row stacks on mobile */
-    .form-row { flex-direction: column; }
-    .form-row input { width: 100% !important; }
-    button { width: 100%; padding: 0.6rem; }
-
-    /* Charts smaller */
-    .canvas-wrap { height: 160px; }
-  }
 </style>
 </head>
 <body>
@@ -180,7 +134,7 @@ app.get('/', (req, res) => {
 <div class="container">
 
   <!-- KPIs -->
-  <div class="grid4" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="grid4">
     <div class="card">
       <div class="metric-label">Gesamt P&amp;L</div>
       <div class="metric-value ${totalPnL >= 0 ? 'green' : 'red'}">${totalPnL >= 0 ? '+' : ''}€${totalPnL.toFixed(2)}</div>
@@ -197,14 +151,6 @@ app.get('/', (req, res) => {
       <div class="metric-label">Ø MAE / MFE</div>
       <div class="metric-value" style="font-size:20px"><span style="color:var(--red)">${avgMAE.toFixed(1)}</span> / <span style="color:var(--green)">${avgMFE.toFixed(1)}</span> <span style="font-size:11px;color:var(--muted)">pips</span></div>
     </div>
-    <div class="card">
-      <div class="metric-label">Ø Haltezeit</div>
-      <div class="metric-value blue" style="font-size:22px">${avgHoldStr}</div>
-    </div>
-    <div class="card">
-      <div class="metric-label">Time-Closes</div>
-      <div class="metric-value" style="font-size:22px;color:#a855f7">${timeCloses} <span style="font-size:12px;color:var(--muted)">von ${totalClosed.length}</span></div>
-    </div>
   </div>
 
   <!-- Tabs -->
@@ -216,6 +162,7 @@ app.get('/', (req, res) => {
     <button class="tab-btn" id="btn-equity" onclick="showTab('equity')">Equity</button>
     <button class="tab-btn" id="btn-winrate" onclick="showTab('winrate')">Win Rate</button>
     <button class="tab-btn" id="btn-log" onclick="showTab('log')">Logbuch</button>
+    <button class="tab-btn" id="btn-filters" onclick="showTab('filters')">Filter-Stats</button>
   </div>
 
   <!-- Trades -->
@@ -223,41 +170,26 @@ app.get('/', (req, res) => {
     <div class="card">
       <div class="section-title">Alle Trades</div>
       <table>
-        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Signal</th><th>Fill</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Haltezeit</th><th>Close Grund</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
-        ${allTrades.map(t => {
-          const dec = t.symbol.includes('JPY') ? 3 : 5;
-          const zoneMid = ((t.entry_zone_low + t.entry_zone_high) / 2);
-          const fillDiff = t.entry_price ? Math.abs(t.entry_price - zoneMid) / (t.symbol.includes('JPY') ? 0.01 : 0.0001) : 0;
-          const fillColor = fillDiff > 3 ? 'color:var(--amber)' : '';
-          const holdMin = t.hold_duration_min;
-          const holdStr = holdMin != null
-            ? (holdMin >= 1440 ? (holdMin / 1440).toFixed(1) + 'd' : holdMin >= 60 ? (holdMin / 60).toFixed(1) + 'h' : holdMin + 'min')
-            : (t.closed_at ? '—' : (() => { const m = Math.round((Date.now() - new Date(t.opened_at).getTime()) / 60000); return m >= 1440 ? '<b>' + (m/1440).toFixed(1) + 'd</b>' : m >= 60 ? (m/60).toFixed(1) + 'h' : m + 'min'; })());
-          const holdColor = holdMin != null && holdMin > 48 * 60 ? 'color:var(--amber)' : '';
-          const closeReason = t.close_reason ?? '';
-          const reasonShort = closeReason.startsWith('TIME_CLOSE') ? '⏰ Time' : closeReason === 'TP' ? '🎯 TP' : closeReason === 'SL' ? '🛑 SL' : closeReason || '—';
-          return `
+        <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
+        ${allTrades.map(t => `
         <tr>
           <td><strong>${t.symbol}</strong></td>
           <td>${t.type === 'LONG' ? '▲' : '▼'} ${t.type}</td>
           <td style="color:var(--muted)">${t.phase}</td>
-          <td style="color:var(--muted)">${zoneMid.toFixed(dec)}</td>
-          <td style="${fillColor}">${t.entry_price?.toFixed(dec) ?? '—'}</td>
-          <td>${t.stop_loss.toFixed(dec)}</td>
-          <td>${t.target1.toFixed(dec)}</td>
+          <td>${t.entry_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
+          <td>${t.stop_loss.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
+          <td>${t.target1.toFixed(t.symbol.includes('JPY') ? 3 : 5)}</td>
           <td style="color:var(--muted)">${t.risk_reward != null ? t.risk_reward.toFixed(2) + ':1' : '—'}</td>
-          <td>${t.close_price?.toFixed(dec) ?? '—'}</td>
+          <td>${t.close_price?.toFixed(t.symbol.includes('JPY') ? 3 : 5) ?? '—'}</td>
           <td ${pnlColor(t.pnl_pips)}>${t.pnl_pips != null ? (t.pnl_pips >= 0 ? '+' : '') + t.pnl_pips.toFixed(1) : '—'}</td>
           <td ${pnlColor(t.pnl_eur)}>${t.pnl_eur != null ? (t.pnl_eur >= 0 ? '+' : '') + '€' + t.pnl_eur.toFixed(2) : '—'}</td>
           <td style="color:var(--red)">${t.mae_pips?.toFixed(1) ?? '—'}</td>
           <td style="color:var(--green)">${t.mfe_pips?.toFixed(1) ?? '—'}</td>
-          <td>${resultBadge(t.result ?? undefined, t.close_reason ?? undefined)}</td>
-          <td style="${holdColor}">${holdStr}</td>
-          <td style="color:var(--muted);font-size:11px">${reasonShort}</td>
+          <td>${resultBadge(t.result ?? undefined)}</td>
           <td style="color:var(--muted)">${formatDate(t.opened_at)}</td>
           <td style="color:var(--muted)">${formatDate(t.closed_at)}</td>
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
-        </tr>`}).join('')}
+        </tr>`).join('')}
       </table>
     </div>
   </div>
@@ -277,7 +209,7 @@ app.get('/', (req, res) => {
           const tpQuality = t.mfe_pips != null && t.result === 'LOSS' ? (t.mfe_pips > 5 ? '⚠️ TP zu weit' : '—') : t.mfe_pips != null && t.result === 'WIN' ? '✅ Erreicht' : '—';
           return `<tr>
             <td><strong>${t.symbol}</strong></td>
-            <td>${resultBadge(t.result ?? undefined, t.close_reason ?? undefined)}</td>
+            <td>${resultBadge(t.result ?? undefined)}</td>
             <td style="color:var(--red)">${t.mae_pips?.toFixed(1) ?? '—'}</td>
             <td style="color:var(--green)">${t.mfe_pips?.toFixed(1) ?? '—'}</td>
             <td>${entryMid.toFixed(dec)}</td>
@@ -347,6 +279,34 @@ app.get('/', (req, res) => {
     </div>
   </div>
 
+  <!-- Filter Stats -->
+  <div id="tab-filters" class="tab-content">
+    <div class="card" style="margin-bottom:1rem">
+      <div class="section-title">Filter-Ablehnungen — letzte 7 Tage</div>
+      <table>
+        <tr><th>Grund</th><th>Anzahl</th><th>Zuletzt</th></tr>
+        ${filterStats.length > 0 ? filterStats.map((f: any) => `
+        <tr>
+          <td>${f.reason}</td>
+          <td><strong>${f.count}</strong></td>
+          <td style="color:var(--muted)">${formatDate(f.last_seen)}</td>
+        </tr>`).join('') : '<tr><td colspan="3" style="color:var(--muted)">Keine Ablehnungen in den letzten 7 Tagen</td></tr>'}
+      </table>
+    </div>
+    <div class="card">
+      <div class="section-title">Ablehnungen nach Symbol — letzte 7 Tage</div>
+      <table>
+        <tr><th>Symbol</th><th>Grund</th><th>Anzahl</th></tr>
+        ${filterBySymbol.length > 0 ? filterBySymbol.map((f: any) => `
+        <tr>
+          <td><strong>${f.symbol}</strong></td>
+          <td>${f.reason}</td>
+          <td>${f.count}</td>
+        </tr>`).join('') : '<tr><td colspan="3" style="color:var(--muted)">Keine Daten</td></tr>'}
+      </table>
+    </div>
+  </div>
+
   <!-- Logbuch -->
   <div id="tab-log" class="tab-content">
     <div class="card" style="margin-bottom:1rem">
@@ -372,7 +332,7 @@ app.get('/', (req, res) => {
         <tr>
           <td style="color:var(--muted)">${formatDate(e.changed_at)}</td>
           <td><strong>${e.version}</strong></td>
-          <td>${e.description.replace(/(.{130}[^ ]*) /g, '$1<br>')}</td>
+          <td>${e.description}</td>
           <td>${e.win_rate_before != null ? e.win_rate_before + '%' : '—'}</td>
           <td>${e.trades_before ?? '—'}</td>
           <td ${(e as any).win_rate_after != null ? ((e as any).win_rate_after >= (e.win_rate_before ?? 0) ? 'style="color:var(--green)"' : 'style="color:var(--red)"') : ''}>${(e as any).win_rate_after != null ? (e as any).win_rate_after + '%' : '—'}</td>
