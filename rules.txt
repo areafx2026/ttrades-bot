@@ -87,3 +87,5 @@
 // KI-Vorschlag [14.4.2026]: Adaptive Stop-Berechnung - H1 Swing +/- 5 Pips, aber Maximum 35 Pips für JPY-Pairs, 25 Pips für Cross-Pairs - wegen AUDJPY 94-Pip und AUDCAD 57-Pip Stops die R:R zerstören
 
 // KI-Vorschlag [14.4.2026]: ATR-basierte Stop-Obergrenze - Stop = min(H1_Swing±5, ATR14*2.5) für bessere Risk-Reward - wegen systematisch überdimensionierter Stops bei volatilen Pairs
+
+// KI-Vorschlag [16.4.2026]: Adaptive Stop-Obergrenze für AUD-Pairs - Stop = min(H1_Swing±5, ATR14*2.0, 25_Pips) - wegen AUDUSD 37.8-Pip Stop überschreitet Risk-Management-Limits trotz korrektem Setup

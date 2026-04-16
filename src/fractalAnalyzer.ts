@@ -1,6 +1,7 @@
 import { Candle } from './capitalApi';
 
 export type SignalType = 'LONG' | 'SHORT';
+import { ATR } from './atr14';
 export type SetupPhase = 'C3_ENTRY' | 'C4_RETEST';
 
 export interface TradeSignal {
@@ -22,10 +23,6 @@ export interface TradeSignal {
   fvgLevel: number | null;
   timestamp: string;
   keyLevels: { label: string; price: number }[];
-  // v1.3 additions
-  atr14?: number;           // ATR(14) on D1 in pips
-  hpFilterTrend?: string;   // HP-filter trend direction
-  meanRevZScore?: number;   // relative mean-reversion z-score
 }
 
 export class FractalAnalyzer {
@@ -37,13 +34,8 @@ export class FractalAnalyzer {
     private m15: Candle[]
   ) {}
 
-  // v1.3: Provide ATR(14) on D1 for external consumers (position sizing)
-  getATR14(): number {
-    return this.calculateATR(this.daily, 14);
-  }
-
   analyze(): TradeSignal | null {
-    // Step 1: Daily Bias (now with HP-filter)
+    // Step 1: Daily Bias
     const dailyBias = this.getDailyBias();
     if (!dailyBias) return null;
 
@@ -74,129 +66,7 @@ export class FractalAnalyzer {
     return this.symbol.includes('JPY') ? 3 : 5;
   }
 
-  // ─── v1.3: ATR(14) calculation ──────────────────────────────────────────────
-  private calculateATR(candles: Candle[], period: number): number {
-    if (candles.length < period + 1) return 0;
-    const pip = this.pipSize();
-    const trs: number[] = [];
-    for (let i = 1; i < candles.length; i++) {
-      const high = candles[i].high;
-      const low = candles[i].low;
-      const prevClose = candles[i - 1].close;
-      const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
-      trs.push(tr);
-    }
-    // Simple average of last `period` TRs
-    const recent = trs.slice(-period);
-    const atr = recent.reduce((s, v) => s + v, 0) / recent.length;
-    return atr / pip; // return in pips
-  }
-
-  // ─── v1.3: Hodrick-Prescott Filter ─────────────────────────────────────────
-  // Smooths D1 close prices to filter noise before trend determination
-  // lambda = 100 * n^2 where n = frequency on annual basis
-  // For daily data: n ~ 252 trading days, but we use lambda = 1600 (standard)
-  private hpFilter(closes: number[], lambda: number = 1600): number[] {
-    const T = closes.length;
-    if (T < 4) return closes.slice();
-
-    // Solve the HP filter using the pentadiagonal system
-    // S*(t) minimizes: sum((S-S*)^2) + lambda * sum((S*(t+1) - 2*S*(t) + S*(t-1))^2)
-    // This is equivalent to: (I + lambda * K'K) * S* = S
-    // where K is the second-difference matrix
-
-    // Build the diagonal bands of (I + lambda * K'K)
-    // The matrix is symmetric pentadiagonal
-    const a = new Array(T).fill(0); // main diagonal
-    const b = new Array(T).fill(0); // first off-diagonal
-    const c = new Array(T).fill(0); // second off-diagonal
-
-    for (let t = 0; t < T; t++) {
-      a[t] = 1; // identity part
-      // K'K contributions
-      if (t >= 2 && t <= T - 3) {
-        a[t] += 6 * lambda;
-      } else if (t === 0 || t === T - 1) {
-        a[t] += lambda;
-      } else if (t === 1 || t === T - 2) {
-        a[t] += 5 * lambda;
-      }
-    }
-
-    // Off-diagonals
-    for (let t = 0; t < T - 1; t++) {
-      if (t === 0 || t === T - 2) {
-        b[t] = -2 * lambda;
-      } else {
-        b[t] = -4 * lambda;
-      }
-    }
-
-    for (let t = 0; t < T - 2; t++) {
-      c[t] = lambda;
-    }
-
-    // Solve using LDL decomposition for pentadiagonal system
-    // Simplified: use iterative approach (Gauss-Seidel) for robustness
-    const s = closes.slice(); // start with raw data
-    for (let iter = 0; iter < 100; iter++) {
-      let maxDelta = 0;
-      for (let t = 0; t < T; t++) {
-        let rhs = closes[t];
-        let diag = 1;
-
-        // Second-difference penalty terms
-        // d2(t) = s(t+1) - 2*s(t) + s(t-1)
-        // We minimize sum(d2^2) * lambda, gradient w.r.t. s(t) involves neighbors
-
-        let neighborSum = 0;
-        if (t >= 2) neighborSum += lambda * s[t - 2];
-        if (t >= 1) neighborSum += -4 * lambda * (t >= 2 && t <= T - 2 ? 1 : (t === 1 ? 1 : 0)) * (t === 1 ? 0.5 : 1) * s[t - 1];
-        // This gets complex; use simplified finite-difference approach instead
-        break;
-      }
-      // Fall back to simple exponential smoothing if iteration doesn't converge quickly
-      break;
-    }
-
-    // Pragmatic HP approximation: double-pass exponential smoothing
-    // This is computationally stable and gives very similar results for our use case
-    const alpha = 1 / (1 + Math.sqrt(lambda));
-    // Forward pass
-    const fwd = new Array(T);
-    fwd[0] = closes[0];
-    for (let t = 1; t < T; t++) {
-      fwd[t] = alpha * closes[t] + (1 - alpha) * fwd[t - 1];
-    }
-    // Backward pass
-    const bwd = new Array(T);
-    bwd[T - 1] = fwd[T - 1];
-    for (let t = T - 2; t >= 0; t--) {
-      bwd[t] = alpha * fwd[t] + (1 - alpha) * bwd[t + 1];
-    }
-    return bwd;
-  }
-
-  // ─── v1.3: HP-filtered trend direction ──────────────────────────────────────
-  private getHPTrend(): 'BULLISH' | 'BEARISH' | 'NEUTRAL' {
-    if (this.daily.length < 10) return 'NEUTRAL';
-    const closes = this.daily.map(c => c.close);
-    const smoothed = this.hpFilter(closes);
-    const pip = this.pipSize();
-
-    // Compare last 3 smoothed values for trend
-    const n = smoothed.length;
-    const slope1 = smoothed[n - 1] - smoothed[n - 2];
-    const slope2 = smoothed[n - 2] - smoothed[n - 3];
-
-    // Both slopes positive = bullish, both negative = bearish
-    // Minimum slope: 1 pip to avoid noise
-    if (slope1 > pip && slope2 > pip * 0.5) return 'BULLISH';
-    if (slope1 < -pip && slope2 < -pip * 0.5) return 'BEARISH';
-    return 'NEUTRAL';
-  }
-
-  // STEP 1: Daily Bias (v1.3: now uses HP-filter as additional confirmation)
+  // STEP 1: Daily Bias
   private getDailyBias(): SignalType | null {
     const candles = this.daily;
     if (candles.length < 8) return null;
@@ -204,10 +74,8 @@ export class FractalAnalyzer {
     const last = candles[candles.length - 1];
     const pip = this.pipSize();
 
-    // v1.3: HP-filter trend — used as additional gate
-    const hpTrend = this.getHPTrend();
-
     // Filter 1: D1 Trend structure (HH+HL for LONG, LH+LL for SHORT)
+    // Use last 6 D1 candles to determine trend direction
     const d1Highs = candles.slice(-6).map(c => c.high);
     const d1Lows  = candles.slice(-6).map(c => c.low);
     const d1Bullish =
@@ -217,97 +85,34 @@ export class FractalAnalyzer {
       d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3] && // LH
       d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];     // LL
 
-    // Search for the most recent swing low/high in last 8 candles (not just one fixed position)
-    // C3 = the candle immediately after the swing point
-    let lastSwingLowIdx = -1;
-    let lastSwingHighIdx = -1;
-    for (let i = candles.length - 2; i >= candles.length - 8 && i >= 1; i--) {
-      if (lastSwingLowIdx === -1 && this.detectSwingLow(candles, i)) {
-        lastSwingLowIdx = i;
-      }
-      if (lastSwingHighIdx === -1 && this.detectSwingHigh(candles, i)) {
-        lastSwingHighIdx = i;
-      }
-      if (lastSwingLowIdx !== -1 && lastSwingHighIdx !== -1) break;
-    }
-
-    if (lastSwingLowIdx !== -1 && lastSwingLowIdx < candles.length - 1) {
-      // C3 is the candle after the swing low
-      const c3 = candles[lastSwingLowIdx + 1];
+    const swingLow = this.detectSwingLow(candles, candles.length - 3);
+    if (swingLow) {
+      const c3 = candles[candles.length - 2];
       const c3Body = c3.close - c3.open;
       const c3Range = c3.high - c3.low;
-      // v1.3: Require D1 trend bullish AND HP-filter not bearish
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish && hpTrend !== 'BEARISH') return 'LONG';
+      // Require D1 trend to be bullish for LONG
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish) return 'LONG';
     }
 
-    if (lastSwingHighIdx !== -1 && lastSwingHighIdx < candles.length - 1) {
-      // C3 is the candle after the swing high
-      const c3 = candles[lastSwingHighIdx + 1];
+    const swingHigh = this.detectSwingHigh(candles, candles.length - 3);
+    if (swingHigh) {
+      const c3 = candles[candles.length - 2];
       const c3Body = c3.open - c3.close;
       const c3Range = c3.high - c3.low;
-      // v1.3: Require D1 trend bearish AND HP-filter not bullish
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bearish && hpTrend !== 'BULLISH') return 'SHORT';
+      // Require D1 trend to be bearish for SHORT
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bearish) return 'SHORT';
     }
 
-    // Filter 2: Mean reversion — v1.3: DISABLED as fixed-pip threshold
-    // Replaced by relative mean-reversion z-score in analyzeWithContext()
-    // Kept as emergency fallback only for extreme moves (>300 pips)
+    // Filter 2: Mean reversion — reduced threshold to 150 pips
     const recentHigh = Math.max(...candles.slice(-6).map(c => c.high));
     const pipDrop = (recentHigh - last.close) / pip;
-    if (pipDrop > 300 && last.close > last.open) return 'LONG';
+    if (pipDrop > 150 && last.close > last.open) return 'LONG';
 
     const recentLow = Math.min(...candles.slice(-6).map(c => c.low));
     const pipRise = (last.close - recentLow) / pip;
-    if (pipRise > 300 && last.close < last.open) return 'SHORT';
+    if (pipRise > 150 && last.close < last.open) return 'SHORT';
 
     return null;
-  }
-
-  // ─── v1.3: Relative Mean-Reversion Z-Score ─────────────────────────────────
-  // Called externally from index.ts with cross-pair data
-  // Returns z-score: how far this pair's weekly return deviates from the mean
-  // Positive z-score = overextended upward, negative = overextended downward
-  static calculateMeanReversionZScore(
-    symbolReturn: number,
-    allReturns: { symbol: string; returnPips: number; volatility: number }[]
-  ): number {
-    if (allReturns.length < 3) return 0;
-
-    // Market average return (equally weighted)
-    const avgReturn = allReturns.reduce((s, r) => s + r.returnPips, 0) / allReturns.length;
-
-    // Deviation from market average, weighted by inverse volatility
-    const symbolData = allReturns.find(r => r.returnPips === symbolReturn);
-    const vol = symbolData?.volatility || 1;
-
-    // z-score = (Ri - Rm) / sigma_i
-    const deviation = symbolReturn - avgReturn;
-    const zScore = vol > 0 ? deviation / vol : 0;
-
-    return zScore;
-  }
-
-  // Check if mean-reversion filter should block a trade
-  // z > 1.5 and trying to go LONG = overextended, block
-  // z < -1.5 and trying to go SHORT = overextended, block
-  static isMeanReversionBlocked(
-    direction: 'LONG' | 'SHORT',
-    zScore: number,
-    threshold: number = 1.5
-  ): { blocked: boolean; reason: string } {
-    if (direction === 'LONG' && zScore > threshold) {
-      return {
-        blocked: true,
-        reason: `Mean-Reversion Block: z=${zScore.toFixed(2)} (Pair ueberextendiert nach oben, kein LONG)`,
-      };
-    }
-    if (direction === 'SHORT' && zScore < -threshold) {
-      return {
-        blocked: true,
-        reason: `Mean-Reversion Block: z=${zScore.toFixed(2)} (Pair ueberextendiert nach unten, kein SHORT)`,
-      };
-    }
-    return { blocked: false, reason: `z=${zScore.toFixed(2)} OK` };
   }
 
   // STEP 2: 4H Trend Structure (HH+HL for LONG, LH+LL for SHORT)
@@ -353,6 +158,8 @@ export class FractalAnalyzer {
   }
 
   // STEP 3: H1 Context
+  // LONG: current price must be above the last H1 swing low (bullish context)
+  // SHORT: current price must be below the last H1 swing high (bearish context)
   private getH1Context(bias: SignalType): { level: number; description: string } | null {
     const candles = this.h1;
     if (candles.length < 10) return null;
@@ -372,6 +179,7 @@ export class FractalAnalyzer {
 
     if (bias === 'LONG' && swingLows.length > 0) {
       const lastH1SwingLow = swingLows[swingLows.length - 1];
+      // Price must be above H1 swing low — confirms bullish H1 context
       if (currentPrice > lastH1SwingLow) {
         return {
           level: lastH1SwingLow,
@@ -382,6 +190,7 @@ export class FractalAnalyzer {
 
     if (bias === 'SHORT' && swingHighs.length > 0) {
       const lastH1SwingHigh = swingHighs[swingHighs.length - 1];
+      // Price must be below H1 swing high — confirms bearish H1 context
       if (currentPrice < lastH1SwingHigh) {
         return {
           level: lastH1SwingHigh,
@@ -419,7 +228,7 @@ export class FractalAnalyzer {
           protectedSwing: swingLow,
           fvg,
           entryZone: [entryLow, entryHigh],
-          description: `M15 Protected Swing Low @ ${swingLow.toFixed(dec)}${fvg ? ` | FVG @ ${fvg.toFixed(dec)}` : ''}${exhaustion ? ' | Exhaustion' : ''}`,
+          description: `M15 Protected Swing Low @ ${swingLow.toFixed(dec)}${fvg ? ` | FVG @ ${fvg.toFixed(dec)}` : ''}${exhaustion ? ' | Exhaustion ✅' : ''}`,
         };
       }
     }
@@ -436,7 +245,7 @@ export class FractalAnalyzer {
           protectedSwing: swingHigh,
           fvg,
           entryZone: [entryLow, entryHigh],
-          description: `M15 Protected Swing High @ ${swingHigh.toFixed(dec)}${fvg ? ` | FVG @ ${fvg.toFixed(dec)}` : ''}${exhaustion ? ' | Exhaustion' : ''}`,
+          description: `M15 Protected Swing High @ ${swingHigh.toFixed(dec)}${fvg ? ` | FVG @ ${fvg.toFixed(dec)}` : ''}${exhaustion ? ' | Exhaustion ✅' : ''}`,
         };
       }
     }
@@ -471,7 +280,10 @@ export class FractalAnalyzer {
 
     let stopLoss: number, target1: number, target2: number;
 
-    const h1Lookback = this.h1.slice(-21, -1);
+    // SL based on H1 structure — lowest low / highest high of last 20 closed H1 candles
+    // No left/right neighbor check needed — we use the structural extreme of the lookback period
+    // Exclude the last candle (still forming)
+    const h1Lookback = this.h1.slice(-21, -1); // last 20 closed candles
     const lastH1SwingLow  = h1Lookback.length > 0
       ? Math.min(...h1Lookback.map(c => c.low))
       : m15.protectedSwing;
@@ -479,6 +291,9 @@ export class FractalAnalyzer {
       ? Math.max(...h1Lookback.map(c => c.high))
       : m15.protectedSwing;
 
+    // Fixed R:R of 1:1.5
+    // SL from H1 swing structure (technical analysis)
+    // TP = Entry + Risk * 1.5 (always)
     const RR = 1.5;
 
     if (bias === 'LONG') {
@@ -502,6 +317,18 @@ export class FractalAnalyzer {
     // Minimum stop: 8 pips JPY, 5 pips others
     const minRisk = this.symbol.includes('JPY') ? pip * 8 : pip * 5;
     if (risk < minRisk) return null;
+
+    // Maximum stop: ATR14 on H1 x 1.5 — stop too wide = setup too extended
+    const atrCalc = new ATR(14);
+    for (const c of this.h1) atrCalc.update(c);
+    const atrValue = atrCalc.getValue();
+    if (atrValue !== null) {
+      const maxRisk = atrValue * 1.5;
+      if (risk > maxRisk) {
+        // Stop is wider than 1.5x ATR14 — skip this setup
+        return null;
+      }
+    }
 
     // TP must be at least 20 pips from nearest D1 High/Low
     const d1Highs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
@@ -553,9 +380,6 @@ export class FractalAnalyzer {
       fvgLevel: m15.fvg,
       timestamp: new Date().toISOString(),
       keyLevels,
-      // v1.3 metadata
-      atr14: this.getATR14(),
-      hpFilterTrend: this.getHPTrend(),
     };
   }
 
@@ -587,7 +411,7 @@ export class FractalAnalyzer {
 
   private findBullishFVG(candles: Candle[]): number | null {
     const pip = this.pipSize();
-    const minGap = pip * 1;
+    const minGap = pip * 1; // 1 pip minimum for M15 FVGs
     for (let i = 0; i < candles.length - 2; i++) {
       const gap = candles[i + 2].low - candles[i].high;
       if (gap >= minGap) return (candles[i].high + candles[i + 2].low) / 2;
