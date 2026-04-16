@@ -4,6 +4,12 @@ export type SignalType = 'LONG' | 'SHORT';
 import { ATR } from './atr14';
 export type SetupPhase = 'C3_ENTRY' | 'C4_RETEST';
 
+export interface AnalyzeResult {
+  signal: TradeSignal | null;
+  rejected: boolean;
+  reason: string | null; // null = no setup found, string = setup found but filtered
+}
+
 export interface TradeSignal {
   symbol: string;
   type: SignalType;
@@ -34,28 +40,36 @@ export class FractalAnalyzer {
     private m15: Candle[]
   ) {}
 
-  analyze(): TradeSignal | null {
+  analyze(): AnalyzeResult {
     // Step 1: Daily Bias
     const dailyBias = this.getDailyBias();
-    if (!dailyBias) return null;
+    if (!dailyBias) return { signal: null, rejected: false, reason: null };
 
     // Step 2: 4H Trend Structure (HH+HL or LH+LL)
     const h4Confirm = this.getH4Confirmation(dailyBias);
-    if (!h4Confirm) return null;
+    if (!h4Confirm) return { signal: null, rejected: false, reason: null };
 
     // Step 3: H1 Context (price above/below H1 swing in direction of bias)
     const h1Context = this.getH1Context(dailyBias);
-    if (!h1Context) return null;
+    if (!h1Context) return { signal: null, rejected: false, reason: null };
 
     // Step 4: M15 Entry (Protected Swing + FVG + 2 confirming candles)
     const m15Setup = this.getM15Setup(dailyBias, h4Confirm.level);
-    if (!m15Setup) return null;
+    if (!m15Setup) return { signal: null, rejected: false, reason: null };
 
     // Step 5: 2 consecutive M15 candles confirming direction
-    if (!this.confirmM15Direction(dailyBias)) return null;
+    if (!this.confirmM15Direction(dailyBias)) return { signal: null, rejected: false, reason: null };
 
-    return this.buildSignal(dailyBias, h4Confirm, h1Context, m15Setup);
+    // Full setup found — now apply filters in buildSignal
+    const signal = this.buildSignal(dailyBias, h4Confirm, h1Context, m15Setup);
+    if (!signal) {
+      // buildSignal returned null — a filter rejected the setup
+      return { signal: null, rejected: true, reason: this._lastRejectionReason ?? 'Unknown filter' };
+    }
+    return { signal, rejected: false, reason: null };
   }
+
+  private _lastRejectionReason: string | null = null;
 
   // JPY pairs have 2 decimal places, others have 5
   private pipSize(): number {
@@ -316,7 +330,7 @@ export class FractalAnalyzer {
 
     // Minimum stop: 8 pips JPY, 5 pips others
     const minRisk = this.symbol.includes('JPY') ? pip * 8 : pip * 5;
-    if (risk < minRisk) return null;
+    if (risk < minRisk) { this._lastRejectionReason = `Min-Stop (${(risk/pip).toFixed(1)} < ${(minRisk/pip).toFixed(1)} Pips)`; return null; }
 
     // Maximum stop: ATR14 on H1 x 1.5 — stop too wide = setup too extended
     const atrCalc = new ATR(14);
@@ -325,7 +339,7 @@ export class FractalAnalyzer {
     if (atrValue !== null) {
       const maxRisk = atrValue * 1.5;
       if (risk > maxRisk) {
-        // Stop is wider than 1.5x ATR14 — skip this setup
+        this._lastRejectionReason = `ATR-Filter: Stop ${(risk/pip).toFixed(1)} Pips > Max ${(maxRisk/pip).toFixed(1)} Pips (ATR14x1.5)`;
         return null;
       }
     }
@@ -335,8 +349,8 @@ export class FractalAnalyzer {
     const d1Lows  = this.daily.slice(-10).map(c => c.low).sort((a, b) => a - b);
     const minTPBuffer = pip * 20;
 
-    if (bias === 'LONG' && Math.abs(target1 - d1Highs[0]) < minTPBuffer) return null;
-    if (bias === 'SHORT' && Math.abs(target1 - d1Lows[0]) < minTPBuffer) return null;
+    if (bias === 'LONG' && Math.abs(target1 - d1Highs[0]) < minTPBuffer) { this._lastRejectionReason = `TP zu nah an D1 High (${d1Highs[0].toFixed(5)})`; return null; }
+    if (bias === 'SHORT' && Math.abs(target1 - d1Lows[0]) < minTPBuffer) { this._lastRejectionReason = `TP zu nah an D1 Low (${d1Lows[0].toFixed(5)})`; return null; }
 
     const reward = Math.abs(target1 - entryMid);
     const riskReward = risk > 0 ? reward / risk : 0;
