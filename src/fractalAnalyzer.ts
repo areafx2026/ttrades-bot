@@ -309,7 +309,7 @@ export class FractalAnalyzer {
     // Fixed R:R of 1:1.5
     // SL from H1 swing structure (technical analysis)
     // TP = Entry + Risk * 1.5 (always)
-    const RR = 1.5;
+    const RR = 1.3;
 
     if (bias === 'LONG') {
       stopLoss = lastH1SwingLow - pip * 5;
