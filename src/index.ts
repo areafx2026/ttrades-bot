@@ -585,10 +585,7 @@ async function runScan() {
       await new Promise(r => setTimeout(r, 200));
     }
 
-    // Sync closed trades
-    if (PAPER_TRADING) {
-      await syncClosedTrades();
-    }
+    // Note: syncClosedTrades runs at the START of runScan — no need to run again here
 
   } catch (err) {
     logger.error('Scan error:', err);
