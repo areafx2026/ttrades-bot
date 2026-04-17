@@ -333,14 +333,15 @@ export class FractalAnalyzer {
     const minRisk = this.symbol.includes('JPY') ? pip * 8 : pip * 5;
     if (risk < minRisk) { this._lastRejectionReason = `Min-Stop (${(risk/pip).toFixed(1)} < ${(minRisk/pip).toFixed(1)} Pips)`; return null; }
 
-    // Maximum stop: ATR14 on H1 x 1.5 — stop too wide = setup too extended
+    // Maximum stop: ATR14 on D1 x 1.5 — stop too wide = setup too extended
+    // D1 ATR is more stable than H1 ATR (not affected by low-volatility night sessions)
     const atrCalc = new ATR(14);
-    for (const c of this.h1) atrCalc.update(c);
+    for (const c of this.daily) atrCalc.update(c);
     const atrValue = atrCalc.getValue();
     if (atrValue !== null) {
       const maxRisk = atrValue * 1.5;
       if (risk > maxRisk) {
-        this._lastRejectionReason = `ATR-Filter: Stop ${(risk/pip).toFixed(1)} Pips > Max ${(maxRisk/pip).toFixed(1)} Pips (ATR14x1.5)`;
+        this._lastRejectionReason = `ATR-Filter: Stop ${(risk/pip).toFixed(1)} Pips > Max ${(maxRisk/pip).toFixed(1)} Pips (D1-ATR14x1.5)`;
         return null;
       }
     }
@@ -376,7 +377,7 @@ export class FractalAnalyzer {
       ? `C3 ${bias === 'LONG' ? 'Bullish' : 'Bearish'} Expansion`
       : `C4 Retest ${bias === 'LONG' ? 'bullish' : 'bearish'}`;
 
-    // Include ATR14 in pips for position sizing in tradeExecutor
+    // Include D1 ATR14 in pips for reference in dashboard
     const atr14Pips = atrValue !== null ? Math.round(atrValue / pip) : undefined;
 
     return {
