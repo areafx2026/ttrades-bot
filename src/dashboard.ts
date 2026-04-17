@@ -12,10 +12,10 @@ function formatDate(iso?: string): string {
 }
 
 function resultBadge(result?: string, closeReason?: string): string {
-  if (closeReason && closeReason.startsWith('TIME_CLOSE')) return '<span class="badge time">⏰ TIME</span>';
-  if (result === 'WIN')  return '<span class="badge win">WIN</span>';
-  if (result === 'LOSS') return '<span class="badge loss">LOSS</span>';
-  if (result === 'BREAKEVEN') return '<span class="badge be">BE</span>';
+  const timePrefix = closeReason && closeReason.startsWith('TIME_CLOSE') ? '⏰ ' : '';
+  if (result === 'WIN')  return `<span class="badge win">${timePrefix}WIN</span>`;
+  if (result === 'LOSS') return `<span class="badge loss">${timePrefix}LOSS</span>`;
+  if (result === 'BREAKEVEN') return `<span class="badge be">${timePrefix}BE</span>`;
   return '<span class="badge open">OPEN</span>';
 }
 
