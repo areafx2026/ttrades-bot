@@ -11,7 +11,8 @@ function formatDate(iso?: string): string {
   return new Date(iso).toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
-function resultBadge(result?: string): string {
+function resultBadge(result?: string, closeReason?: string): string {
+  if (closeReason && closeReason.startsWith('TIME_CLOSE')) return '<span class="badge time">⏰ TIME</span>';
   if (result === 'WIN')  return '<span class="badge win">WIN</span>';
   if (result === 'LOSS') return '<span class="badge loss">LOSS</span>';
   if (result === 'BREAKEVEN') return '<span class="badge be">BE</span>';
@@ -107,10 +108,13 @@ app.get('/', (req, res) => {
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
   td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
+  #tab-log td { white-space: normal; }
+  #tab-log td:nth-child(3) { min-width: 300px; max-width: 600px; white-space: normal; word-wrap: break-word; }
   tr:hover td { background: rgba(255,255,255,0.02); }
   .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 1px; }
   .badge.win  { background: rgba(34,197,94,0.15); color: var(--green); }
   .badge.loss { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge.time  { background: rgba(251,191,36,0.15); color: #fbbf24; }
   .badge.be   { background: rgba(245,158,11,0.15); color: var(--amber); }
   .badge.open { background: rgba(59,130,246,0.15); color: var(--blue); }
   .form-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
@@ -185,7 +189,7 @@ app.get('/', (req, res) => {
           <td ${pnlColor(t.pnl_eur)}>${t.pnl_eur != null ? (t.pnl_eur >= 0 ? '+' : '') + '€' + t.pnl_eur.toFixed(2) : '—'}</td>
           <td style="color:var(--red)">${t.mae_pips?.toFixed(1) ?? '—'}</td>
           <td style="color:var(--green)">${t.mfe_pips?.toFixed(1) ?? '—'}</td>
-          <td>${resultBadge(t.result ?? undefined)}</td>
+          <td>${resultBadge(t.result ?? undefined, t.close_reason ?? undefined)}</td>
           <td style="color:var(--muted)">${formatDate(t.opened_at)}</td>
           <td style="color:var(--muted)">${formatDate(t.closed_at)}</td>
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
