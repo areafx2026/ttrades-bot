@@ -106,7 +106,7 @@ export class FractalAnalyzer {
       const c3Body = c3.close - c3.open;
       const c3Range = c3.high - c3.low;
       // Require D1 trend to be bullish for LONG
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish) return 'LONG';
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5) return 'LONG';
     }
 
     const swingHigh = this.detectSwingHigh(candles, candles.length - 3);
@@ -115,7 +115,7 @@ export class FractalAnalyzer {
       const c3Body = c3.open - c3.close;
       const c3Range = c3.high - c3.low;
       // Require D1 trend to be bearish for SHORT
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bearish) return 'SHORT';
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5) return 'SHORT';
     }
 
     // Filter 2: Mean reversion — reduced threshold to 150 pips
