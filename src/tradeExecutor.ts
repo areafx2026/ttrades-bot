@@ -285,18 +285,18 @@ export class TradeExecutor {
       direction,
       size: lotSize,
       level: limitLevel,
-      type: 'LIMIT',
+      
       guaranteedStop: false,
       stopLevel: signal.stopLoss,
       profitLevel: signal.target1,
-      timeInForce: 'GOOD_TILL_CANCELLED',
+      
     };
 
     logger.info(`Placing LIMIT ${direction} ${signal.symbol} | Level: ${limitLevel.toFixed(dec)} | Size: ${lotSize} pts | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
 
     try {
       await throttle();
-      const res = await this.client.post('/workingorders', body, { headers: this.authHeaders });
+      const res = await this.client.post('/positions', body, { headers: this.authHeaders });
       const dealId = res.data.dealReference || res.data.dealId || 'unknown';
       logger.info(`Limit order placed: ${dealId}`);
       return { success: true, dealId, message: `Limit Order platziert: ${dealId}` };
