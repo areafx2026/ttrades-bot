@@ -412,13 +412,25 @@ async function analyzeSymbol(
             resolvedDealId = matchedPos.position.dealId;
             logger.info(`Resolved Capital.com dealId: ${resolvedDealId}`);
 
-            // Recalculate TP based on actual fill price for exact 1:1.5 R:R
+            // Recalculate TP based on actual fill price for exact 1:1.3 R:R
+            // Apply half-spread buffer so chart price (mid) reaches TP level
             const fillPrice = matchedPos.position.level;
             const pip2 = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
             const risk2 = Math.abs(fillPrice - signal.stopLoss);
-            const newTP = signal.type === 'LONG'
+            // Fetch current spread for buffer calculation
+            let spreadBuffer = 0;
+            try {
+              const mktInfo2 = await axios.get(`${fillBaseURL}/markets/${signal.symbol}`, { headers: fillHeaders });
+              const bid2 = mktInfo2.data.snapshot?.bid ?? 0;
+              const ask2 = mktInfo2.data.snapshot?.offer ?? 0;
+              spreadBuffer = (ask2 - bid2) / 2;
+            } catch { /* use 0 buffer if fetch fails */ }
+            const rawTP = signal.type === 'LONG'
               ? fillPrice + risk2 * 1.3
               : fillPrice - risk2 * 1.3;
+            const newTP = signal.type === 'LONG'
+              ? rawTP + spreadBuffer
+              : rawTP - spreadBuffer;
 
             // Update TP on Capital.com
             try {
@@ -427,7 +439,7 @@ async function analyzeSymbol(
                 { headers: fillHeaders }
               );
               signal.target1 = newTP;
-              logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} for exact 1:1.5 R:R (fill: ${fillPrice})`);
+              logger.info(`TP adjusted to ${newTP.toFixed(pip2 === 0.01 ? 3 : 5)} (spread buffer: ${(spreadBuffer/pip2).toFixed(1)} pips) for ${signal.symbol} ${signal.type}`);
               // Update size_points in DB from actual position size
               try {
                 const db = getDb();
