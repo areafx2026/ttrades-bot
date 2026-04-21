@@ -417,8 +417,8 @@ async function analyzeSymbol(
             const pip2 = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
             const risk2 = Math.abs(fillPrice - signal.stopLoss);
             const newTP = signal.type === 'LONG'
-              ? fillPrice + risk2 * 1.5
-              : fillPrice - risk2 * 1.5;
+              ? fillPrice + risk2 * 1.3
+              : fillPrice - risk2 * 1.3;
 
             // Update TP on Capital.com
             try {
