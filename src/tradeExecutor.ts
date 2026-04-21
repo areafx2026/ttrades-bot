@@ -273,26 +273,37 @@ export class TradeExecutor {
     const direction = signal.type === 'LONG' ? 'BUY' : 'SELL';
     const dec = signal.symbol.includes('JPY') ? 3 : 5;
 
+    // Use limit order at entry zone mid for precise entry
+    // LONG: limit buy at entryZone[0] (lower bound) — only fill if price comes down to zone
+    // SHORT: limit sell at entryZone[1] (upper bound) — only fill if price comes up to zone
+    const limitLevel = signal.type === 'LONG'
+      ? parseFloat(entryMid.toFixed(dec))
+      : parseFloat(entryMid.toFixed(dec));
+
     const body = {
       epic: signal.symbol,
       direction,
       size: lotSize,
+      level: limitLevel,
+      type: 'LIMIT',
       guaranteedStop: false,
       stopLevel: signal.stopLoss,
       profitLevel: signal.target1,
+      timeInForce: 'GOOD_TILL_CANCELLED',
     };
 
-    logger.info(`Opening ${direction} ${signal.symbol} | Entry: ${currentPrice.toFixed(dec)} | Size: ${lotSize} pts | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
+    logger.info(`Placing LIMIT ${direction} ${signal.symbol} | Level: ${limitLevel.toFixed(dec)} | Size: ${lotSize} pts | SL: ${signal.stopLoss.toFixed(dec)} | TP: ${signal.target1.toFixed(dec)}`);
 
     try {
       await throttle();
-      const res = await this.client.post('/positions', body, { headers: this.authHeaders });
+      const res = await this.client.post('/workingorders', body, { headers: this.authHeaders });
       const dealId = res.data.dealReference || res.data.dealId || 'unknown';
-      return { success: true, dealId, message: `Trade geöffnet: ${dealId}` };
+      logger.info(`Limit order placed: ${dealId}`);
+      return { success: true, dealId, message: `Limit Order platziert: ${dealId}` };
     } catch (err: any) {
       const errorMsg = err.response?.data?.errorCode || err.message || 'Unknown error';
-      logger.error(`Failed to open trade for ${signal.symbol}:`, errorMsg);
-      return { success: false, message: `Trade fehlgeschlagen: ${errorMsg}` };
+      logger.error(`Failed to place limit order for ${signal.symbol}:`, errorMsg);
+      return { success: false, message: `Limit Order fehlgeschlagen: ${errorMsg}` };
     }
   }
 }

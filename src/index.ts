@@ -176,6 +176,19 @@ async function syncClosedTrades(): Promise<void> {
       } catch { /* skip */ }
     }
 
+    // Cancel working orders older than 4 hours (unexecuted limit orders)
+    try {
+      const woRes = await axios.get(`${baseURL}/workingorders`, { headers });
+      for (const wo of (woRes.data.workingOrders || [])) {
+        const woAge = (Date.now() - new Date(wo.workingOrderData.createdDateUTC ?? wo.workingOrderData.createdDate).getTime()) / (1000 * 60 * 60);
+        if (woAge > 4) {
+          const woDealId = wo.workingOrderData.dealId;
+          await axios.delete(`${baseURL}/workingorders/${woDealId}`, { headers });
+          logger.info(`Cancelled expired limit order: ${wo.marketData.epic} after ${woAge.toFixed(1)}h`);
+        }
+      }
+    } catch { /* ignore */ }
+
     const posRes = await axios.get(`${baseURL}/positions`, { headers });
     // Build set of ALL known IDs — Capital.com uses dealId internally
     // but bot stores dealReference (o_xxx) from the order response
