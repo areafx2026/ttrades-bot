@@ -7,6 +7,7 @@ export interface Candle {
   high: number;
   low: number;
   close: number;
+  volume?: number;
 }
 
 export type Resolution =
@@ -92,6 +93,7 @@ export class CapitalAPI {
       high:  (p.highPrice.bid  + p.highPrice.ask)  / 2,
       low:   (p.lowPrice.bid   + p.lowPrice.ask)   / 2,
       close: (p.closePrice.bid + p.closePrice.ask) / 2,
+        volume: p.lastTradedVolume ?? 0,
     }));
   }
 }
