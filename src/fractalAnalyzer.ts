@@ -89,24 +89,24 @@ export class FractalAnalyzer {
     const last = candles[candles.length - 1];
     const pip = this.pipSize();
 
-    // Filter 1: D1 Trend structure (HH+HL for LONG, LH+LL for SHORT)
-    // Use last 6 D1 candles to determine trend direction
+    // Filter 1: D1 Trend structure — relaxed to OR condition (v1.5)
+    // LONG: HH or HL (at least one bullish structure element)
+    // SHORT: LH or LL (at least one bearish structure element)
     const d1Highs = candles.slice(-6).map(c => c.high);
     const d1Lows  = candles.slice(-6).map(c => c.low);
-    const d1Bullish =
-      d1Highs[d1Highs.length - 1] > d1Highs[d1Highs.length - 3] && // HH
-      d1Lows[d1Lows.length - 1]   > d1Lows[d1Lows.length - 3];     // HL
-    const d1Bearish =
-      d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3] && // LH
-      d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];     // LL
+    const d1HH = d1Highs[d1Highs.length - 1] > d1Highs[d1Highs.length - 3];
+    const d1HL = d1Lows[d1Lows.length - 1]   > d1Lows[d1Lows.length - 3];
+    const d1LH = d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3];
+    const d1LL = d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];
+    const d1Bullish = d1HH || d1HL;
+    const d1Bearish = d1LH || d1LL;
 
     const swingLow = this.detectSwingLow(candles, candles.length - 3);
     if (swingLow) {
       const c3 = candles[candles.length - 2];
       const c3Body = c3.close - c3.open;
       const c3Range = c3.high - c3.low;
-      // Require D1 trend to be bullish for LONG
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5) return 'LONG';
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish) return 'LONG';
     }
 
     const swingHigh = this.detectSwingHigh(candles, candles.length - 3);
@@ -114,8 +114,7 @@ export class FractalAnalyzer {
       const c3 = candles[candles.length - 2];
       const c3Body = c3.open - c3.close;
       const c3Range = c3.high - c3.low;
-      // Require D1 trend to be bearish for SHORT
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5) return 'SHORT';
+      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bearish) return 'SHORT';
     }
 
     // Filter 2: Mean reversion — reduced threshold to 150 pips
