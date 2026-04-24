@@ -49,6 +49,7 @@ function logSpread(symbol: string, spreadPips: number, normalPips: number, block
 }
 import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
 import { checkZone, initZones } from './zoneManager';
+import { detectSweepZones, checkSweepRetest, invalidateSweepZones, getActiveSweepZones } from './sweepZoneManager';
 import cron from 'node-cron';
 
 const SYMBOLS = [
@@ -106,27 +107,7 @@ async function syncClosedTrades(): Promise<void> {
       'X-SECURITY-TOKEN': capital.securityToken,
     };
 
-    // ── Step 1: Get all currently open positions + working orders from Capital.com ──
-    const openDealIds = new Set<string>();
-
-    // Add working order IDs (pending limit orders are NOT closed)
-    try {
-      const woRes = await axios.get(`${baseURL}/workingorders`, { headers });
-      for (const wo of (woRes.data.workingOrders || [])) {
-        if (wo.workingOrderData.dealId) openDealIds.add(wo.workingOrderData.dealId);
-      }
-    } catch { /* ignore */ }
-
-    // Add open position IDs
-    const posRes = await axios.get(`${baseURL}/positions`, { headers });
-    for (const p of (posRes.data.positions || [])) {
-      if (p.position.dealId)        openDealIds.add(p.position.dealId);
-      if (p.position.dealReference) openDealIds.add(p.position.dealReference);
-      const oRef = (p.position.dealReference as string)?.replace(/^p_/, 'o_');
-      if (oRef) openDealIds.add(oRef);
-    }
-
-    // ── Step 2: Update MAE/MFE and check time-based auto-close for open trades ──
+    // Update MAE/MFE for open trades via price ticks + Time-based auto-close
     const dbOpenTrades = getDbOpenTrades();
     for (const dbTrade of dbOpenTrades) {
       try {
@@ -134,154 +115,160 @@ async function syncClosedTrades(): Promise<void> {
         const mid = (priceRes.data.snapshot.bid + priceRes.data.snapshot.offer) / 2;
         recordPriceTick(dbTrade.id, mid);
 
-        // Time-based auto-close: >48h open + <50% TP progress
+        // v1.3: Time-based auto-close
+        // If trade is open >48h and hasn't reached 50% of TP distance, close at market
         const MAX_HOLD_HOURS = 48;
         const MIN_PROGRESS_PCT = 0.5;
         const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
         const fillPrice = dbTrade.entry_price ?? mid;
-        const holdHours = (Date.now() - new Date(dbTrade.opened_at).getTime()) / (1000 * 60 * 60);
+        const openedMs = new Date(dbTrade.opened_at).getTime();
+        const holdHours = (Date.now() - openedMs) / (1000 * 60 * 60);
 
         if (holdHours >= MAX_HOLD_HOURS) {
           const tpDist = Math.abs((dbTrade.target1 ?? mid) - fillPrice);
-          const currentProfit = dbTrade.type === 'LONG' ? mid - fillPrice : fillPrice - mid;
+          const currentProfit = dbTrade.type === 'LONG'
+            ? mid - fillPrice
+            : fillPrice - mid;
           const progressPct = tpDist > 0 ? Math.max(currentProfit, 0) / tpDist : 0;
 
           if (progressPct < MIN_PROGRESS_PCT) {
-            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h, progress ${(progressPct * 100).toFixed(0)}%`);
+            const dec2 = dbTrade.symbol.includes('JPY') ? 3 : 5;
+            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h, progress ${(progressPct * 100).toFixed(0)}% of TP — closing`);
             try {
-              const executor2 = new TradeExecutor(process.env.CAPITAL_API_KEY!, capital.isDemo, capital.cst, capital.securityToken);
+              const executor2 = new TradeExecutor(
+                process.env.CAPITAL_API_KEY!,
+                capital.isDemo,
+                capital.cst,
+                capital.securityToken
+              );
               const closeResult = await executor2.closePosition(dbTrade.id);
               if (closeResult.success) {
-                const pnlPips2 = Math.round(((dbTrade.type === 'LONG' ? mid - fillPrice : fillPrice - mid) / pip) * 10) / 10;
+                const pnlPips2 = Math.round((dbTrade.type === 'LONG'
+                  ? (mid - fillPrice) / pip
+                  : (fillPrice - mid) / pip) * 10) / 10;
                 const resultStr = pnlPips2 > 0.5 ? 'WIN' : pnlPips2 < -0.5 ? 'LOSS' : 'BREAKEVEN';
                 const closeReason = `TIME_CLOSE (${holdHours.toFixed(0)}h, ${(progressPct * 100).toFixed(0)}% progress)`;
                 closeTrade(dbTrade.id, mid, new Date().toISOString(), closeReason, pnlPips2, 0, resultStr);
                 logClosedTrade(dbTrade.id, mid, new Date().toISOString());
                 savePineScript();
                 activeSymbols.delete(dbTrade.symbol);
-                openDealIds.delete(dbTrade.id); // mark as closed so Step 3 skips it
-                const dec2 = dbTrade.symbol.includes('JPY') ? 3 : 5;
-                await telegram.sendMessage(
+                const resultEmoji = resultStr === 'WIN' ? '✅' : resultStr === 'LOSS' ? '❌' : '➖';
+                const telegram2 = new TelegramNotifier(
+                  process.env.TELEGRAM_BOT_TOKEN!,
+                  process.env.TELEGRAM_CHAT_ID!
+                );
+                await telegram2.sendMessage(
                   `⏰ <b>Time-based Close — ${dbTrade.symbol}</b>\n` +
                   `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${resultStr}\n` +
-                  `Offen seit: <b>${holdHours.toFixed(0)}h</b> | Fortschritt: <b>${(progressPct*100).toFixed(0)}%</b>\n` +
-                  `Close: <code>${mid.toFixed(dec2)}</code> | P&L: <b>${pnlPips2 >= 0 ? '+' : ''}${pnlPips2.toFixed(1)} pips</b>`
+                  `Offen seit: <b>${holdHours.toFixed(0)}h</b> (Max: ${MAX_HOLD_HOURS}h)\n` +
+                  `Fortschritt: <b>${(progressPct * 100).toFixed(0)}%</b> Richtung TP\n` +
+                  `Close: <code>${mid.toFixed(dec2)}</code>\n` +
+                  `P&L: <b>${pnlPips2 >= 0 ? '+' : ''}${pnlPips2.toFixed(1)} pips</b>`
                 );
+                logger.info(`Time-based close done: ${dbTrade.symbol} ${resultStr} ${pnlPips2} pips after ${holdHours.toFixed(0)}h`);
+              } else {
+                logger.warn(`Time-based close failed for ${dbTrade.symbol}: ${closeResult.message}`);
               }
-            } catch (e: any) { logger.error(`Time-close error ${dbTrade.symbol}:`, e.message); }
+            } catch (timeCloseErr: any) {
+              logger.error(`Time-based close error for ${dbTrade.symbol}:`, timeCloseErr.message);
+            }
           }
         }
       } catch { /* skip */ }
     }
 
-    // ── Step 3: Detect closed trades (not in openDealIds anymore) ──
-    // Fetch recent activity once for all closed trade lookups (last 2h — well within 1-day API limit)
-    const from2h = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().slice(0, 19);
-    let recentActivities: any[] = [];
-    try {
-      const actRes = await axios.get(`${baseURL}/history/activity`, {
-        headers,
-        params: { from: from2h, detailed: true },
-      });
-      recentActivities = actRes.data.activities || [];
-    } catch { logger.warn('Could not fetch activity history'); }
+    const posRes = await axios.get(`${baseURL}/positions`, { headers });
+    // Build set of ALL known IDs — Capital.com uses dealId internally
+    // but bot stores dealReference (o_xxx) from the order response
+    const openDealIds = new Set<string>();
+    for (const p of (posRes.data.positions || [])) {
+      if (p.position.dealId)        openDealIds.add(p.position.dealId);
+      if (p.position.dealReference) openDealIds.add(p.position.dealReference);
+      // Convert p_xxx → o_xxx to match bot's stored dealReference format
+      const oRef = (p.position.dealReference as string)?.replace(/^p_/, 'o_');
+      if (oRef) openDealIds.add(oRef);
+    }
 
     for (const trade of openTrades) {
       if (!trade.dealId || openDealIds.has(trade.dealId)) continue;
 
       logger.info(`Closed trade detected: ${trade.symbol} [${trade.dealId}]`);
 
-      // Find close price from recent activity — NO fallback to entry price
-      let closePrice: number | null = null;
-      let closedAt = new Date().toISOString();
-      let closeSource = 'UNKNOWN';
+      let closePrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+      let closedAt   = new Date().toISOString();
 
-      for (const act of recentActivities) {
-        const actDealId  = act.dealId ?? '';
-        const actDealRef = act.details?.dealReference ?? '';
-        const tradeId    = trade.dealId;
-        const matches =
-          actDealId  === tradeId ||
-          actDealRef === tradeId ||
-          actDealRef === tradeId.replace(/^o_/, 'p_') ||
-          actDealId  === tradeId.replace(/^o_/, 'p_');
+      try {
+        const from = new Date(trade.openedAt).toISOString().slice(0, 19);
+        const actRes = await axios.get(`${baseURL}/history/activity`, {
+          headers,
+          params: { from, detailed: true },
+        });
 
-        if (matches && act.type === 'POSITION' &&
-            (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
-          closePrice = parseFloat(act.details?.level);
-          closedAt   = act.dateUTC ?? act.date ?? closedAt;
-          closeSource = act.source;
-          logger.info(`Close found: ${closePrice} via ${act.source} for ${trade.symbol}`);
-          break;
-        }
-      }
+        const activities = actRes.data.activities || [];
+        for (const act of activities) {
+          // Match by dealId or dealReference (both p_ and o_ variants)
+          const actDealId  = act.dealId ?? '';
+          const actDealRef = act.details?.dealReference ?? '';
+          const tradeId    = trade.dealId;
+          const matches    =
+            actDealId  === tradeId ||
+            actDealRef === tradeId ||
+            actDealRef === tradeId.replace(/^o_/, 'p_') ||
+            actDealId  === tradeId.replace(/^o_/, 'p_');
 
-      // If close price not found in last 2h, try extending to 23h (still within API limit)
-      if (closePrice === null) {
-        try {
-          const from23h = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString().slice(0, 19);
-          const actRes2 = await axios.get(`${baseURL}/history/activity`, {
-            headers,
-            params: { from: from23h, detailed: true },
-          });
-          for (const act of (actRes2.data.activities || [])) {
-            const actDealId  = act.dealId ?? '';
-            const actDealRef = act.details?.dealReference ?? '';
-            const tradeId    = trade.dealId;
-            const matches =
-              actDealId  === tradeId ||
-              actDealRef === tradeId ||
-              actDealRef === tradeId.replace(/^o_/, 'p_') ||
-              actDealId  === tradeId.replace(/^o_/, 'p_');
-
-            if (matches && act.type === 'POSITION' &&
-                (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
-              closePrice = parseFloat(act.details?.level);
-              closedAt   = act.dateUTC ?? act.date ?? closedAt;
-              closeSource = act.source;
-              logger.info(`Close found (23h window): ${closePrice} via ${act.source} for ${trade.symbol}`);
-              break;
-            }
+          if (matches && act.type === 'POSITION' &&
+              (act.source === 'SL' || act.source === 'TP' || act.source === 'USER' || act.source === 'SYSTEM')) {
+            closePrice = parseFloat(act.details?.level ?? closePrice);
+            closedAt   = act.dateUTC ?? act.date ?? closedAt;
+            logger.info('Close found: ' + closePrice + ' via ' + act.source + ' for ' + trade.symbol);
+            break;
           }
-        } catch { /* ignore */ }
+        }
+      } catch {
+        logger.warn(`Could not fetch close price for ${trade.dealId}, using fallback`);
       }
-
-      // Still no close price — skip this trade and log warning (do NOT use entry as fallback)
-      if (closePrice === null || isNaN(closePrice)) {
-        logger.warn(`Close price not found for ${trade.symbol} [${trade.dealId}] — skipping to avoid BREAKEVEN. Will retry next scan.`);
-        continue;
-      }
-
-      // Calculate P&L using actual fill price from DB (not entry zone mid)
-      const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-      const dbTrade2 = dbOpenTrades.find(d => d.id === trade.dealId);
-      const entryPrice = dbTrade2?.entry_price ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
-      const rawPnlPips = trade.type === 'LONG'
-        ? (closePrice - entryPrice) / pip
-        : (entryPrice - closePrice) / pip;
-      const pnlPips = Math.round(rawPnlPips * 10) / 10;
-      const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
 
       const closed = logClosedTrade(trade.dealId, closePrice, closedAt);
       savePineScript();
 
+      // Update SQLite DB with close data
+      // Calculate P&L from close price directly (don't rely on logClosedTrade result)
       try {
-        closeTrade(trade.dealId, closePrice, closedAt, closeSource, pnlPips, closed?.pnlEUR ?? 0, result);
-        logger.info(`Trade closed in DB: ${trade.symbol} ${result} ${pnlPips} pips via ${closeSource}`);
+        const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const entryPrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
+        const rawPnlPips = trade.type === 'LONG'
+          ? (closePrice - entryPrice) / pip
+          : (entryPrice - closePrice) / pip;
+        const pnlPips = Math.round(rawPnlPips * 10) / 10;
+        const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
+
+        closeTrade(
+          trade.dealId,
+          closePrice,
+          closedAt,
+          'SL/TP/Market',
+          pnlPips,
+          closed?.pnlEUR ?? 0,
+          result
+        );
+        logger.info('Trade closed in DB: ' + trade.symbol + ' ' + result + ' ' + pnlPips + ' pips');
       } catch (dbErr) { logger.error('DB close error:', dbErr); }
 
+      // Remove from active symbols
       activeSymbols.delete(trade.symbol);
 
-      const dec = trade.symbol.includes('JPY') ? 3 : 5;
-      const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
-      const pnlEUR = closed?.pnlEUR ?? 0;
-      await telegram.sendMessage(
-        `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>\n` +
-        `${trade.type === 'LONG' ? '📈' : '📉'} ${trade.type} | ${result} | ${closeSource}\n` +
-        `Close: <code>${closePrice.toFixed(dec)}</code>\n` +
-        `P&L: <b>${pnlPips >= 0 ? '+' : ''}${pnlPips.toFixed(1)} pips</b>  ` +
-        `(<b>${pnlEUR >= 0 ? '+' : ''}€${pnlEUR.toFixed(2)}</b>)`
-      );
+      if (closed) {
+        const dec = trade.symbol.includes('JPY') ? 3 : 5;
+        const resultEmoji = closed.result === 'WIN' ? '✅' : closed.result === 'LOSS' ? '❌' : '➖';
+        const dirEmoji = trade.type === 'LONG' ? '📈' : '📉';
+        await telegram.sendMessage(
+          `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>\n` +
+          `${dirEmoji} ${trade.type} | ${closed.result}\n` +
+          `Close: <code>${closePrice.toFixed(dec)}</code>\n` +
+          `P&L: <b>${closed.pnlPips && closed.pnlPips >= 0 ? '+' : ''}${closed.pnlPips?.toFixed(1)} pips</b>  ` +
+          `(<b>${closed.pnlEUR && closed.pnlEUR >= 0 ? '+' : ''}€${closed.pnlEUR?.toFixed(2)}</b>)`
+        );
+      }
     }
   } catch (err) {
     logger.error('Error syncing closed trades:', err);
@@ -306,6 +293,58 @@ async function analyzeSymbol(
   const h1Candles = await capital.getCandles(symbol, 'HOUR', 60);
   await new Promise(r => setTimeout(r, 150));
   const m15Candles = await capital.getCandles(symbol, 'MINUTE_15', 80);
+
+  // Sweep Zone Management
+  // 1. Invalidate old zones where price has broken through
+  invalidateSweepZones(symbol, h1Candles);
+  // 2. Detect new sweep zones from latest H1 candle
+  detectSweepZones(symbol, h1Candles);
+  // 3. Check for sweep retest signal (independent of fractal model)
+  const sweepSignal = checkSweepRetest(symbol, h1Candles);
+  if (sweepSignal) {
+    logger.info(`Sweep retest entry: ${symbol} ${sweepSignal.type} | Zone ${sweepSignal.zone.zoneLow.toFixed(5)}-${sweepSignal.zone.zoneHigh.toFixed(5)}`);
+    // Build minimal TradeSignal from sweep retest
+    if (PAPER_TRADING && !isActiveTradingSession()) {
+      const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
+      const mid = (h1Candles[h1Candles.length - 2].high + h1Candles[h1Candles.length - 2].low) / 2;
+      const sl  = sweepSignal.type === 'LONG'
+        ? sweepSignal.zone.sweepLow - pip * 5
+        : sweepSignal.zone.sweepHigh + pip * 5;
+      const risk = Math.abs(mid - sl);
+      const tp   = sweepSignal.type === 'LONG' ? mid + risk * 1.3 : mid - risk * 1.3;
+      const dec  = symbol.includes('JPY') ? 3 : 5;
+
+      const sweepTradeSignal = {
+        symbol,
+        type: sweepSignal.type,
+        phase: 'SWEEP_RETEST' as any,
+        currentPrice: mid,
+        entryZone: [mid - pip, mid + pip] as [number, number],
+        stopLoss: sl,
+        target1: tp,
+        target2: tp,
+        riskReward: 1.3,
+        dailyBias: sweepSignal.type,
+        h4Confirmation: 'Sweep Zone Retest',
+        h1Context: `Sweep zone ${sweepSignal.zone.direction} ${sweepSignal.zone.zoneLow.toFixed(dec)}-${sweepSignal.zone.zoneHigh.toFixed(dec)}`,
+        m15Setup: `Vol ratio ${sweepSignal.volumeRatio.toFixed(2)}x (weak retest)`,
+        atr14: undefined,
+        keyLevels: [],
+        timestamp: new Date().toISOString(),
+      };
+
+      // Send Telegram signal
+      await telegram.sendSignal(sweepTradeSignal);
+
+      // Open trade
+      const executor = new TradeExecutor(capital.apiKey, capital.isDemo, capital.cst, capital.securityToken);
+      const result = await executor.openTrade(sweepTradeSignal);
+      if (result.success) {
+        logger.info(`Sweep retest trade opened: ${symbol} ${sweepSignal.type} ${result.dealId}`);
+        activeSymbols.add(symbol);
+      }
+    }
+  }
 
   const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
   const analyzeResult = analyzer.analyze();
