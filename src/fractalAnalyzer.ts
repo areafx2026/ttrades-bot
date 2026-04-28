@@ -1,4 +1,4 @@
-import { Candle } from './capitalApi';
+import { Candle } from './mt5Api';
 
 export type SignalType = 'LONG' | 'SHORT';
 import { ATR } from './atr14';

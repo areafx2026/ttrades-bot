@@ -1,10 +1,13 @@
 import express from 'express';
+import axios from 'axios';
 import { getAllTrades, getOpenTrades, getStrategyLog, getStats, insertStrategyLog, getCurrentStrategyVersion, getFilterRejections, getFilterRejectionsBySymbol, DbTrade } from './database';
 import { logger } from './logger';
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const MT5_SERVER = 'http://127.0.0.1:5000';
 
 function formatDate(iso?: string): string {
   if (!iso) return '—';
@@ -24,14 +27,31 @@ function pnlColor(val?: number): string {
   return val > 0 ? 'style="color:#22c55e"' : val < 0 ? 'style="color:#ef4444"' : '';
 }
 
-app.get('/', (req, res) => {
+// MT5 status endpoint — proxied from Python server
+app.get('/api/mt5-status', async (req, res) => {
+  try {
+    const health = await axios.get(`${MT5_SERVER}/health`, { timeout: 3000 });
+    const positions = await axios.get(`${MT5_SERVER}/positions`, { timeout: 3000 });
+    const eurusd = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol: 'EURUSD' }, timeout: 3000 });
+    res.json({
+      connected: health.data.mt5,
+      login: health.data.login,
+      balance: health.data.balance,
+      openPositions: positions.data.length,
+      eurusd: eurusd.data,
+    });
+  } catch {
+    res.json({ connected: false, login: null, balance: null, openPositions: 0, eurusd: null });
+  }
+});
+
+app.get('/', async (req, res) => {
   const stats = getStats();
   const openTrades = getOpenTrades();
   const sortAsc = req.query.sort === 'asc';
   const logSortAsc = req.query.logSort === 'asc';
   const filterStats = getFilterRejections(7);
   const filterBySymbol = getFilterRejectionsBySymbol(7);
-  // Only restore tab when coming from logSort action, otherwise always show trades
   const activeTab = req.query.logSort !== undefined ? 'log' : 'trades';
   const allTrades = getAllTrades().sort((a, b) => {
     const da = new Date(a.opened_at).getTime();
@@ -54,7 +74,6 @@ app.get('/', (req, res) => {
 
   const equityPoints = (stats.equity as any[]).map((e, i) => `{x:${i},y:${e.cumulative?.toFixed(2) ?? 0}}`).join(',');
 
-  // Win rate over time — rolling win rate per trade
   const closedSorted = allTrades.filter(t => t.closed_at && t.result).sort((a, b) => new Date(a.closed_at!).getTime() - new Date(b.closed_at!).getTime());
   let wins = 0;
   const winRatePoints = closedSorted.map((t, i) => {
@@ -63,7 +82,6 @@ app.get('/', (req, res) => {
     return `{x:${i},y:${wr},label:'${t.symbol} ${t.type}',date:'${formatDate(t.closed_at)}',version:'${t.strategy_version ?? ''}'}`;
   }).join(',');
 
-  // Version change markers for charts
   const versionMarkers = strategyLog.map(v => {
     const tradeIdx = closedSorted.findIndex(t => t.closed_at && t.closed_at >= v.changed_at);
     return `{idx:${tradeIdx},version:'${v.version}'}`;
@@ -74,7 +92,7 @@ app.get('/', (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TTFM Trading Dashboard</title>
+<title>TTFM Dashboard v2.0</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -87,15 +105,18 @@ app.get('/', (req, res) => {
     --red: #ef4444;
     --blue: #3b82f6;
     --amber: #f59e0b;
+    --purple: #a855f7;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 15px; }
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
   header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
   header h1 { font-size: 22px; font-weight: 700; letter-spacing: 2px; color: var(--blue); }
-  header span { color: var(--muted); font-size: 13px; }
+  header .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  header .version-tag { color: var(--muted); font-size: 13px; }
+  header .broker-tag { font-size: 12px; color: var(--purple); letter-spacing: 1px; }
   .container { max-width: 1920px; margin: 0 auto; padding: 1rem 2rem; }
-  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1rem; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; }
   .table-wrap { overflow-x: auto; width: 100%; }
@@ -128,14 +149,46 @@ app.get('/', (req, res) => {
   .tab-content { display: none; }
   .tab-content.active { display: block; }
   .canvas-wrap { position: relative; height: 200px; }
+
+  /* MT5 Status Bar */
+  .mt5-bar { display: flex; align-items: center; gap: 1.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem 1.25rem; margin-bottom: 1rem; font-size: 13px; }
+  .mt5-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .mt5-dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .mt5-dot.offline { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .mt5-item { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); }
+  .mt5-item strong { color: var(--text); }
+  .mt5-divider { width: 1px; height: 16px; background: var(--border); }
+  .mt5-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .mt5-broker { color: var(--purple); font-weight: 700; letter-spacing: 1px; }
 </style>
 </head>
 <body>
 <header>
   <h1>◈ TTFM DASHBOARD</h1>
-  <span>Strategie ${version} · ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} MEZ</span>
+  <div class="header-right">
+    <span class="version-tag">Strategie ${version} · ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} MEZ</span>
+    <span class="broker-tag">MT5 ENGINE v2.0 · PEPPERSTONE RAZOR</span>
+  </div>
 </header>
 <div class="container">
+
+  <!-- MT5 Status Bar -->
+  <div class="mt5-bar" id="mt5-status-bar">
+    <div class="mt5-dot" id="mt5-dot"></div>
+    <div class="mt5-item"><span class="mt5-label">Broker</span> <span class="mt5-broker">Pepperstone UK</span></div>
+    <div class="mt5-divider"></div>
+    <div class="mt5-item"><span class="mt5-label">Status</span> <strong id="mt5-status-text">Verbinde...</strong></div>
+    <div class="mt5-divider"></div>
+    <div class="mt5-item"><span class="mt5-label">Login</span> <strong id="mt5-login">—</strong></div>
+    <div class="mt5-divider"></div>
+    <div class="mt5-item"><span class="mt5-label">Balance</span> <strong id="mt5-balance">—</strong></div>
+    <div class="mt5-divider"></div>
+    <div class="mt5-item"><span class="mt5-label">Offene Positionen</span> <strong id="mt5-positions">—</strong></div>
+    <div class="mt5-divider"></div>
+    <div class="mt5-item"><span class="mt5-label">EURUSD</span> <strong id="mt5-eurusd">—</strong></div>
+    <div class="mt5-divider"></div>
+    <div class="mt5-item"><span class="mt5-label">Modus</span> <strong style="color:var(--amber)">PAPER</strong></div>
+  </div>
 
   <!-- KPIs -->
   <div class="grid4">
@@ -173,6 +226,7 @@ app.get('/', (req, res) => {
   <div id="tab-trades" class="tab-content">
     <div class="card">
       <div class="section-title">Alle Trades</div>
+      <div class="table-wrap">
       <table>
         <tr><th>Symbol</th><th>Typ</th><th>Phase</th><th>Entry</th><th>SL</th><th>TP</th><th>R:R</th><th>Close</th><th>P&L Pips</th><th>P&L EUR</th><th>MAE</th><th>MFE</th><th>Ergebnis</th><th>Eröffnet</th><th>Geschlossen</th><th>Version</th></tr>
         ${allTrades.map(t => `
@@ -195,6 +249,7 @@ app.get('/', (req, res) => {
           <td style="color:var(--muted)">${t.strategy_version ?? '—'}</td>
         </tr>`).join('')}
       </table>
+      </div>
     </div>
   </div>
 
@@ -202,6 +257,7 @@ app.get('/', (req, res) => {
   <div id="tab-maemfe" class="tab-content">
     <div class="card">
       <div class="section-title">MAE/MFE Analyse — Stop &amp; Target Qualität</div>
+      <div class="table-wrap">
       <table>
         <tr><th>Symbol</th><th>Ergebnis</th><th>MAE (Pips)</th><th>MFE (Pips)</th><th>Entry</th><th>SL</th><th>TP</th><th>Close</th><th>SL-Qualität</th><th>TP-Qualität</th></tr>
         ${allTrades.filter(t => t.closed_at && t.mae_pips != null).map(t => {
@@ -225,6 +281,7 @@ app.get('/', (req, res) => {
           </tr>`;
         }).join('')}
       </table>
+      </div>
     </div>
   </div>
 
@@ -232,6 +289,7 @@ app.get('/', (req, res) => {
   <div id="tab-symbols" class="tab-content">
     <div class="card">
       <div class="section-title">Win/Loss nach Symbol</div>
+      <div class="table-wrap">
       <table>
         <tr><th>Symbol</th><th>Trades</th><th>Wins</th><th>Losses</th><th>Win Rate</th><th>P&L EUR</th><th>Ø MAE</th><th>Ø MFE</th></tr>
         ${(stats.bySymbol as any[]).map(s => `
@@ -246,6 +304,7 @@ app.get('/', (req, res) => {
           <td style="color:var(--green)">${s.avg_mfe?.toFixed(1) ?? '—'}</td>
         </tr>`).join('')}
       </table>
+      </div>
     </div>
   </div>
 
@@ -253,6 +312,7 @@ app.get('/', (req, res) => {
   <div id="tab-versions" class="tab-content">
     <div class="card">
       <div class="section-title">Win/Loss nach Strategieversion</div>
+      <div class="table-wrap">
       <table>
         <tr><th>Version</th><th>Trades</th><th>Wins</th><th>Win Rate</th><th>P&L EUR</th></tr>
         ${(stats.byVersion as any[]).map(v => `
@@ -264,6 +324,7 @@ app.get('/', (req, res) => {
           <td ${pnlColor(v.pnl_eur)}>${v.pnl_eur >= 0 ? '+' : ''}€${v.pnl_eur?.toFixed(2)}</td>
         </tr>`).join('')}
       </table>
+      </div>
     </div>
   </div>
 
@@ -317,7 +378,7 @@ app.get('/', (req, res) => {
       <div class="section-title">Strategieänderung eintragen</div>
       <form method="POST" action="/log">
         <div class="form-row">
-          <input type="text" name="version" placeholder="Version (z.B. v1.5)" required style="width:120px">
+          <input type="text" name="version" placeholder="Version (z.B. v2.0)" required style="width:120px">
           <input type="text" name="description" placeholder="Was wurde geändert?" required style="flex:1">
           <button type="submit">Eintragen</button>
         </div>
@@ -349,6 +410,42 @@ app.get('/', (req, res) => {
 </div>
 
 <script>
+// MT5 Status — live poll every 10 seconds
+async function updateMT5Status() {
+  try {
+    const res = await fetch('/api/mt5-status');
+    const d = await res.json();
+    const dot = document.getElementById('mt5-dot');
+    const statusText = document.getElementById('mt5-status-text');
+    const login = document.getElementById('mt5-login');
+    const balance = document.getElementById('mt5-balance');
+    const positions = document.getElementById('mt5-positions');
+    const eurusd = document.getElementById('mt5-eurusd');
+
+    if (d.connected) {
+      dot.className = 'mt5-dot online';
+      statusText.textContent = 'Verbunden';
+      statusText.style.color = '#22c55e';
+    } else {
+      dot.className = 'mt5-dot offline';
+      statusText.textContent = 'Getrennt';
+      statusText.style.color = '#ef4444';
+    }
+    login.textContent = d.login ?? '—';
+    balance.textContent = d.balance != null ? '€' + d.balance.toLocaleString('de-DE', {minimumFractionDigits:2}) : '—';
+    positions.textContent = d.openPositions ?? '—';
+    if (d.eurusd) {
+      eurusd.textContent = d.eurusd.bid.toFixed(5) + ' / ' + d.eurusd.ask.toFixed(5);
+    }
+  } catch {
+    document.getElementById('mt5-dot').className = 'mt5-dot offline';
+    document.getElementById('mt5-status-text').textContent = 'Offline';
+  }
+}
+
+updateMT5Status();
+setInterval(updateMT5Status, 10000);
+
 function toggleLogSort() {
   const url = new URL(window.location.href);
   const current = url.searchParams.get('logSort');
@@ -364,7 +461,6 @@ function toggleSort() {
   window.location.href = url.toString();
 }
 
-// Set initial active tab without flicker
 const _initTab = '${activeTab}';
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -384,7 +480,6 @@ function showTab(name) {
   event.target.classList.add('active');
   if (name === 'equity') renderEquity();
   if (name === 'winrate') renderWinRate();
-  // Clean URL when switching tabs manually
   if (name !== 'log') {
     window.history.replaceState({}, '', '/');
   }
@@ -398,10 +493,7 @@ function renderWinRate() {
   winrateRendered = true;
   const data = [${winRatePoints}];
   const markers = [${versionMarkers}];
-
   const ctx = document.getElementById('winrateChart').getContext('2d');
-
-  // Segment colors: green above 50%, red below
   const segmentColor = (ctx2) => {
     const y0 = ctx2.p0.parsed.y;
     const y1 = ctx2.p1.parsed.y;
@@ -409,77 +501,27 @@ function renderWinRate() {
     if (y0 < 50 && y1 < 50) return '#ef4444';
     return y0 >= 50 ? '#22c55e' : '#ef4444';
   };
-
-  // Version marker points — only show dots at version change indices
   const versionIndices = new Set(markers.map(m => m.idx));
   const pointRadius = data.map((_, i) => versionIndices.has(i) ? 8 : 0);
-  const pointStyle = data.map((_, i) => versionIndices.has(i) ? 'circle' : 'circle');
   const pointColors = data.map((d, i) => versionIndices.has(i) ? '#f59e0b' : 'transparent');
   const pointBorder = data.map((_, i) => versionIndices.has(i) ? '#f59e0b' : 'transparent');
-
   new Chart(ctx, {
     type: 'line',
     data: {
       labels: data.map((_, i) => i + 1),
       datasets: [
-        // 50% reference line
-        {
-          label: '50%',
-          data: data.map(() => 50),
-          borderColor: 'rgba(255,255,255,0.4)',
-          borderWidth: 2.5,
-          pointRadius: 0,
-          fill: false,
-          tension: 0,
-        },
-        // Win rate line
-        {
-          label: 'Win Rate %',
-          data: data.map(d => d.y),
-          segment: { borderColor: segmentColor },
-          backgroundColor: 'rgba(34,197,94,0.05)',
-          fill: false,
-          tension: 0.3,
-          borderWidth: 2,
-          pointRadius: pointRadius,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: pointBorder,
-          pointHoverRadius: 8,
-        }
+        { label: '50%', data: data.map(() => 50), borderColor: 'rgba(255,255,255,0.4)', borderWidth: 2.5, pointRadius: 0, fill: false, tension: 0 },
+        { label: 'Win Rate %', data: data.map(d => d.y), segment: { borderColor: segmentColor }, backgroundColor: 'rgba(34,197,94,0.05)', fill: false, tension: 0.3, borderWidth: 2, pointRadius: pointRadius, pointBackgroundColor: pointColors, pointBorderColor: pointBorder, pointHoverRadius: 8 }
       ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx2 => {
-              if (ctx2.datasetIndex === 0) return '50% Linie';
-              const d = data[ctx2.dataIndex];
-              const marker = markers.find(m => m.idx === ctx2.dataIndex);
-              const lines = [ctx2.parsed.y + '%'];
-              if (marker) lines.push('Version: ' + marker.version);
-              if (d) lines.push(d.date);
-              return lines;
-            }
-          }
-        }
-      },
-      scales: {
-        x: { display: false },
-        y: {
-          min: 0, max: 100,
-          grid: { color: '#1e1e2e' },
-          ticks: { color: '#64748b', callback: v => v + '%' }
-        }
-      }
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx2 => { if (ctx2.datasetIndex === 0) return '50% Linie'; const d = data[ctx2.dataIndex]; const marker = markers.find(m => m.idx === ctx2.dataIndex); const lines = [ctx2.parsed.y + '%']; if (marker) lines.push('Version: ' + marker.version); if (d) lines.push(d.date); return lines; } } } },
+      scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => v + '%' } } }
     }
   });
-
-  // Draw version labels above dots
-  // (done via afterDraw plugin workaround — labels shown in tooltip instead)
 }
+
 function renderEquity() {
   if (equityRendered) return;
   equityRendered = true;
@@ -488,23 +530,12 @@ function renderEquity() {
     type: 'line',
     data: {
       labels: data.map(d => d.x),
-      datasets: [{
-        data: data.map(d => d.y),
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59,130,246,0.05)',
-        fill: true,
-        tension: 0.3,
-        pointRadius: 3,
-        pointBackgroundColor: data.map(d => d.y >= 0 ? '#22c55e' : '#ef4444'),
-      }]
+      datasets: [{ data: data.map(d => d.y), borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.05)', fill: true, tension: 0.3, pointRadius: 3, pointBackgroundColor: data.map(d => d.y >= 0 ? '#22c55e' : '#ef4444') }]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: {
-        x: { display: false },
-        y: { grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => '€' + v } }
-      }
+      scales: { x: { display: false }, y: { grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => '€' + v } } }
     }
   });
 }

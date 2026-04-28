@@ -3,11 +3,11 @@
 // Kommentare beginnen mit "//"
 
 // Zeitbasierte Regeln
-- Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
+// Kein Trades 15 Minuten vor und nach der NYSE Eroeffnung
 
 // Wochentage
-- Kein Trade zwischen Freitag 18:00 Uhr und Montag 8:00 Uhr (weekend pause)
-- Kein Trade zwischen 08:00 Uhr und 08:30 Uhr (London Open Volatilitaet)
+// Kein Trade zwischen Freitag 18:00 Uhr und Montag 7:00 Uhr (weekend pause)
+// Kein Trade zwischen 08:00 Uhr und 08:30 Uhr (London Open Volatilitaet)
 
 // Allgemein
 - Maximale Anzahl gleichzeitig offener Trades: 3
