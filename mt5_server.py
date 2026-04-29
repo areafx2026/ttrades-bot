@@ -1,6 +1,6 @@
 from flask import Flask, jsonify, request
 import MetaTrader5 as mt5
-from datetime import datetime
+from datetime import datetime, timezone
 
 app = Flask(__name__)
 
@@ -75,14 +75,14 @@ def get_positions():
     result = []
     for p in positions:
         result.append({
-            'dealId':    str(p.ticket),
-            'symbol':    p.symbol,
-            'direction': 'BUY' if p.type == 0 else 'SELL',
-            'size':      p.volume,
-            'openLevel': p.price_open,
-            'stopLevel': p.sl,
+            'dealId':      str(p.ticket),
+            'symbol':      p.symbol,
+            'direction':   'BUY' if p.type == 0 else 'SELL',
+            'size':        p.volume,
+            'openLevel':   p.price_open,
+            'stopLevel':   p.sl,
             'profitLevel': p.tp,
-            'profit':    p.profit,
+            'profit':      p.profit,
         })
     return jsonify(result)
 
@@ -92,7 +92,7 @@ def open_position():
         return jsonify({'error': 'MT5 not connected'}), 500
     data = request.json
     symbol    = data['symbol']
-    direction = data['direction']  # 'BUY' or 'SELL'
+    direction = data['direction']
     size      = float(data['size'])
     sl        = float(data['sl'])
     tp        = float(data['tp'])
@@ -106,18 +106,18 @@ def open_position():
     price = mt5.symbol_info_tick(symbol).ask if direction == 'BUY' else mt5.symbol_info_tick(symbol).bid
 
     request_obj = {
-        'action':    mt5.TRADE_ACTION_DEAL,
-        'symbol':    symbol,
-        'volume':    size,
-        'type':      order_type,
-        'price':     price,
-        'sl':        sl,
-        'tp':        tp,
-        'deviation': 20,
-        'magic':     234000,
-        'comment':   'TTFM Bot',
-        'type_time': mt5.ORDER_TIME_GTC,
-        'type_filling': mt5.ORDER_FILLING_IOC,
+        'action':        mt5.TRADE_ACTION_DEAL,
+        'symbol':        symbol,
+        'volume':        size,
+        'type':          order_type,
+        'price':         price,
+        'sl':            sl,
+        'tp':            tp,
+        'deviation':     20,
+        'magic':         234000,
+        'comment':       'TTFM Bot',
+        'type_time':     mt5.ORDER_TIME_GTC,
+        'type_filling':  mt5.ORDER_FILLING_IOC,
     }
 
     result = mt5.order_send(request_obj)
@@ -140,17 +140,17 @@ def close_position(ticket):
     price = mt5.symbol_info_tick(pos.symbol).bid if pos.type == 0 else mt5.symbol_info_tick(pos.symbol).ask
 
     request_obj = {
-        'action':   mt5.TRADE_ACTION_DEAL,
-        'symbol':   pos.symbol,
-        'volume':   pos.volume,
-        'type':     direction,
-        'position': pos.ticket,
-        'price':    price,
-        'deviation': 20,
-        'magic':    234000,
-        'comment':  'TTFM Close',
-        'type_time': mt5.ORDER_TIME_GTC,
-        'type_filling': mt5.ORDER_FILLING_IOC,
+        'action':        mt5.TRADE_ACTION_DEAL,
+        'symbol':        pos.symbol,
+        'volume':        pos.volume,
+        'type':          direction,
+        'position':      pos.ticket,
+        'price':         price,
+        'deviation':     20,
+        'magic':         234000,
+        'comment':       'TTFM Close',
+        'type_time':     mt5.ORDER_TIME_GTC,
+        'type_filling':  mt5.ORDER_FILLING_IOC,
     }
 
     result = mt5.order_send(request_obj)
@@ -158,6 +158,49 @@ def close_position(ticket):
         return jsonify({'success': True, 'message': f'Position {ticket} closed'})
     else:
         return jsonify({'success': False, 'error': result.comment, 'retcode': result.retcode}), 400
+
+# ─── NEU: Geschlossene Trades aus MT5-History ─────────────────────────────────
+# Gibt alle Deals der letzten N Stunden zurück (nur Entry/Exit-Deals, kein Balance)
+# Rückgabe pro Deal:
+#   ticket, symbol, type (BUY/SELL), volume, price (close price),
+#   profit (echte EUR P&L aus MT5), time (close time ISO)
+@app.route('/history', methods=['GET'])
+def get_history():
+    if not ensure_mt5():
+        return jsonify({'error': 'MT5 not connected'}), 500
+
+    hours = int(request.args.get('hours', 48))
+    from_time = datetime.now(timezone.utc).timestamp() - hours * 3600
+
+    # deals_get gibt alle Deals im Zeitraum zurück
+    deals = mt5.history_deals_get(from_time, datetime.now(timezone.utc).timestamp())
+    if deals is None:
+        return jsonify([])
+
+    result = []
+    for d in deals:
+        # Nur echte Trade-Deals (kein Balance, Deposit, etc.)
+        # entry: 0=IN, 1=OUT, 2=INOUT, 3=OUT_BY
+        if d.entry not in (1, 2, 3):  # nur Closes
+            continue
+        if d.symbol == '':
+            continue
+
+        result.append({
+            'ticket':     str(d.order),      # MT5 Order-Ticket (= dealId im Bot)
+            'deal':       str(d.ticket),     # Deal-Ticket
+            'symbol':     d.symbol,
+            'type':       'BUY' if d.type == 0 else 'SELL',
+            'volume':     d.volume,
+            'price':      d.price,           # tatsächlicher Close-Preis
+            'profit':     d.profit,          # echte P&L in Kontowährung (EUR)
+            'commission': d.commission,
+            'swap':       d.swap,
+            'time':       datetime.utcfromtimestamp(d.time).isoformat(),
+            'comment':    d.comment,
+        })
+
+    return jsonify(result)
 
 if __name__ == '__main__':
     print("MT5 Server startet auf Port 5000...")
