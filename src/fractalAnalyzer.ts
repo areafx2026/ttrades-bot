@@ -89,17 +89,17 @@ export class FractalAnalyzer {
     const last = candles[candles.length - 1];
     const pip = this.pipSize();
 
-    // Filter 1: D1 Trend structure — relaxed to OR condition (v1.5)
-    // LONG: HH or HL (at least one bullish structure element)
-    // SHORT: LH or LL (at least one bearish structure element)
+    // Filter 1: D1 Trend structure — v2.1: AND-Bedingung (beide Strukturelemente erforderlich)
+    // LONG: HH UND HL — echter Aufwärtstrend
+    // SHORT: LH UND LL — echter Abwärtstrend
     const d1Highs = candles.slice(-6).map(c => c.high);
     const d1Lows  = candles.slice(-6).map(c => c.low);
     const d1HH = d1Highs[d1Highs.length - 1] > d1Highs[d1Highs.length - 3];
     const d1HL = d1Lows[d1Lows.length - 1]   > d1Lows[d1Lows.length - 3];
     const d1LH = d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3];
     const d1LL = d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];
-    const d1Bullish = d1HH || d1HL;
-    const d1Bearish = d1LH || d1LL;
+    const d1Bullish = d1HH && d1HL;
+    const d1Bearish = d1LH && d1LL;
 
     const swingLow = this.detectSwingLow(candles, candles.length - 3);
     if (swingLow) {
@@ -341,6 +341,38 @@ export class FractalAnalyzer {
       const maxRisk = atrValue * 1.5;
       if (risk > maxRisk) {
         this._lastRejectionReason = `ATR-Filter: Stop ${(risk/pip).toFixed(1)} Pips > Max ${(maxRisk/pip).toFixed(1)} Pips (D1-ATR14x1.5)`;
+        return null;
+      }
+    }
+
+    // v2.1: Proximity-Filter — Entry darf nicht innerhalb von 15 Pips an H4-Widerstand (LONG) oder H4-Support (SHORT) liegen
+    // Verhindert Trades direkt gegen starke Strukturlevel (z.B. USDCAD LONG an 1.3690 Resistance)
+    const proximityBuffer = pip * 15;
+    if (bias === 'LONG') {
+      // H4 Swing Highs der letzten 20 Candles als Widerstandszonen
+      const h4Resistances = [];
+      for (let i = 1; i < this.h4.length - 1; i++) {
+        if (this.h4[i].high > this.h4[i-1].high && this.h4[i].high > this.h4[i+1].high)
+          h4Resistances.push(this.h4[i].high);
+      }
+      const nearResistance = h4Resistances.some(r => r > entryMid && r - entryMid < proximityBuffer);
+      if (nearResistance) {
+        const closest = h4Resistances.filter(r => r > entryMid).sort((a,b) => a-b)[0];
+        this._lastRejectionReason = `Entry zu nah an H4-Widerstand ${closest.toFixed(5)} (< 15pips)`;
+        return null;
+      }
+    }
+    if (bias === 'SHORT') {
+      // H4 Swing Lows der letzten 20 Candles als Supportzonen
+      const h4Supports = [];
+      for (let i = 1; i < this.h4.length - 1; i++) {
+        if (this.h4[i].low < this.h4[i-1].low && this.h4[i].low < this.h4[i+1].low)
+          h4Supports.push(this.h4[i].low);
+      }
+      const nearSupport = h4Supports.some(s => s < entryMid && entryMid - s < proximityBuffer);
+      if (nearSupport) {
+        const closest = h4Supports.filter(s => s < entryMid).sort((a,b) => b-a)[0];
+        this._lastRejectionReason = `Entry zu nah an H4-Support ${closest.toFixed(5)} (< 15pips)`;
         return null;
       }
     }
