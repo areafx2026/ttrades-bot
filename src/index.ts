@@ -5,7 +5,7 @@ import { FractalAnalyzer } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
-import { isMarketOpen, isActiveTradingSession, getActiveSession } from './marketHours';
+import { isMarketOpen, getActiveSession } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
@@ -28,7 +28,6 @@ function loadSpreadLimits(): Record<string, number> {
   try {
     return JSON.parse(fs.readFileSync('./data/spreads.json', 'utf-8'));
   } catch {
-    logger.warn('spreads.json not found, using defaults');
     return { DEFAULT: 3.0 };
   }
 }
@@ -37,12 +36,11 @@ function logSpread(symbol: string, spreadPips: number, normalPips: number, block
   const ts = new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin', hour12: false });
   const line = ts + ',' + symbol + ',' + spreadPips.toFixed(2) + ',' + (normalPips * 2).toFixed(1) + ',' + (blocked ? 'BLOCKED' : 'OK') + '\n';
   try { fs.appendFileSync(SPREAD_LOG, line); } catch { /* ignore */ }
-  if (blocked) logger.warn(`Trade ${symbol} nicht eroeffnet | Spread: ${spreadPips.toFixed(2)} Pips (Max: ${(normalPips * 2).toFixed(1)}) | ${ts}`);
+  if (blocked) logger.warn(`Trade ${symbol} nicht eroeffnet | Spread: ${spreadPips.toFixed(2)} Pips (Max: ${(normalPips * 2).toFixed(1)})`);
 }
 
-import { getCurrencyStrength, isStrengthAligned, StrengthResult } from './currencyStrength';
-import { checkZone, initZones } from './zoneManager';
-import { detectSweepZones, checkSweepRetest, invalidateSweepZones, getActiveSweepZones } from './sweepZoneManager';
+import { getCurrencyStrength, StrengthResult } from './currencyStrength';
+import { initZones } from './zoneManager';
 import cron from 'node-cron';
 
 const SYMBOLS = [
@@ -59,8 +57,8 @@ let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
 const lastScanned = new Map<string, number>();
-const FAST_INTERVAL_MS = 1 * 60 * 1000;
-const SLOW_INTERVAL_MS = 3 * 60 * 1000;
+const FAST_INTERVAL_MS = 30 * 1000;      // 30 seconds
+const SLOW_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 function shouldScan(symbol: string): boolean {
   const now = Date.now();
@@ -129,6 +127,9 @@ async function syncClosedTrades(): Promise<void> {
 
     const mt5Positions = await executor.getOpenPositions();
     const openTickets = new Set(mt5Positions.map(p => p.dealId));
+
+    // Sync activeSymbols with real MT5 positions
+    for (const p of mt5Positions) activeSymbols.add(p.symbol);
 
     for (const trade of openTrades) {
       if (!trade.dealId || openTickets.has(trade.dealId)) continue;
@@ -262,19 +263,22 @@ async function executeTrade(
       });
     } catch (dbErr) { logger.error('DB insert error:', dbErr); }
 
-    const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
+    // Send Telegram AFTER trade is open — with real fill levels
+    const fillPrice = signal.currentPrice;
+    const realRisk = Math.abs(fillPrice - signal.stopLoss);
+    const realTP = signal.type === 'LONG'
+      ? fillPrice + realRisk * 1.3
+      : fillPrice - realRisk * 1.3;
+
     await telegram.sendMessage(
       `✅ <b>Trade geöffnet — ${symbol}</b>\n` +
-      `${signal.type === 'LONG' ? '📈' : '📉'} ${signal.type} | ${signal.phase} | ${result.dealId}\n` +
-      `Entry: <code>${entryMid.toFixed(dec)}</code>\n` +
-      `SL: <code>${signal.stopLoss.toFixed(dec)}</code> | TP: <code>${signal.target1.toFixed(dec)}</code>\n` +
-      `R:R: <b>${signal.riskReward.toFixed(2)}:1</b>`
+      `${signal.type === 'LONG' ? '📈' : '📉'} ${signal.type} | ${signal.phase} | #${result.dealId}\n` +
+      `Entry: <code>${fillPrice.toFixed(dec)}</code>\n` +
+      `SL: <code>${signal.stopLoss.toFixed(dec)}</code> | TP: <code>${realTP.toFixed(dec)}</code>\n` +
+      `R:R: <b>1.30:1</b>`
     );
   } else {
     logger.warn(`Trade skipped for ${symbol}: ${result.message}`);
-    if (result.message.includes('Cooldown')) {
-      await telegram.sendMessage(`⏳ <b>${symbol}</b> — ${result.message}`);
-    }
     if (result.message.includes('verpasst')) activeSymbols.delete(symbol);
   }
 }
@@ -290,72 +294,28 @@ async function analyzeSymbol(
 ): Promise<void> {
   lastScanned.set(symbol, Date.now());
 
-  const dailyCandles = await mt5.getCandles(symbol, 'DAY', 20);
-  await new Promise(r => setTimeout(r, 150));
-  const h4Candles = await mt5.getCandles(symbol, 'HOUR_4', 40);
-  await new Promise(r => setTimeout(r, 150));
-  const h1Candles = await mt5.getCandles(symbol, 'HOUR', 60);
-  await new Promise(r => setTimeout(r, 150));
-  const m15Candles = await mt5.getCandles(symbol, 'MINUTE_15', 80);
-
-  // ── Sweep Zone Management ──────────────────────────────────────────────────
-  invalidateSweepZones(symbol, h1Candles);
-  detectSweepZones(symbol, h1Candles);
-  const sweepSignal = checkSweepRetest(symbol, h1Candles);
-
-  if (sweepSignal) {
-    logger.info(`Sweep retest: ${symbol} ${sweepSignal.type} | Zone ${sweepSignal.zone.zoneLow.toFixed(5)}-${sweepSignal.zone.zoneHigh.toFixed(5)}`);
-
-    if (isDuplicate(symbol, sweepSignal.type, 'SWEEP_RETEST')) {
-      logger.info(`${symbol}: Sweep signal already cached, skipping.`);
-    } else {
-      const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
-      const dec = symbol.includes('JPY') ? 3 : 5;
-      const mid = (h1Candles[h1Candles.length - 2].high + h1Candles[h1Candles.length - 2].low) / 2;
-      const sl  = sweepSignal.type === 'LONG'
-        ? sweepSignal.zone.sweepLow - pip * 5
-        : sweepSignal.zone.sweepHigh + pip * 5;
-      const risk = Math.abs(mid - sl);
-      const tp   = sweepSignal.type === 'LONG' ? mid + risk * 1.3 : mid - risk * 1.3;
-
-      const sweepTradeSignal = {
-        symbol,
-        type: sweepSignal.type,
-        phase: 'SWEEP_RETEST' as any,
-        currentPrice: mid,
-        entryZone: [mid - pip, mid + pip] as [number, number],
-        stopLoss: sl,
-        target1: tp,
-        target2: tp,
-        riskReward: 1.3,
-        dailyBias: sweepSignal.type,
-        dailyCandle: 'Sweep Zone Retest',
-        h4Confirmation: 'Sweep Zone Retest',
-        h1Context: `Sweep zone ${sweepSignal.zone.direction} ${sweepSignal.zone.zoneLow.toFixed(dec)}-${sweepSignal.zone.zoneHigh.toFixed(dec)}`,
-        m15Setup: `Vol ratio ${sweepSignal.volumeRatio.toFixed(2)}x (weak retest)`,
-        protectedSwing: sl,
-        fvgLevel: null,
-        atr14: undefined,
-        keyLevels: [],
-        timestamp: new Date().toISOString(),
-      };
-
-      cacheSignal(symbol, sweepSignal.type, 'SWEEP_RETEST');
-      await telegram.sendSignal(sweepTradeSignal);
-
-      if (PAPER_TRADING) {
-        await executeTrade(sweepTradeSignal, symbol, executor, telegram);
-      }
-    }
+  // Skip scan if position already open — syncClosedTrades monitors it
+  const openPositions = await executor.getOpenPositions();
+  if (openPositions.some(p => p.symbol === symbol)) {
+    logger.info(`${symbol}: position open — skipping scan`);
+    return;
   }
 
-  // ── Fractal Analyzer ───────────────────────────────────────────────────────
+  const dailyCandles = await mt5.getCandles(symbol, 'DAY', 20);
+  await new Promise(r => setTimeout(r, 100));
+  const h4Candles = await mt5.getCandles(symbol, 'HOUR_4', 40);
+  await new Promise(r => setTimeout(r, 100));
+  const h1Candles = await mt5.getCandles(symbol, 'HOUR', 60);
+  await new Promise(r => setTimeout(r, 100));
+  const m15Candles = await mt5.getCandles(symbol, 'MINUTE_15', 80);
+
+  // ── Fractal Analyzer only — Sweep Zone disabled ────────────────────────────
   const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
   const analyzeResult = analyzer.analyze();
   const signal = analyzeResult.signal;
 
   if (analyzeResult.rejected && analyzeResult.reason) {
-    logger.info(`${symbol}: Setup REJECTED — ${analyzeResult.reason}`);
+    logger.info(`${symbol}: REJECTED — ${analyzeResult.reason}`);
     logFilterRejection(symbol, analyzeResult.reason);
   }
 
@@ -363,12 +323,11 @@ async function analyzeSymbol(
     activeSymbols.add(symbol);
 
     if (isDuplicate(signal.symbol, signal.type, signal.phase)) {
-      logger.info(`${symbol}: signal already sent recently, skipping.`);
+      logger.info(`${symbol}: signal already cached, skipping.`);
       return;
     }
 
-    logger.info(`Signal found for ${symbol}: ${signal.type}`);
-    await telegram.sendSignal(signal);
+    logger.info(`Signal found for ${symbol}: ${signal.type} ${signal.phase}`);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
     if (PAPER_TRADING) {
@@ -429,7 +388,7 @@ async function runScan() {
       } catch (err) {
         logger.error(`Error analyzing ${symbol}:`, err);
       }
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 150));
     }
   } catch (err) {
     logger.error('Scan error:', err);
@@ -454,23 +413,34 @@ cron.schedule('5 22 * * 1-5', () => {
 
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
-logger.info('TTrades Fractal Model Bot started');
-logger.info(`Monitoring: ${SYMBOLS.join(', ')}`);
-logger.info(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
-logger.info('Fast poll: 1 min (active signals) | Slow poll: 3 min (others)');
+async function startup() {
+  logger.info('TTrades Fractal Model Bot started');
+  logger.info(`Monitoring: ${SYMBOLS.join(', ')}`);
+  logger.info(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
+  logger.info('Fast poll: 30s (active) | Slow poll: 2min (others)');
+  logger.info('Sweep Zone: DISABLED | Fractal Analyzer: ENABLED');
 
-loadRules();
-initZones();
-getDb();
-startDashboard();
+  loadRules();
+  initZones();
+  getDb();
+  startDashboard();
 
-const openTrades = loadTrades().filter(t => !t.closedAt);
-for (const t of openTrades) activeSymbols.add(t.symbol);
-if (openTrades.length > 0) {
-  logger.info(`Restored ${openTrades.length} active symbol(s): ${openTrades.map(t => t.symbol).join(', ')}`);
+  // Restore open positions directly from MT5
+  try {
+    const executor = new MT5TradeExecutor();
+    const mt5Positions = await executor.getOpenPositions();
+    for (const p of mt5Positions) activeSymbols.add(p.symbol);
+    if (mt5Positions.length > 0) {
+      logger.info(`Restored ${mt5Positions.length} open MT5 position(s): ${mt5Positions.map(p => p.symbol).join(', ')}`);
+    }
+  } catch (err) {
+    logger.warn('Could not fetch MT5 positions on startup — will sync on first scan');
+  }
+
+  const now = Date.now();
+  SYMBOLS.forEach((s, i) => lastScanned.set(s, now - (SLOW_INTERVAL_MS - i * 1000)));
+
+  runScan().catch(err => logger.error('Initial scan error:', err));
 }
 
-const now = Date.now();
-SYMBOLS.forEach((s, i) => lastScanned.set(s, now - (SLOW_INTERVAL_MS - i * 1000)));
-
-runScan().catch(err => logger.error('Initial scan error:', err));
+startup();
