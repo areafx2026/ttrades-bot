@@ -57,8 +57,8 @@ let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
 const lastScanned = new Map<string, number>();
-const FAST_INTERVAL_MS = 30 * 1000;      // 30 seconds
-const SLOW_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+const FAST_INTERVAL_MS = 30 * 1000;
+const SLOW_INTERVAL_MS = 2 * 60 * 1000;
 
 function shouldScan(symbol: string): boolean {
   const now = Date.now();
@@ -127,8 +127,6 @@ async function syncClosedTrades(): Promise<void> {
 
     const mt5Positions = await executor.getOpenPositions();
     const openTickets = new Set(mt5Positions.map(p => p.dealId));
-
-    // Sync activeSymbols with real MT5 positions
     for (const p of mt5Positions) activeSymbols.add(p.symbol);
 
     for (const trade of openTrades) {
@@ -191,7 +189,6 @@ async function executeTrade(
   const dec = symbol.includes('JPY') ? 3 : 5;
   const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
 
-  // Spread check
   try {
     const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol } });
     const spreadPips = (tick.data.ask - tick.data.bid) / pip;
@@ -201,14 +198,12 @@ async function executeTrade(
     if (spreadPips > normalPips * 2) { activeSymbols.delete(symbol); return; }
   } catch { /* proceed anyway */ }
 
-  // Max trades check
   const openPositions = await executor.getOpenPositions();
   if (openPositions.length >= getMaxTrades()) {
     logger.warn(`Max trades limit reached (${getMaxTrades()}) — skipping ${symbol}`);
     return;
   }
 
-  // Currency exposure check
   const currencies = symbol.length === 6 ? [symbol.slice(0, 3), symbol.slice(3, 6)] : [];
   for (const currency of currencies) {
     if (openPositions.filter((p: any) => p.symbol?.includes(currency)).length >= 2) {
@@ -263,7 +258,6 @@ async function executeTrade(
       });
     } catch (dbErr) { logger.error('DB insert error:', dbErr); }
 
-    // Send Telegram AFTER trade is open — with real fill levels
     const fillPrice = signal.currentPrice;
     const realRisk = Math.abs(fillPrice - signal.stopLoss);
     const realTP = signal.type === 'LONG'
@@ -284,21 +278,19 @@ async function executeTrade(
 }
 
 // ─── Analyze single symbol ────────────────────────────────────────────────────
+// Returns 'no_setup' | 'signal' | 'open' | 'cached' | 'rejected'
 
 async function analyzeSymbol(
   symbol: string,
   mt5: MT5API,
   executor: MT5TradeExecutor,
   telegram: TelegramNotifier,
-  strength: StrengthResult | null = null
-): Promise<void> {
+  openPositionSymbols: Set<string>
+): Promise<'no_setup' | 'signal' | 'open' | 'cached' | 'rejected'> {
   lastScanned.set(symbol, Date.now());
 
-  // Skip scan if position already open — syncClosedTrades monitors it
-  const openPositions = await executor.getOpenPositions();
-  if (openPositions.some(p => p.symbol === symbol)) {
-    logger.info(`${symbol}: position open — skipping scan`);
-    return;
+  if (openPositionSymbols.has(symbol)) {
+    return 'open';
   }
 
   const dailyCandles = await mt5.getCandles(symbol, 'DAY', 20);
@@ -309,7 +301,6 @@ async function analyzeSymbol(
   await new Promise(r => setTimeout(r, 100));
   const m15Candles = await mt5.getCandles(symbol, 'MINUTE_15', 80);
 
-  // ── Fractal Analyzer only — Sweep Zone disabled ────────────────────────────
   const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
   const analyzeResult = analyzer.analyze();
   const signal = analyzeResult.signal;
@@ -317,14 +308,15 @@ async function analyzeSymbol(
   if (analyzeResult.rejected && analyzeResult.reason) {
     logger.info(`${symbol}: REJECTED — ${analyzeResult.reason}`);
     logFilterRejection(symbol, analyzeResult.reason);
+    if (activeSymbols.has(symbol)) activeSymbols.delete(symbol);
+    return 'rejected';
   }
 
   if (signal) {
     activeSymbols.add(symbol);
 
     if (isDuplicate(signal.symbol, signal.type, signal.phase)) {
-      logger.info(`${symbol}: signal already cached, skipping.`);
-      return;
+      return 'cached';
     }
 
     logger.info(`Signal found for ${symbol}: ${signal.type} ${signal.phase}`);
@@ -333,13 +325,10 @@ async function analyzeSymbol(
     if (PAPER_TRADING) {
       await executeTrade(signal, symbol, executor, telegram);
     }
+    return 'signal';
   } else {
-    if (activeSymbols.has(symbol)) {
-      logger.info(`${symbol}: signal gone — switching to slow polling`);
-      activeSymbols.delete(symbol);
-    } else {
-      logger.info(`No setup for ${symbol} yet.`);
-    }
+    if (activeSymbols.has(symbol)) activeSymbols.delete(symbol);
+    return 'no_setup';
   }
 }
 
@@ -379,17 +368,31 @@ async function runScan() {
     }
 
     const executor = new MT5TradeExecutor();
+
+    // Get open positions once for the whole scan
+    const mt5Positions = await executor.getOpenPositions();
+    const openPositionSymbols = new Set(mt5Positions.map(p => p.symbol));
+
     const active  = toScan.filter(s => activeSymbols.has(s));
     const passive = toScan.filter(s => !activeSymbols.has(s));
 
+    const noSetupSymbols: string[] = [];
+
     for (const symbol of [...active, ...passive]) {
       try {
-        await analyzeSymbol(symbol, mt5, executor, telegram, strength);
+        const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
+        if (outcome === 'no_setup') noSetupSymbols.push(symbol);
       } catch (err) {
         logger.error(`Error analyzing ${symbol}:`, err);
       }
       await new Promise(r => setTimeout(r, 150));
     }
+
+    // Log all no-setup symbols in one line
+    if (noSetupSymbols.length > 0) {
+      logger.info(`No setup: ${noSetupSymbols.join(', ')}`);
+    }
+
   } catch (err) {
     logger.error('Scan error:', err);
   }
@@ -425,7 +428,6 @@ async function startup() {
   getDb();
   startDashboard();
 
-  // Restore open positions directly from MT5
   try {
     const executor = new MT5TradeExecutor();
     const mt5Positions = await executor.getOpenPositions();
