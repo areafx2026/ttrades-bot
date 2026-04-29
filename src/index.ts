@@ -44,11 +44,10 @@ import { initZones } from './zoneManager';
 import cron from 'node-cron';
 
 const SYMBOLS = [
-  // CHF-Paare ausgeschlossen wegen hoher Swap-Kosten (USDCHF, EURCHF, GBPCHF, CHFJPY)
-  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCAD',
-  'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY',
+  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD',
+  'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY', 'EURCHF',
   'EURAUD', 'EURCAD', 'GBPNZD', 'GBPJPY', 'AUDJPY',
-  'AUDNZD', 'AUDCAD', 'CADJPY',
+  'CHFJPY', 'GBPCHF', 'AUDNZD', 'AUDCAD', 'CADJPY',
   'GBPCAD', 'GBPAUD'
 ];
 
@@ -69,11 +68,15 @@ function shouldScan(symbol: string): boolean {
 }
 
 // ─── Sync closed trades ───────────────────────────────────────────────────────
+// Nachhaltige Lösung: MT5 ist die einzige Wahrheit.
+// Vergleich läuft über SYMBOL, nicht über IDs (die zwischen Open/Close-Deal unterschiedlich sind).
+// Ablauf:
+//   1. MT5-offene Positionen holen → Set von offenen Symbolen
+//   2. MT5-History holen → Map von symbol → letzter Closing-Deal
+//   3. DB-offene Trades prüfen: wenn Symbol nicht mehr in MT5-Positionen → geschlossen
+//   4. Close-Preis und P&L aus MT5-History, nie selbst berechnen
 
 async function syncClosedTrades(): Promise<void> {
-  const openTrades = loadTrades().filter(t => !t.closedAt);
-  if (openTrades.length === 0) return;
-
   const executor = new MT5TradeExecutor();
   const telegram = new TelegramNotifier(
     process.env.TELEGRAM_BOT_TOKEN!,
@@ -81,8 +84,42 @@ async function syncClosedTrades(): Promise<void> {
   );
 
   try {
+    // ── 1. MT5: welche Symbole sind noch offen? ──────────────────────────────
+    const mt5Positions = await executor.getOpenPositions();
+    const openSymbols = new Set(mt5Positions.map(p => p.symbol));
+
+    // activeSymbols aktualisieren
+    activeSymbols.clear();
+    for (const p of mt5Positions) activeSymbols.add(p.symbol);
+
+    // ── 2. MT5 History: letzter Closing-Deal pro Symbol ─────────────────────
+    let historyDeals: any[] = [];
+    try {
+      const histRes = await axios.get(`${MT5_SERVER}/history`, { params: { hours: 72 }, timeout: 10000 });
+      historyDeals = histRes.data ?? [];
+    } catch {
+      logger.warn('Could not fetch MT5 history');
+    }
+
+    // Pro Symbol den neuesten echten Closing-Deal merken
+    // Closing-Deal = hat profit != 0 ODER commission != 0 (Opening-Deals haben beides = 0 ausser commission)
+    // Bei Pepperstone: Opening-Deals haben profit=0, Closing-Deals haben profit!=0
+    const latestDealBySymbol = new Map<string, any>();
+    for (const deal of historyDeals) {
+      const isClosingDeal = deal.profit !== 0 || deal.entry === 1 || deal.entry === 2 || deal.entry === 3;
+      if (!isClosingDeal) continue;
+      const existing = latestDealBySymbol.get(deal.symbol);
+      if (!existing || new Date(deal.time).getTime() > new Date(existing.time).getTime()) {
+        latestDealBySymbol.set(deal.symbol, deal);
+      }
+    }
+
+    // ── 3. DB-offene Trades prüfen ───────────────────────────────────────────
     const dbOpenTrades = getDbOpenTrades();
+
+    // Tick aufzeichnen + Time-based close für noch offene Trades
     for (const dbTrade of dbOpenTrades) {
+      if (!openSymbols.has(dbTrade.symbol)) continue; // wird unten behandelt
       try {
         const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol: dbTrade.symbol } });
         const mid = (tick.data.bid + tick.data.ask) / 2;
@@ -100,84 +137,93 @@ async function syncClosedTrades(): Promise<void> {
           const progressPct = tpDist > 0 ? Math.max(currentProfit, 0) / tpDist : 0;
 
           if (progressPct < MIN_PROGRESS_PCT) {
-            const dec2 = dbTrade.symbol.includes('JPY') ? 3 : 5;
-            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h, progress ${(progressPct * 100).toFixed(0)}%`);
+            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h`);
             try {
-              const closeResult = await executor.closePosition(dbTrade.id);
-              if (closeResult.success) {
-                const pnlPips2 = Math.round((dbTrade.type === 'LONG' ? (mid - fillPrice) / pip : (fillPrice - mid) / pip) * 10) / 10;
-                const resultStr = pnlPips2 > 0.5 ? 'WIN' : pnlPips2 < -0.5 ? 'LOSS' : 'BREAKEVEN';
-                closeTrade(dbTrade.id, mid, new Date().toISOString(), `TIME_CLOSE (${holdHours.toFixed(0)}h)`, pnlPips2, 0, resultStr);
-                logClosedTrade(dbTrade.id, mid, new Date().toISOString());
-                savePineScript();
-                activeSymbols.delete(dbTrade.symbol);
-                await telegram.sendMessage(
-                  `⏰ <b>Time-based Close — ${dbTrade.symbol}</b>\n` +
-                  `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${resultStr}\n` +
-                  `Offen seit: <b>${holdHours.toFixed(0)}h</b>\n` +
-                  `Fortschritt: <b>${(progressPct * 100).toFixed(0)}%</b> Richtung TP\n` +
-                  `Close: <code>${mid.toFixed(dec2)}</code>\n` +
-                  `P&L: <b>${pnlPips2 >= 0 ? '+' : ''}${pnlPips2.toFixed(1)} pips</b>`
-                );
-              }
+              await executor.closePosition(dbTrade.id);
             } catch (e: any) { logger.error(`Time-based close error: ${e.message}`); }
           }
         }
       } catch { /* skip */ }
     }
 
-    const mt5Positions = await executor.getOpenPositions();
-    const openTickets = new Set(mt5Positions.map(p => p.dealId));
-    for (const p of mt5Positions) activeSymbols.add(p.symbol);
+    // ── 4. Geschlossene Trades verarbeiten ───────────────────────────────────
+    const openTrades = loadTrades().filter(t => !t.closedAt);
 
     for (const trade of openTrades) {
-      if (!trade.dealId || openTickets.has(trade.dealId)) continue;
+      // Symbol noch in MT5 offen → nichts tun
+      if (openSymbols.has(trade.symbol)) continue;
 
-      logger.info(`Closed trade detected: ${trade.symbol} [${trade.dealId}]`);
+      logger.info(`Trade geschlossen erkannt (Symbol-Sync): ${trade.symbol}`);
 
-      let closePrice = (trade.entryZone[0] + trade.entryZone[1]) / 2;
-      const closedAt = new Date().toISOString();
+      const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
+      const dec = trade.symbol.includes('JPY') ? 3 : 5;
+      const entryPrice = trade.fillPrice ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
 
-      try {
-        const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol: trade.symbol } });
-        closePrice = (tick.data.bid + tick.data.ask) / 2;
-      } catch {
-        logger.warn(`Could not fetch close price for ${trade.dealId}, using fallback`);
+      // MT5 History für dieses Symbol suchen — Deal muss nach Trade-Open liegen
+      const tradeOpenMs = new Date(trade.openedAt).getTime();
+      const deal = latestDealBySymbol.get(trade.symbol);
+      const dealIsAfterOpen = deal && new Date(deal.time + 'Z').getTime() > tradeOpenMs;
+
+      let closePrice: number;
+      let pnlEUR: number;
+      let closedAt: string;
+
+      if (deal && dealIsAfterOpen) {
+        // Echte Werte aus MT5
+        closePrice = deal.price;
+        pnlEUR = Math.round((deal.profit + deal.commission + deal.swap) * 100) / 100;
+        closedAt = new Date(deal.time + 'Z').toISOString();
+        logger.info(`MT5 deal gefunden für ${trade.symbol}: close=${closePrice} pnlEUR=${pnlEUR}`);
+      } else {
+        // Fallback: aktuellen Tick nehmen
+        logger.warn(`Kein MT5 Deal für ${trade.symbol} — Tick-Fallback`);
+        try {
+          const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol: trade.symbol } });
+          closePrice = (tick.data.bid + tick.data.ask) / 2;
+        } catch {
+          closePrice = entryPrice;
+        }
+        pnlEUR = 0;
+        closedAt = new Date().toISOString();
       }
 
-      const closed = logClosedTrade(trade.dealId, closePrice, closedAt);
+      // Pips nach Richtung
+      const rawPnlPips = trade.type === 'LONG'
+        ? (closePrice - entryPrice) / pip
+        : (entryPrice - closePrice) / pip;
+      const pnlPips = Math.round(rawPnlPips * 10) / 10;
+
+      // WIN/LOSS: aus EUR P&L wenn vorhanden, sonst Pips
+      const result = pnlEUR !== 0
+        ? (pnlEUR > 0.5 ? 'WIN' : pnlEUR < -0.5 ? 'LOSS' : 'BREAKEVEN')
+        : (pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN');
+
+      // DB aktualisieren
+      logClosedTrade(trade.dealId!, closePrice, closedAt);
       savePineScript();
-
-      try {
-        const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-        const entryPrice = trade.fillPrice ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
-        const rawPnlPips = trade.type === 'LONG'
-          ? (closePrice - entryPrice) / pip
-          : (entryPrice - closePrice) / pip;
-        const pnlPips = Math.round(rawPnlPips * 10) / 10;
-        const result = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
-        closeTrade(trade.dealId, closePrice, closedAt, 'SL/TP/Market', pnlPips, closed?.pnlEUR ?? 0, result);
-        logger.info(`Trade closed in DB: ${trade.symbol} ${result} ${pnlPips} pips`);
-      } catch (dbErr) { logger.error('DB close error:', dbErr); }
-
+      closeTrade(trade.dealId!, closePrice, closedAt, 'SL/TP/Market', pnlPips, pnlEUR, result);
       activeSymbols.delete(trade.symbol);
 
-      if (closed) {
-        const dec = trade.symbol.includes('JPY') ? 3 : 5;
-        const resultEmoji = closed.result === 'WIN' ? '✅' : closed.result === 'LOSS' ? '❌' : '➖';
-        await telegram.sendMessage(
-          `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>\n` +
-          `${trade.type === 'LONG' ? '📈' : '📉'} ${trade.type} | ${closed.result}\n` +
-          `Close: <code>${closePrice.toFixed(dec)}</code>\n` +
-          `P&L: <b>${closed.pnlPips && closed.pnlPips >= 0 ? '+' : ''}${closed.pnlPips?.toFixed(1)} pips</b>  ` +
-          `(<b>${closed.pnlEUR && closed.pnlEUR >= 0 ? '+' : ''}€${closed.pnlEUR?.toFixed(2)}</b>)`
-        );
-      }
+      logger.info(`Trade abgeschlossen: ${trade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
+
+      const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
+      await telegram.sendMessage(
+        `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>
+` +
+        `${trade.type === 'LONG' ? '📈' : '📉'} ${trade.type} | ${result}
+` +
+        `Close: <code>${closePrice.toFixed(dec)}</code>
+` +
+        `P&L: <b>${pnlPips >= 0 ? '+' : ''}${pnlPips.toFixed(1)} pips</b>  ` +
+        `(<b>${pnlEUR >= 0 ? '+' : ''}€${pnlEUR.toFixed(2)}</b>)`
+      );
     }
+
   } catch (err) {
     logger.error('Error syncing closed trades:', err);
   }
 }
+
 
 // ─── Helper: execute trade + log + notify ────────────────────────────────────
 

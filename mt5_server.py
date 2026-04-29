@@ -179,21 +179,22 @@ def get_history():
 
     result = []
     for d in deals:
-        # Nur echte Trade-Deals (kein Balance, Deposit, etc.)
-        # entry: 0=IN, 1=OUT, 2=INOUT, 3=OUT_BY
-        if d.entry not in (1, 2, 3):  # nur Closes
-            continue
         if d.symbol == '':
+            continue
+        # Nur Closing-Deals: entry=1 (OUT), 2 (INOUT), 3 (OUT_BY)
+        # entry=0 sind Opening-Deals — werden ignoriert
+        if d.entry not in (1, 2, 3):
             continue
 
         result.append({
-            'ticket':     str(d.order),      # MT5 Order-Ticket (= dealId im Bot)
-            'deal':       str(d.ticket),     # Deal-Ticket
+            'ticket':     str(d.order),
+            'deal':       str(d.ticket),
             'symbol':     d.symbol,
+            'entry':      d.entry,           # 0=IN, 1=OUT, 2=INOUT, 3=OUT_BY
             'type':       'BUY' if d.type == 0 else 'SELL',
             'volume':     d.volume,
-            'price':      d.price,           # tatsächlicher Close-Preis
-            'profit':     d.profit,          # echte P&L in Kontowährung (EUR)
+            'price':      d.price,
+            'profit':     d.profit,
             'commission': d.commission,
             'swap':       d.swap,
             'time':       datetime.utcfromtimestamp(d.time).isoformat(),
