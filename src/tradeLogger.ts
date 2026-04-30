@@ -1,7 +1,23 @@
+/**
+ * tradeLogger.ts — v3.0
+ * SQLite ist die einzige Datenquelle. trades.json existiert nicht mehr.
+ * TradeRecord bleibt als Interface für Kompatibilität mit index.ts.
+ */
+
 import * as fs from 'fs';
 import * as path from 'path';
 import { TradeSignal } from './fractalAnalyzer';
 import { logger } from './logger';
+import {
+  getDb,
+  getAllTrades,
+  getOpenTrades,
+  insertTrade,
+  closeTrade as dbCloseTrade,
+  DbTrade,
+} from './database';
+
+// ─── Interface — kompatibel mit index.ts ─────────────────────────────────────
 
 export interface TradeRecord {
   id: string;
@@ -9,13 +25,13 @@ export interface TradeRecord {
   type: 'LONG' | 'SHORT';
   phase: string;
   entryZone: [number, number];
-  fillPrice?: number;       // v1.3: real fill price from Capital.com
+  fillPrice?: number;
   stopLoss: number;
   target1: number;
   target2: number;
   riskReward: number;
-  openedAt: string;       // ISO
-  closedAt?: string;      // ISO — filled when closed
+  openedAt: string;
+  closedAt?: string;
   closePrice?: number;
   pnlPips?: number;
   pnlEUR?: number;
@@ -23,87 +39,106 @@ export interface TradeRecord {
   dealId?: string;
 }
 
-const LOG_DIR  = path.join(process.cwd(), 'data');
-const LOG_FILE = path.join(LOG_DIR, 'trades.json');
+// ─── DbTrade → TradeRecord Konvertierung ─────────────────────────────────────
 
-function ensureDir(): void {
-  if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
-}
-
-export function loadTrades(): TradeRecord[] {
-  ensureDir();
-  if (!fs.existsSync(LOG_FILE)) return [];
-  try {
-    return JSON.parse(fs.readFileSync(LOG_FILE, 'utf-8')) as TradeRecord[];
-  } catch {
-    return [];
-  }
-}
-
-function saveTrades(trades: TradeRecord[]): void {
-  ensureDir();
-  fs.writeFileSync(LOG_FILE, JSON.stringify(trades, null, 2), 'utf-8');
-}
-
-export function logOpenTrade(signal: TradeSignal, dealId: string): TradeRecord {
-  const trades = loadTrades();
-  const record: TradeRecord = {
-    id: dealId,
-    symbol: signal.symbol,
-    type: signal.type,
-    phase: signal.phase,
-    entryZone: signal.entryZone,
-    fillPrice: signal.currentPrice, // v1.3: real fill price from Capital.com
-    stopLoss: signal.stopLoss,
-    target1: signal.target1,
-    target2: signal.target2,
-    riskReward: signal.riskReward,
-    openedAt: new Date().toISOString(),
-    dealId,
+function dbToRecord(t: DbTrade): TradeRecord {
+  return {
+    id:          t.id,
+    symbol:      t.symbol,
+    type:        t.type,
+    phase:       t.phase,
+    entryZone:   [t.entry_zone_low, t.entry_zone_high],
+    fillPrice:   t.entry_price,
+    stopLoss:    t.stop_loss,
+    target1:     t.target1,
+    target2:     t.target2,
+    riskReward:  t.risk_reward,
+    openedAt:    t.opened_at,
+    closedAt:    t.closed_at,
+    closePrice:  t.close_price,
+    pnlPips:     t.pnl_pips,
+    pnlEUR:      t.pnl_eur,
+    result:      t.result as 'WIN' | 'LOSS' | 'BREAKEVEN' | undefined,
+    dealId:      t.id,
   };
-  trades.push(record);
-  saveTrades(trades);
-  logger.info(`Trade logged: ${record.symbol} ${record.type} [${dealId}]`);
-  return record;
 }
 
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+/**
+ * Alle Trades laden (offen + geschlossen) — ersetzt loadTrades()
+ */
+export function loadTrades(): TradeRecord[] {
+  return getAllTrades().map(dbToRecord);
+}
+
+/**
+ * Trade beim Öffnen speichern — ersetzt logOpenTrade()
+ */
+export function logOpenTrade(signal: TradeSignal, dealId: string): TradeRecord {
+  const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
+  const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
+  const stopPips = Math.abs(entryMid - signal.stopLoss) / pip;
+
+  const db = getDb();
+  const version = db.prepare('SELECT version FROM strategy_log ORDER BY changed_at DESC LIMIT 1').get() as any;
+
+  const dbTrade: DbTrade = {
+    id:               dealId,
+    symbol:           signal.symbol,
+    type:             signal.type,
+    phase:            signal.phase,
+    entry_zone_low:   signal.entryZone[0],
+    entry_zone_high:  signal.entryZone[1],
+    entry_price:      signal.currentPrice,
+    stop_loss:        signal.stopLoss,
+    stop_pips:        Math.round(stopPips * 10) / 10,
+    target1:          signal.target1,
+    target2:          signal.target2,
+    risk_reward:      signal.riskReward,
+    opened_at:        new Date().toISOString(),
+    strategy_version: version?.version ?? 'v2.1',
+    daily_bias:       signal.dailyBias,
+    h4_confirmation:  signal.h4Confirmation,
+    h1_context:       signal.h1Context,
+  };
+
+  insertTrade(dbTrade);
+  logger.info(`Trade logged (SQLite): ${signal.symbol} ${signal.type} [${dealId}]`);
+  return dbToRecord(dbTrade);
+}
+
+/**
+ * Trade beim Schließen aktualisieren — ersetzt logClosedTrade()
+ * HINWEIS: pnlPips, pnlEUR und result kommen aus syncClosedTrades (von MT5),
+ * nicht aus dieser Funktion. Hier wird nur closePrice und closedAt gesetzt
+ * damit loadTrades() den Trade als geschlossen erkennt.
+ */
 export function logClosedTrade(
   dealId: string,
   closePrice: number,
   closedAt: string
 ): TradeRecord | null {
-  const trades = loadTrades();
-  const idx = trades.findIndex(t => t.id === dealId);
-  if (idx === -1) return null;
+  const db = getDb();
+  const trade = db.prepare('SELECT * FROM trades WHERE id = ?').get(dealId) as DbTrade | undefined;
+  if (!trade) {
+    logger.warn(`logClosedTrade: Trade ${dealId} nicht in DB gefunden`);
+    return null;
+  }
+  // Nur close_price und closed_at setzen — pnl_eur/result folgen in closeTrade()
+  db.prepare('UPDATE trades SET close_price = ?, closed_at = ? WHERE id = ?')
+    .run(closePrice, closedAt, dealId);
 
-  const trade = trades[idx];
-  const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
-  // v1.3: Use fill price if available, otherwise fall back to entry zone midpoint
-  const entryRef = trade.fillPrice ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
-  const pnlPips = trade.type === 'LONG'
-    ? (closePrice - entryRef) / pip
-    : (entryRef - closePrice) / pip;
-
-  const pipValueEUR = 8.5;
-  const stopPips = Math.abs(entryRef - trade.stopLoss) / pip;
-  const lotSize = Math.min(Math.max(Math.round(100 / (stopPips * pipValueEUR) * 100) / 100, 0.01), 10);
-  const pnlEUR = pnlPips * pipValueEUR * lotSize;
-
-  trade.closedAt   = closedAt;
-  trade.closePrice = closePrice;
-  trade.pnlPips    = Math.round(pnlPips * 10) / 10;
-  trade.pnlEUR     = Math.round(pnlEUR * 100) / 100;
-  trade.result     = pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN';
-
-  trades[idx] = trade;
-  saveTrades(trades);
-  logger.info(`Trade closed: ${trade.symbol} ${trade.result} | ${trade.pnlPips} pips | €${trade.pnlEUR}`);
-  return trade;
+  logger.info(`Trade close_price gesetzt (SQLite): ${trade.symbol} [${dealId}] @ ${closePrice}`);
+  return dbToRecord({ ...trade, close_price: closePrice, closed_at: closedAt });
 }
 
-// Generate TradingView Pine Script with trade markers
+// ─── PineScript ───────────────────────────────────────────────────────────────
+
+const LOG_DIR = path.join(process.cwd(), 'data');
+
 export function generatePineScript(): string {
-  const trades = loadTrades().filter(t => t.closedAt);
+  const trades = getAllTrades().filter(t => t.closed_at);
   if (trades.length === 0) return '// No closed trades yet';
 
   const lines: string[] = [
@@ -117,20 +152,19 @@ export function generatePineScript(): string {
   ];
 
   trades.forEach((t, i) => {
-    const openTs  = Math.floor(new Date(t.openedAt).getTime() / 1000);
-    const closeTs = Math.floor(new Date(t.closedAt!).getTime() / 1000);
-    const entryMid = (t.entryZone[0] + t.entryZone[1]) / 2;
+    const openTs  = Math.floor(new Date(t.opened_at).getTime() / 1000);
+    const entryMid = (t.entry_zone_low + t.entry_zone_high) / 2;
     const color = t.result === 'WIN' ? 'color.green' : t.result === 'LOSS' ? 'color.red' : 'color.gray';
     const arrow = t.type === 'LONG' ? 'label.style_arrow_up' : 'label.style_arrow_down';
     const dec = t.symbol.includes('JPY') ? 3 : 5;
 
-    lines.push(`// Trade ${i + 1}: ${t.symbol} ${t.type} | ${t.result} | ${t.pnlPips} pips`);
+    lines.push(`// Trade ${i + 1}: ${t.symbol} ${t.type} | ${t.result} | ${t.pnl_pips} pips`);
     lines.push(`var label lbl_${i} = na`);
     lines.push(`if bar_index == 0`);
     lines.push(`    lbl_${i} := label.new(`);
     lines.push(`        x = ${openTs},`);
     lines.push(`        y = ${entryMid.toFixed(dec)},`);
-    lines.push(`        text = "${t.symbol}\\n${t.type}\\n${t.pnlPips}p",`);
+    lines.push(`        text = "${t.symbol}\\n${t.type}\\n${t.pnl_pips}p",`);
     lines.push(`        style = ${arrow},`);
     lines.push(`        color = ${color},`);
     lines.push(`        textcolor = color.white,`);
@@ -143,7 +177,7 @@ export function generatePineScript(): string {
 }
 
 export function savePineScript(): string {
-  ensureDir();
+  if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
   const script = generatePineScript();
   const filePath = path.join(LOG_DIR, 'ttfm_trades.pine');
   fs.writeFileSync(filePath, script, 'utf-8');
