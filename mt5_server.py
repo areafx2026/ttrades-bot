@@ -169,7 +169,7 @@ def get_history():
     if not ensure_mt5():
         return jsonify({'error': 'MT5 not connected'}), 500
 
-    hours = int(request.args.get('hours', 48))
+    hours = int(request.args.get('hours', 168))
     from_time = datetime.now(timezone.utc).timestamp() - hours * 3600
 
     # deals_get gibt alle Deals im Zeitraum zurück
@@ -181,9 +181,9 @@ def get_history():
     for d in deals:
         if d.symbol == '':
             continue
-        # Nur Closing-Deals: entry=1 (OUT), 2 (INOUT), 3 (OUT_BY)
-        # entry=0 sind Opening-Deals — werden ignoriert
-        if d.entry not in (1, 2, 3):
+        # Filter: alle=1 gibt alle Deals zurück, sonst nur Closing-Deals (entry=1,2,3)
+        show_all = request.args.get('all', '0') == '1'
+        if not show_all and d.entry not in (1, 2, 3):
             continue
 
         result.append({
@@ -191,6 +191,46 @@ def get_history():
             'deal':       str(d.ticket),
             'symbol':     d.symbol,
             'entry':      d.entry,           # 0=IN, 1=OUT, 2=INOUT, 3=OUT_BY
+            'type':       'BUY' if d.type == 0 else 'SELL',
+            'volume':     d.volume,
+            'price':      d.price,
+            'profit':     d.profit,
+            'commission': d.commission,
+            'swap':       d.swap,
+            'time':       datetime.utcfromtimestamp(d.time).isoformat(),
+            'comment':    d.comment,
+        })
+
+    return jsonify(result)
+
+
+# ─── History per Position-Ticket ──────────────────────────────────────────────
+# Sucht alle Deals die zu einer bestimmten Position gehören (DEAL_POSITION_ID)
+# Das ist zuverlässiger als Zeitfenster-Suche.
+# Verwendung: GET /history/position?ticket=68288606
+@app.route('/history/position', methods=['GET'])
+def get_history_by_position():
+    if not ensure_mt5():
+        return jsonify({'error': 'MT5 not connected'}), 500
+
+    ticket = request.args.get('ticket')
+    if not ticket:
+        return jsonify({'error': 'ticket parameter required'}), 400
+
+    # history_deals_get mit position= gibt alle Deals mit DEAL_POSITION_ID == ticket zurück
+    deals = mt5.history_deals_get(position=int(ticket))
+    if deals is None:
+        return jsonify([])
+
+    result = []
+    for d in deals:
+        if d.symbol == '':
+            continue
+        result.append({
+            'ticket':     str(d.order),
+            'deal':       str(d.ticket),
+            'symbol':     d.symbol,
+            'entry':      d.entry,  # 0=IN, 1=OUT, 2=INOUT, 3=OUT_BY
             'type':       'BUY' if d.type == 0 else 'SELL',
             'volume':     d.volume,
             'price':      d.price,
