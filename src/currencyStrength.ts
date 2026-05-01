@@ -90,7 +90,7 @@ export async function getCurrencyStrength(mt5: MT5API): Promise<StrengthResult> 
   cachedStrength = result;
   cacheTime = Date.now();
 
-  logger.info(`Currency strength updated (${successCount} pairs): Strong=${strong.join('/')} Weak=${weak.join('/')}`);
+  logger.sys(`Currency strength updated (${successCount} pairs): Strong=${strong.join('/')} Weak=${weak.join('/')}`);
   return result;
 }
 

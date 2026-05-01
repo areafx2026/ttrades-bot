@@ -14,7 +14,7 @@ export function getDb(): Database.Database {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     initSchema();
-    logger.info(`SQLite database initialized: ${DB_PATH}`);
+    logger.sys(`SQLite database initialized: ${DB_PATH}`);
   }
   return db;
 }
