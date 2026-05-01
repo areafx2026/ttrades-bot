@@ -429,8 +429,9 @@ async function runScan() {
       try {
         const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
         if (outcome === 'no_setup') noSetupSymbols.push(symbol);
-      } catch (err) {
-        logger.error(`Error analyzing ${symbol}:`, err);
+      } catch (err: any) {
+        const msg = err?.message ?? err?.code ?? JSON.stringify(err) ?? 'unknown error';
+        logger.error(`Error analyzing ${symbol}: ${msg}`);
       }
       await new Promise(r => setTimeout(r, 150));
     }
@@ -477,10 +478,16 @@ async function startup() {
   try {
     const executor = new MT5TradeExecutor();
     const mt5Positions = await executor.getOpenPositions();
+    const openSymbols = new Set(mt5Positions.map(p => p.symbol));
     for (const p of mt5Positions) activeSymbols.add(p.symbol);
     if (mt5Positions.length > 0) {
       logger.sys(`Restored ${mt5Positions.length} open MT5 position(s): ${mt5Positions.map(p => p.symbol).join(', ')}`);
     }
+
+    // Startup sync: check if any open DB trades were closed while bot was offline
+    logger.sys('Startup sync: checking for trades closed while bot was offline...');
+    await syncClosedTrades();
+    logger.sys('Startup sync complete');
   } catch (err) {
     logger.warn('Could not fetch MT5 positions on startup — will sync on first scan');
   }
