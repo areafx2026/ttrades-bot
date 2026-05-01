@@ -1,13 +1,27 @@
+/**
+ * fractalAnalyzer.ts — v2.2
+ *
+ * Strategie: Trend-Following mit Pullback-Entry
+ *
+ * D1  → Trend-Richtung: HH+HL für LONG, LH+LL für SHORT (keine Mean-Reversion)
+ * H4  → Bestätigung: gleiche Struktur wie D1
+ * H1  → Echter Retest: Preis berührt H1 Swing Level und zeigt Rejection
+ * M15 → Entry-Kerze: Hammer/Bullish (LONG) oder ShootingStar/Bearish (SHORT)
+ *
+ * SL: unter/über M15 Protected Swing + 3 Pips (nicht mehr H1-Minimum über 20h)
+ * TP: Entry + Risk × 1.3
+ */
+
 import { Candle } from './mt5Api';
+import { ATR } from './atr14';
 
 export type SignalType = 'LONG' | 'SHORT';
-import { ATR } from './atr14';
 export type SetupPhase = 'C3_ENTRY' | 'C4_RETEST';
 
 export interface AnalyzeResult {
   signal: TradeSignal | null;
   rejected: boolean;
-  reason: string | null; // null = no setup found, string = setup found but filtered
+  reason: string | null;
 }
 
 export interface TradeSignal {
@@ -29,7 +43,7 @@ export interface TradeSignal {
   fvgLevel: number | null;
   timestamp: string;
   keyLevels: { label: string; price: number }[];
-  atr14?: number; // H1 ATR14 in pips
+  atr14?: number;
 }
 
 export class FractalAnalyzer {
@@ -41,441 +55,331 @@ export class FractalAnalyzer {
     private m15: Candle[]
   ) {}
 
+  private _lastRejectionReason: string | null = null;
+  private pip(): number { return this.symbol.includes('JPY') ? 0.01 : 0.0001; }
+  private dec(): number { return this.symbol.includes('JPY') ? 3 : 5; }
+
   analyze(): AnalyzeResult {
-    // Step 1: Daily Bias
-    const dailyBias = this.getDailyBias();
-    if (!dailyBias) return { signal: null, rejected: false, reason: null };
+    const bias = this.getDailyBias();
+    if (!bias) return { signal: null, rejected: false, reason: null };
 
-    // Step 2: 4H Trend Structure (HH+HL or LH+LL)
-    const h4Confirm = this.getH4Confirmation(dailyBias);
-    if (!h4Confirm) return { signal: null, rejected: false, reason: null };
+    const h4 = this.getH4Confirmation(bias);
+    if (!h4) return { signal: null, rejected: false, reason: null };
 
-    // Step 3: H1 Context (price above/below H1 swing in direction of bias)
-    const h1Context = this.getH1Context(dailyBias);
-    if (!h1Context) return { signal: null, rejected: false, reason: null };
+    const h1 = this.getH1Retest(bias);
+    if (!h1) return { signal: null, rejected: false, reason: null };
 
-    // Step 4: M15 Entry (Protected Swing + FVG + 2 confirming candles)
-    const m15Setup = this.getM15Setup(dailyBias, h4Confirm.level);
-    if (!m15Setup) return { signal: null, rejected: false, reason: null };
+    const m15 = this.getM15Entry(bias, h1.level);
+    if (!m15) return { signal: null, rejected: false, reason: null };
 
-    // Step 5: 2 consecutive M15 candles confirming direction
-    if (!this.confirmM15Direction(dailyBias)) return { signal: null, rejected: false, reason: null };
-
-    // Full setup found — now apply filters in buildSignal
-    const signal = this.buildSignal(dailyBias, h4Confirm, h1Context, m15Setup);
+    const signal = this.buildSignal(bias, h4, h1, m15);
     if (!signal) {
-      // buildSignal returned null — a filter rejected the setup
-      return { signal: null, rejected: true, reason: this._lastRejectionReason ?? 'Unknown filter' };
+      return { signal: null, rejected: true, reason: this._lastRejectionReason ?? 'Filter rejected' };
     }
     return { signal, rejected: false, reason: null };
   }
 
-  private _lastRejectionReason: string | null = null;
-
-  // JPY pairs have 2 decimal places, others have 5
-  private pipSize(): number {
-    return this.symbol.includes('JPY') ? 0.01 : 0.0001;
-  }
-
-  private decimals(): number {
-    return this.symbol.includes('JPY') ? 3 : 5;
-  }
-
-  // STEP 1: Daily Bias
+  // ─── STEP 1: Daily Bias ────────────────────────────────────────────────────
+  // HH+HL = LONG, LH+LL = SHORT, sonst kein Signal
+  // Mean-Reversion-Logik komplett entfernt
   private getDailyBias(): SignalType | null {
-    const candles = this.daily;
-    if (candles.length < 8) return null;
+    const c = this.daily;
+    if (c.length < 10) return null;
 
-    const last = candles[candles.length - 1];
-    const pip = this.pipSize();
-
-    // Filter 1: D1 Trend structure — v2.1: AND-Bedingung (beide Strukturelemente erforderlich)
-    // LONG: HH UND HL — echter Aufwärtstrend
-    // SHORT: LH UND LL — echter Abwärtstrend
-    const d1Highs = candles.slice(-6).map(c => c.high);
-    const d1Lows  = candles.slice(-6).map(c => c.low);
-    const d1HH = d1Highs[d1Highs.length - 1] > d1Highs[d1Highs.length - 3];
-    const d1HL = d1Lows[d1Lows.length - 1]   > d1Lows[d1Lows.length - 3];
-    const d1LH = d1Highs[d1Highs.length - 1] < d1Highs[d1Highs.length - 3];
-    const d1LL = d1Lows[d1Lows.length - 1]   < d1Lows[d1Lows.length - 3];
-    const d1Bullish = d1HH && d1HL;
-    const d1Bearish = d1LH && d1LL;
-
-    const swingLow = this.detectSwingLow(candles, candles.length - 3);
-    if (swingLow) {
-      const c3 = candles[candles.length - 2];
-      const c3Body = c3.close - c3.open;
-      const c3Range = c3.high - c3.low;
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bullish) return 'LONG';
-    }
-
-    const swingHigh = this.detectSwingHigh(candles, candles.length - 3);
-    if (swingHigh) {
-      const c3 = candles[candles.length - 2];
-      const c3Body = c3.open - c3.close;
-      const c3Range = c3.high - c3.low;
-      if (c3Body > 0 && c3Range > 0 && c3Body / c3Range > 0.5 && d1Bearish) return 'SHORT';
-    }
-
-    // Filter 2: Mean reversion — reduced threshold to 150 pips
-    const recentHigh = Math.max(...candles.slice(-6).map(c => c.high));
-    const pipDrop = (recentHigh - last.close) / pip;
-    if (pipDrop > 150 && last.close > last.open) return 'LONG';
-
-    const recentLow = Math.min(...candles.slice(-6).map(c => c.low));
-    const pipRise = (last.close - recentLow) / pip;
-    if (pipRise > 150 && last.close < last.open) return 'SHORT';
-
-    return null;
-  }
-
-  // STEP 2: 4H Trend Structure (HH+HL for LONG, LH+LL for SHORT)
-  private getH4Confirmation(bias: SignalType): { confirmed: boolean; level: number; description: string } | null {
-    const candles = this.h4;
-    if (candles.length < 10) return null;
-
-    const dec = this.decimals();
     const swingHighs: number[] = [];
-    const swingLows: number[] = [];
+    const swingLows:  number[] = [];
 
-    for (let i = 1; i < candles.length - 1; i++) {
-      if (candles[i].high > candles[i-1].high && candles[i].high > candles[i+1].high)
-        swingHighs.push(candles[i].high);
-      if (candles[i].low < candles[i-1].low && candles[i].low < candles[i+1].low)
-        swingLows.push(candles[i].low);
+    for (let i = 1; i < c.length - 1; i++) {
+      if (c[i].high > c[i-1].high && c[i].high > c[i+1].high) swingHighs.push(c[i].high);
+      if (c[i].low  < c[i-1].low  && c[i].low  < c[i+1].low)  swingLows.push(c[i].low);
     }
 
     if (swingHighs.length < 2 || swingLows.length < 2) return null;
 
-    const lastSH = swingHighs[swingHighs.length - 1];
-    const prevSH = swingHighs[swingHighs.length - 2];
-    const lastSL = swingLows[swingLows.length - 1];
-    const prevSL = swingLows[swingLows.length - 2];
+    const [prevSH, lastSH] = swingHighs.slice(-2);
+    const [prevSL, lastSL] = swingLows.slice(-2);
+
+    if (lastSH > prevSH && lastSL > prevSL) return 'LONG';  // HH + HL
+    if (lastSH < prevSH && lastSL < prevSL) return 'SHORT'; // LH + LL
+    return null;
+  }
+
+  // ─── STEP 2: H4 Confirmation ───────────────────────────────────────────────
+  // H4 muss dieselbe Swing-Struktur zeigen wie D1
+  private getH4Confirmation(bias: SignalType): { level: number; description: string } | null {
+    const c = this.h4;
+    if (c.length < 10) return null;
+
+    const swingHighs: number[] = [];
+    const swingLows:  number[] = [];
+
+    for (let i = 1; i < c.length - 1; i++) {
+      if (c[i].high > c[i-1].high && c[i].high > c[i+1].high) swingHighs.push(c[i].high);
+      if (c[i].low  < c[i-1].low  && c[i].low  < c[i+1].low)  swingLows.push(c[i].low);
+    }
+
+    if (swingHighs.length < 2 || swingLows.length < 2) return null;
+
+    const [prevSH, lastSH] = swingHighs.slice(-2);
+    const [prevSL, lastSL] = swingLows.slice(-2);
 
     if (bias === 'LONG' && lastSH > prevSH && lastSL > prevSL) {
       return {
-        confirmed: true,
         level: lastSL,
-        description: `4H Bullish: HH ${lastSH.toFixed(dec)} > ${prevSH.toFixed(dec)}, HL ${lastSL.toFixed(dec)} > ${prevSL.toFixed(dec)}`,
+        description: `H4 Bullisch: HH ${lastSH.toFixed(this.dec())} HL ${lastSL.toFixed(this.dec())}`,
       };
     }
-
     if (bias === 'SHORT' && lastSH < prevSH && lastSL < prevSL) {
       return {
-        confirmed: true,
         level: lastSH,
-        description: `4H Bearish: LH ${lastSH.toFixed(dec)} < ${prevSH.toFixed(dec)}, LL ${lastSL.toFixed(dec)} < ${prevSL.toFixed(dec)}`,
+        description: `H4 Bärisch: LH ${lastSH.toFixed(this.dec())} LL ${lastSL.toFixed(this.dec())}`,
       };
     }
-
     return null;
   }
 
-  // STEP 3: H1 Context
-  // LONG: current price must be above the last H1 swing low (bullish context)
-  // SHORT: current price must be below the last H1 swing high (bearish context)
-  private getH1Context(bias: SignalType): { level: number; description: string } | null {
-    const candles = this.h1;
-    if (candles.length < 10) return null;
+  // ─── STEP 3: H1 Retest ────────────────────────────────────────────────────
+  // Preis muss ein H1 Swing Level retestet haben UND Rejection zeigen
+  // LONG: Preis berührt H1 Swing Low von oben, letzte H1 Kerze bullisch
+  // SHORT: Preis berührt H1 Swing High von unten, letzte H1 Kerze bärisch
+  private getH1Retest(bias: SignalType): { level: number; description: string } | null {
+    const c = this.h1;
+    if (c.length < 10) return null;
 
-    const dec = this.decimals();
-    const currentPrice = candles[candles.length - 1].close;
+    const pip          = this.pip();
+    const retestWindow = pip * 15;
+    const currentPrice = c[c.length - 1].close;
+    const lastCandle   = c[c.length - 1];
 
     const swingHighs: number[] = [];
-    const swingLows: number[] = [];
+    const swingLows:  number[] = [];
 
-    for (let i = 1; i < candles.length - 1; i++) {
-      if (candles[i].high > candles[i-1].high && candles[i].high > candles[i+1].high)
-        swingHighs.push(candles[i].high);
-      if (candles[i].low < candles[i-1].low && candles[i].low < candles[i+1].low)
-        swingLows.push(candles[i].low);
+    // Letzte 20 H1 Kerzen für relevante Levels
+    const lookback = c.slice(-20);
+    for (let i = 1; i < lookback.length - 1; i++) {
+      if (lookback[i].high > lookback[i-1].high && lookback[i].high > lookback[i+1].high)
+        swingHighs.push(lookback[i].high);
+      if (lookback[i].low < lookback[i-1].low && lookback[i].low < lookback[i+1].low)
+        swingLows.push(lookback[i].low);
     }
 
     if (bias === 'LONG' && swingLows.length > 0) {
-      const lastH1SwingLow = swingLows[swingLows.length - 1];
-      // Price must be above H1 swing low — confirms bullish H1 context
-      if (currentPrice > lastH1SwingLow) {
-        return {
-          level: lastH1SwingLow,
-          description: `H1 Bullish context: price ${currentPrice.toFixed(dec)} above H1 swing low ${lastH1SwingLow.toFixed(dec)}`,
-        };
-      }
+      const relevantLows = swingLows.filter(l => l < currentPrice).sort((a, b) => b - a);
+      if (relevantLows.length === 0) return null;
+      const level    = relevantLows[0];
+      const distance = currentPrice - level;
+      if (distance > retestWindow) return null;
+      // Rejection: letzte H1 Kerze bullisch
+      if (lastCandle.close <= lastCandle.open) return null;
+      return {
+        level,
+        description: `H1 Retest Swing Low ${level.toFixed(this.dec())} (${(distance/pip).toFixed(1)} pips)`,
+      };
     }
 
     if (bias === 'SHORT' && swingHighs.length > 0) {
-      const lastH1SwingHigh = swingHighs[swingHighs.length - 1];
-      // Price must be below H1 swing high — confirms bearish H1 context
-      if (currentPrice < lastH1SwingHigh) {
-        return {
-          level: lastH1SwingHigh,
-          description: `H1 Bearish context: price ${currentPrice.toFixed(dec)} below H1 swing high ${lastH1SwingHigh.toFixed(dec)}`,
-        };
-      }
+      const relevantHighs = swingHighs.filter(h => h > currentPrice).sort((a, b) => a - b);
+      if (relevantHighs.length === 0) return null;
+      const level    = relevantHighs[0];
+      const distance = level - currentPrice;
+      if (distance > retestWindow) return null;
+      // Rejection: letzte H1 Kerze bärisch
+      if (lastCandle.close >= lastCandle.open) return null;
+      return {
+        level,
+        description: `H1 Retest Swing High ${level.toFixed(this.dec())} (${(distance/pip).toFixed(1)} pips)`,
+      };
     }
 
     return null;
   }
 
-  // STEP 4: M15 Entry Setup
-  private getM15Setup(bias: SignalType, h4Level: number): {
-    protectedSwing: number;
-    fvg: number | null;
-    entryZone: [number, number];
-    description: string;
-  } | null {
-    const candles = this.m15;
-    if (candles.length < 10) return null;
+  // ─── STEP 4: M15 Entry ────────────────────────────────────────────────────
+  // Rejection-Kerze auf M15 in der Nähe des H1 Retest Levels
+  // LONG: Hammer oder bullische Kerze (body > 40% range)
+  // SHORT: Shooting Star oder bärische Kerze (body > 40% range)
+  private getM15Entry(
+    bias: SignalType,
+    h1Level: number
+  ): { entryZone: [number, number]; protectedSwing: number; fvg: number | null; description: string } | null {
+    const c = this.m15;
+    if (c.length < 5) return null;
 
-    const dec = this.decimals();
-    const pip = this.pipSize();
-    const last5 = candles.slice(-5);
+    const pip              = this.pip();
+    const proximityWindow  = pip * 20;
+    const currentPrice     = c[c.length - 1].close;
+
+    if (Math.abs(currentPrice - h1Level) > proximityWindow) return null;
+
+    const last  = c[c.length - 1];
+    const prev  = c[c.length - 2];
+    const prev2 = c[c.length - 3];
+
+    const range     = last.high - last.low;
+    if (range === 0) return null;
+    const body      = Math.abs(last.close - last.open);
+    const upperWick = last.high - Math.max(last.open, last.close);
+    const lowerWick = Math.min(last.open, last.close) - last.low;
+    const bodyRatio = body / range;
 
     if (bias === 'LONG') {
-      const swingLow = Math.min(...last5.map(c => c.low));
-      const fvg = this.findBullishFVG(candles.slice(-10));
-      const exhaustion = this.detectExhaustion(candles.slice(-5), 'BULL');
-      const entryLow  = fvg ?? swingLow;
-      const entryHigh = entryLow + pip * 1.5;
-      const lastCandle = candles[candles.length - 1];
-      if (lastCandle.close > swingLow && lastCandle.close > lastCandle.open) {
-        return {
-          protectedSwing: swingLow,
-          fvg,
-          entryZone: [entryLow, entryHigh],
-          description: `M15 Protected Swing Low @ ${swingLow.toFixed(dec)}${fvg ? ` | FVG @ ${fvg.toFixed(dec)}` : ''}${exhaustion ? ' | Exhaustion ✅' : ''}`,
-        };
-      }
+      const isHammer  = lowerWick / range > 0.50 && bodyRatio < 0.40;
+      const isBullish = last.close > last.open && bodyRatio > 0.40;
+      if (!isHammer && !isBullish) return null;
+
+      const protectedSwing = Math.min(last.low, prev.low, prev2.low);
+      const fvg = this.findBullishFVG(c.slice(-10));
+      return {
+        entryZone:     [currentPrice - pip * 2, currentPrice + pip * 2],
+        protectedSwing,
+        fvg,
+        description: `M15 ${isHammer ? 'Hammer' : 'Bullish'} @ H1 ${h1Level.toFixed(this.dec())}${fvg ? ` FVG ${fvg.toFixed(this.dec())}` : ''}`,
+      };
     }
 
     if (bias === 'SHORT') {
-      const swingHigh = Math.max(...last5.map(c => c.high));
-      const fvg = this.findBearishFVG(candles.slice(-10));
-      const exhaustion = this.detectExhaustion(candles.slice(-5), 'BEAR');
-      const entryHigh = fvg ?? swingHigh;
-      const entryLow  = entryHigh - pip * 1.5;
-      const lastCandle = candles[candles.length - 1];
-      if (lastCandle.close < swingHigh && lastCandle.close < lastCandle.open) {
-        return {
-          protectedSwing: swingHigh,
-          fvg,
-          entryZone: [entryLow, entryHigh],
-          description: `M15 Protected Swing High @ ${swingHigh.toFixed(dec)}${fvg ? ` | FVG @ ${fvg.toFixed(dec)}` : ''}${exhaustion ? ' | Exhaustion ✅' : ''}`,
-        };
-      }
+      const isShootingStar = upperWick / range > 0.50 && bodyRatio < 0.40;
+      const isBearish      = last.close < last.open && bodyRatio > 0.40;
+      if (!isShootingStar && !isBearish) return null;
+
+      const protectedSwing = Math.max(last.high, prev.high, prev2.high);
+      const fvg = this.findBearishFVG(c.slice(-10));
+      return {
+        entryZone:     [currentPrice - pip * 2, currentPrice + pip * 2],
+        protectedSwing,
+        fvg,
+        description: `M15 ${isShootingStar ? 'Shooting Star' : 'Bearish'} @ H1 ${h1Level.toFixed(this.dec())}${fvg ? ` FVG ${fvg.toFixed(this.dec())}` : ''}`,
+      };
     }
 
     return null;
   }
 
-  // STEP 5: 2 consecutive M15 candles confirming direction
-  private confirmM15Direction(bias: SignalType): boolean {
-    const candles = this.m15;
-    if (candles.length < 3) return false;
-
-    const c1 = candles[candles.length - 3];
-    const c2 = candles[candles.length - 2];
-
-    if (bias === 'LONG')  return c1.close > c1.open && c2.close > c2.open;
-    if (bias === 'SHORT') return c1.close < c1.open && c2.close < c2.open;
-    return false;
-  }
-
-  // Signal Builder
+  // ─── Signal Builder ────────────────────────────────────────────────────────
   private buildSignal(
     bias: SignalType,
-    h4: { confirmed: boolean; level: number; description: string },
+    h4: { level: number; description: string },
     h1: { level: number; description: string },
-    m15: { protectedSwing: number; fvg: number | null; entryZone: [number, number]; description: string }
+    m15: { entryZone: [number, number]; protectedSwing: number; fvg: number | null; description: string }
   ): TradeSignal | null {
-    const currentPrice = this.m15[this.m15.length - 1].close;
+    const pip = this.pip();
+    const RR  = 1.3;
     const [entryLow, entryHigh] = m15.entryZone;
     const entryMid = (entryLow + entryHigh) / 2;
-    const pip = this.pipSize();
+    const currentPrice = this.m15[this.m15.length - 1].close;
 
-    let stopLoss: number, target1: number, target2: number;
-
-    // SL based on H1 structure — lowest low / highest high of last 20 closed H1 candles
-    // No left/right neighbor check needed — we use the structural extreme of the lookback period
-    // Exclude the last candle (still forming)
-    const h1Lookback = this.h1.slice(-21, -1); // last 20 closed candles
-    const lastH1SwingLow  = h1Lookback.length > 0
-      ? Math.min(...h1Lookback.map(c => c.low))
-      : m15.protectedSwing;
-    const lastH1SwingHigh = h1Lookback.length > 0
-      ? Math.max(...h1Lookback.map(c => c.high))
-      : m15.protectedSwing;
-
-    // Fixed R:R of 1:1.5
-    // SL from H1 swing structure (technical analysis)
-    // TP = Entry + Risk * 1.5 (always)
-    const RR = 1.3;
-
+    // SL: M15 Protected Swing + 3 Pips Buffer
+    let stopLoss: number;
     if (bias === 'LONG') {
-      stopLoss = lastH1SwingLow - pip * 5;
-      if (stopLoss >= entryMid) stopLoss = m15.protectedSwing - pip * 5;
-      if (stopLoss >= entryMid) stopLoss = entryMid - pip * 10;
-      const risk = Math.abs(entryMid - stopLoss);
-      target1 = entryMid + risk * RR;
-      target2 = entryMid + risk * RR * 2;
+      stopLoss = m15.protectedSwing - pip * 3;
+      if (stopLoss >= entryMid) { this._lastRejectionReason = 'SL über Entry'; return null; }
     } else {
-      stopLoss = lastH1SwingHigh + pip * 5;
-      if (stopLoss <= entryMid) stopLoss = m15.protectedSwing + pip * 5;
-      if (stopLoss <= entryMid) stopLoss = entryMid + pip * 10;
-      const risk = Math.abs(stopLoss - entryMid);
-      target1 = entryMid - risk * RR;
-      target2 = entryMid - risk * RR * 2;
+      stopLoss = m15.protectedSwing + pip * 3;
+      if (stopLoss <= entryMid) { this._lastRejectionReason = 'SL unter Entry'; return null; }
     }
 
     const risk = Math.abs(entryMid - stopLoss);
 
-    // Minimum stop: 8 pips JPY, 5 pips others
-    const minRisk = this.symbol.includes('JPY') ? pip * 8 : pip * 5;
-    if (risk < minRisk) { this._lastRejectionReason = `Min-Stop (${(risk/pip).toFixed(1)} < ${(minRisk/pip).toFixed(1)} Pips)`; return null; }
+    // Min Stop
+    const minRisk = pip * (this.symbol.includes('JPY') ? 8 : 5);
+    if (risk < minRisk) {
+      this._lastRejectionReason = `Stop zu klein: ${(risk/pip).toFixed(1)} < ${(minRisk/pip).toFixed(0)} pips`;
+      return null;
+    }
 
-    // Maximum stop: ATR14 on D1 x 1.5 — stop too wide = setup too extended
-    // D1 ATR is more stable than H1 ATR (not affected by low-volatility night sessions)
+    // Max Stop: D1 ATR14 × 0.75
     const atrCalc = new ATR(14);
     for (const c of this.daily) atrCalc.update(c);
     const atrValue = atrCalc.getValue();
     if (atrValue !== null) {
-      const maxRisk = atrValue * 1.5;
+      const maxRisk = atrValue * 0.75;
       if (risk > maxRisk) {
-        this._lastRejectionReason = `ATR-Filter: Stop ${(risk/pip).toFixed(1)} Pips > Max ${(maxRisk/pip).toFixed(1)} Pips (D1-ATR14x1.5)`;
+        this._lastRejectionReason = `Stop zu weit: ${(risk/pip).toFixed(1)} > ${(maxRisk/pip).toFixed(1)} pips (ATR×0.75)`;
         return null;
       }
     }
 
-    // v2.1: Proximity-Filter — Entry darf nicht innerhalb von 15 Pips an H4-Widerstand (LONG) oder H4-Support (SHORT) liegen
-    // Verhindert Trades direkt gegen starke Strukturlevel (z.B. USDCAD LONG an 1.3690 Resistance)
-    const proximityBuffer = pip * 15;
-    if (bias === 'LONG') {
-      // H4 Swing Highs der letzten 20 Candles als Widerstandszonen
-      const h4Resistances = [];
-      for (let i = 1; i < this.h4.length - 1; i++) {
-        if (this.h4[i].high > this.h4[i-1].high && this.h4[i].high > this.h4[i+1].high)
-          h4Resistances.push(this.h4[i].high);
-      }
-      const nearResistance = h4Resistances.some(r => r > entryMid && r - entryMid < proximityBuffer);
-      if (nearResistance) {
-        const closest = h4Resistances.filter(r => r > entryMid).sort((a,b) => a-b)[0];
-        this._lastRejectionReason = `Entry zu nah an H4-Widerstand ${closest.toFixed(5)} (< 15pips)`;
-        return null;
-      }
-    }
-    if (bias === 'SHORT') {
-      // H4 Swing Lows der letzten 20 Candles als Supportzonen
-      const h4Supports = [];
-      for (let i = 1; i < this.h4.length - 1; i++) {
-        if (this.h4[i].low < this.h4[i-1].low && this.h4[i].low < this.h4[i+1].low)
-          h4Supports.push(this.h4[i].low);
-      }
-      const nearSupport = h4Supports.some(s => s < entryMid && entryMid - s < proximityBuffer);
-      if (nearSupport) {
-        const closest = h4Supports.filter(s => s < entryMid).sort((a,b) => b-a)[0];
-        this._lastRejectionReason = `Entry zu nah an H4-Support ${closest.toFixed(5)} (< 15pips)`;
-        return null;
-      }
-    }
+    // TP
+    const target1 = bias === 'LONG' ? entryMid + risk * RR : entryMid - risk * RR;
+    const target2 = bias === 'LONG' ? entryMid + risk * RR * 2 : entryMid - risk * RR * 2;
 
-    // TP must be at least 20 pips from nearest D1 High/Low
+    // TP nicht zu nah an D1 Extreme
     const d1Highs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
     const d1Lows  = this.daily.slice(-10).map(c => c.low).sort((a, b) => a - b);
-    const minTPBuffer = pip * 20;
+    if (bias === 'LONG'  && Math.abs(target1 - d1Highs[0]) < pip * 15) { this._lastRejectionReason = `TP zu nah an D1 High ${d1Highs[0].toFixed(this.dec())}`; return null; }
+    if (bias === 'SHORT' && Math.abs(target1 - d1Lows[0])  < pip * 15) { this._lastRejectionReason = `TP zu nah an D1 Low ${d1Lows[0].toFixed(this.dec())}`; return null; }
 
-    if (bias === 'LONG' && Math.abs(target1 - d1Highs[0]) < minTPBuffer) { this._lastRejectionReason = `TP zu nah an D1 High (${d1Highs[0].toFixed(5)})`; return null; }
-    if (bias === 'SHORT' && Math.abs(target1 - d1Lows[0]) < minTPBuffer) { this._lastRejectionReason = `TP zu nah an D1 Low (${d1Lows[0].toFixed(5)})`; return null; }
+    // H4 Proximity Filter
+    const pip15 = pip * 15;
+    if (bias === 'LONG') {
+      const h4R: number[] = [];
+      for (let i = 1; i < this.h4.length - 1; i++)
+        if (this.h4[i].high > this.h4[i-1].high && this.h4[i].high > this.h4[i+1].high) h4R.push(this.h4[i].high);
+      const near = h4R.filter(r => r > entryMid && r - entryMid < pip15);
+      if (near.length > 0) { this._lastRejectionReason = `Entry zu nah an H4 Widerstand ${near.sort((a,b)=>a-b)[0].toFixed(this.dec())}`; return null; }
+    }
+    if (bias === 'SHORT') {
+      const h4S: number[] = [];
+      for (let i = 1; i < this.h4.length - 1; i++)
+        if (this.h4[i].low < this.h4[i-1].low && this.h4[i].low < this.h4[i+1].low) h4S.push(this.h4[i].low);
+      const near = h4S.filter(s => s < entryMid && entryMid - s < pip15);
+      if (near.length > 0) { this._lastRejectionReason = `Entry zu nah an H4 Support ${near.sort((a,b)=>b-a)[0].toFixed(this.dec())}`; return null; }
+    }
 
-    const reward = Math.abs(target1 - entryMid);
+    const reward     = Math.abs(target1 - entryMid);
     const riskReward = risk > 0 ? reward / risk : 0;
+    const atr14Pips  = atrValue !== null ? Math.round(atrValue / pip) : undefined;
 
-    const recentHighs = this.daily.slice(-10).map(c => c.high).sort((a, b) => b - a);
-    const recentLows  = this.daily.slice(-10).map(c => c.low).sort((a, b) => a - b);
-
-    const keyLevels = [
-      { label: 'Recent D1 High',   price: recentHighs[0] },
-      { label: 'Recent D1 Low',    price: recentLows[0] },
-      { label: '4H Level',         price: h4.level },
-      { label: 'H1 Context Level', price: h1.level },
-      { label: 'M15 Swing',        price: m15.protectedSwing },
-    ];
-
-    const dailyLast = this.daily[this.daily.length - 1];
-    const dailyC3Body = Math.abs(dailyLast.close - dailyLast.open);
-    const dailyC3Range = dailyLast.high - dailyLast.low;
-    const phase: SetupPhase = dailyC3Range > 0 && dailyC3Body / dailyC3Range > 0.6 ? 'C4_RETEST' : 'C3_ENTRY';
-
-    const dailyCandleDesc = phase === 'C3_ENTRY'
-      ? `C3 ${bias === 'LONG' ? 'Bullish' : 'Bearish'} Expansion`
-      : `C4 Retest ${bias === 'LONG' ? 'bullish' : 'bearish'}`;
-
-    // Include D1 ATR14 in pips for reference in dashboard
-    const atr14Pips = atrValue !== null ? Math.round(atrValue / pip) : undefined;
+    const dailyLast  = this.daily[this.daily.length - 1];
+    const dailyBody  = Math.abs(dailyLast.close - dailyLast.open);
+    const dailyRange = dailyLast.high - dailyLast.low;
+    const phase: SetupPhase = dailyRange > 0 && dailyBody / dailyRange > 0.6 ? 'C4_RETEST' : 'C3_ENTRY';
 
     return {
-      symbol: this.symbol,
-      type: bias,
+      symbol:         this.symbol,
+      type:           bias,
       phase,
       currentPrice,
-      entryZone: m15.entryZone,
+      entryZone:      m15.entryZone,
       stopLoss,
       target1,
       target2,
       riskReward,
-      dailyBias: bias,
-      dailyCandle: dailyCandleDesc,
+      dailyBias:      bias,
+      dailyCandle:    `D1 ${bias === 'LONG' ? 'Bullisch' : 'Bärisch'} Struktur`,
       h4Confirmation: h4.description,
-      h1Context: h1.description,
-      m15Setup: m15.description,
+      h1Context:      h1.description,
+      m15Setup:       m15.description,
       protectedSwing: m15.protectedSwing,
-      fvgLevel: m15.fvg,
-      timestamp: new Date().toISOString(),
-      keyLevels,
-      atr14: atr14Pips,
+      fvgLevel:       m15.fvg,
+      timestamp:      new Date().toISOString(),
+      atr14:          atr14Pips,
+      keyLevels: [
+        { label: 'D1 High',   price: d1Highs[0] },
+        { label: 'D1 Low',    price: d1Lows[0] },
+        { label: 'H4 Level',  price: h4.level },
+        { label: 'H1 Retest', price: h1.level },
+        { label: 'M15 Swing', price: m15.protectedSwing },
+      ],
     };
   }
 
-  private detectExhaustion(candles: Candle[], bias: 'BULL' | 'BEAR'): boolean {
-    if (candles.length < 2) return false;
-    const last3 = candles.slice(-3);
-    let rejectionCount = 0;
-    for (const c of last3) {
-      const range = c.high - c.low;
-      if (range === 0) continue;
-      const body = Math.abs(c.close - c.open);
-      const upperWick = c.high - Math.max(c.open, c.close);
-      const lowerWick = Math.min(c.open, c.close) - c.low;
-      if (bias === 'BEAR' && upperWick / range > 0.55 && body / range < 0.30) rejectionCount++;
-      if (bias === 'BULL' && lowerWick / range > 0.55 && body / range < 0.30) rejectionCount++;
-    }
-    return rejectionCount >= 2;
-  }
-
-  private detectSwingLow(candles: Candle[], idx: number): boolean {
-    if (idx < 1 || idx >= candles.length - 1) return false;
-    return candles[idx].low < candles[idx - 1].low && candles[idx].low < candles[idx + 1].low;
-  }
-
-  private detectSwingHigh(candles: Candle[], idx: number): boolean {
-    if (idx < 1 || idx >= candles.length - 1) return false;
-    return candles[idx].high > candles[idx - 1].high && candles[idx].high > candles[idx + 1].high;
-  }
+  // ─── Helpers ───────────────────────────────────────────────────────────────
 
   private findBullishFVG(candles: Candle[]): number | null {
-    const pip = this.pipSize();
-    const minGap = pip * 1; // 1 pip minimum for M15 FVGs
+    const pip = this.pip();
     for (let i = 0; i < candles.length - 2; i++) {
       const gap = candles[i + 2].low - candles[i].high;
-      if (gap >= minGap) return (candles[i].high + candles[i + 2].low) / 2;
+      if (gap >= pip * 2) return (candles[i].high + candles[i + 2].low) / 2;
     }
     return null;
   }
 
   private findBearishFVG(candles: Candle[]): number | null {
-    const pip = this.pipSize();
-    const minGap = pip * 1;
+    const pip = this.pip();
     for (let i = 0; i < candles.length - 2; i++) {
       const gap = candles[i].low - candles[i + 2].high;
-      if (gap >= minGap) return (candles[i].low + candles[i + 2].high) / 2;
+      if (gap >= pip * 2) return (candles[i].low + candles[i + 2].high) / 2;
     }
     return null;
   }

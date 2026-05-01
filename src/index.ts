@@ -95,7 +95,7 @@ async function syncClosedTrades(): Promise<void> {
     // ── 2. MT5 History: letzter Closing-Deal pro Symbol ─────────────────────
     let historyDeals: any[] = [];
     try {
-      const histRes = await axios.get(`${MT5_SERVER}/history`, { params: { hours: 72 }, timeout: 10000 });
+      const histRes = await axios.get(`${MT5_SERVER}/history`, { params: { hours: 168 }, timeout: 10000 });
       historyDeals = histRes.data ?? [];
     } catch {
       logger.warn('Could not fetch MT5 history');
