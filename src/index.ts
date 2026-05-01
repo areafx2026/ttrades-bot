@@ -44,10 +44,11 @@ import { initZones } from './zoneManager';
 import cron from 'node-cron';
 
 const SYMBOLS = [
-  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCHF', 'USDCAD',
-  'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY', 'EURCHF',
+  // CHF-Paare ausgeschlossen wegen hoher Swap-Kosten (USDCHF, EURCHF, GBPCHF, CHFJPY)
+  'EURUSD', 'GBPUSD', 'USDJPY', 'USDCAD',
+  'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY',
   'EURAUD', 'EURCAD', 'GBPNZD', 'GBPJPY', 'AUDJPY',
-  'CHFJPY', 'GBPCHF', 'AUDNZD', 'AUDCAD', 'CADJPY',
+  'AUDNZD', 'AUDCAD', 'CADJPY',
   'GBPCAD', 'GBPAUD'
 ];
 
@@ -98,7 +99,7 @@ async function syncClosedTrades(): Promise<void> {
       const histRes = await axios.get(`${MT5_SERVER}/history`, { params: { hours: 168 }, timeout: 10000 });
       historyDeals = histRes.data ?? [];
     } catch {
-      logger.warn('Could not fetch MT5 history');
+      logger.sync('Could not fetch MT5 history');
     }
 
     // Pro Symbol den neuesten echten Closing-Deal merken
@@ -137,7 +138,7 @@ async function syncClosedTrades(): Promise<void> {
           const progressPct = tpDist > 0 ? Math.max(currentProfit, 0) / tpDist : 0;
 
           if (progressPct < MIN_PROGRESS_PCT) {
-            logger.info(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h`);
+            logger.sync(`Time-based close: ${dbTrade.symbol} open ${holdHours.toFixed(1)}h`);
             try {
               await executor.closePosition(dbTrade.id);
             } catch (e: any) { logger.error(`Time-based close error: ${e.message}`); }
@@ -254,16 +255,16 @@ async function executeTrade(
   const currencies = symbol.length === 6 ? [symbol.slice(0, 3), symbol.slice(3, 6)] : [];
   for (const currency of currencies) {
     if (openPositions.filter((p: any) => p.symbol?.includes(currency)).length >= 2) {
-      logger.info(`${symbol}: currency exposure limit reached for ${currency}`);
+      logger.scan(`${symbol}: currency exposure limit reached for ${currency}`);
       return;
     }
   }
 
   const result = await executor.openTrade(signal);
-  logger.info(`openTrade result: ${JSON.stringify(result)}`);
+  logger.trade(`openTrade result: ${JSON.stringify(result)}`);
 
   if (result.success && result.dealId) {
-    logger.info(`Trade opened for ${symbol}: ${result.dealId}`);
+    logger.trade(`Trade opened for ${symbol}: ${result.dealId}`);
     logOpenTrade(signal, result.dealId);
     savePineScript();
     activeSymbols.add(symbol);
@@ -353,7 +354,6 @@ async function analyzeSymbol(
   const signal = analyzeResult.signal;
 
   if (analyzeResult.rejected && analyzeResult.reason) {
-    logger.info(`${symbol}: REJECTED — ${analyzeResult.reason}`);
     logFilterRejection(symbol, analyzeResult.reason);
     if (activeSymbols.has(symbol)) activeSymbols.delete(symbol);
     return 'rejected';
@@ -366,7 +366,7 @@ async function analyzeSymbol(
       return 'cached';
     }
 
-    logger.info(`Signal found for ${symbol}: ${signal.type} ${signal.phase}`);
+    logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase}`);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
     if (PAPER_TRADING) {
@@ -398,7 +398,7 @@ async function runScan() {
   if (toScan.length === 0) return;
 
   const fastCount = toScan.filter(s => activeSymbols.has(s)).length;
-  logger.info(`Scanning ${toScan.length} symbols (${fastCount} fast / ${toScan.length - fastCount} slow)`);
+  logger.sys(`Scanning ${toScan.length} symbols (${fastCount} fast / ${toScan.length - fastCount} slow)`);
 
   const mt5 = new MT5API();
   const telegram = new TelegramNotifier(
@@ -437,8 +437,7 @@ async function runScan() {
 
     // Log all no-setup symbols in one line
     if (noSetupSymbols.length > 0) {
-      logger.info(`No setup: ${noSetupSymbols.join(', ')}`);
-    }
+          }
 
   } catch (err) {
     logger.error('Scan error:', err);
@@ -464,11 +463,11 @@ cron.schedule('5 22 * * 1-5', () => {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 async function startup() {
-  logger.info('TTrades Fractal Model Bot started');
-  logger.info(`Monitoring: ${SYMBOLS.join(', ')}`);
-  logger.info(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
-  logger.info('Fast poll: 30s (active) | Slow poll: 2min (others)');
-  logger.info('Sweep Zone: DISABLED | Fractal Analyzer: ENABLED');
+  logger.sys('TTrades Fractal Model Bot started');
+  logger.sys(`Monitoring: ${SYMBOLS.join(', ')}`);
+  logger.sys(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
+  logger.sys('Fast poll: 30s (active) | Slow poll: 2min (others)');
+  logger.sys('Sweep Zone: DISABLED | Fractal Analyzer: ENABLED');
 
   loadRules();
   initZones();
@@ -480,7 +479,7 @@ async function startup() {
     const mt5Positions = await executor.getOpenPositions();
     for (const p of mt5Positions) activeSymbols.add(p.symbol);
     if (mt5Positions.length > 0) {
-      logger.info(`Restored ${mt5Positions.length} open MT5 position(s): ${mt5Positions.map(p => p.symbol).join(', ')}`);
+      logger.sys(`Restored ${mt5Positions.length} open MT5 position(s): ${mt5Positions.map(p => p.symbol).join(', ')}`);
     }
   } catch (err) {
     logger.warn('Could not fetch MT5 positions on startup — will sync on first scan');

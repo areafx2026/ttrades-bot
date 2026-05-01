@@ -13,6 +13,7 @@
  */
 
 import { Candle } from './mt5Api';
+import { logger } from './logger';
 import { ATR } from './atr14';
 
 export type SignalType = 'LONG' | 'SHORT';
@@ -64,18 +65,38 @@ export class FractalAnalyzer {
     if (!bias) return { signal: null, rejected: false, reason: null };
 
     const h4 = this.getH4Confirmation(bias);
-    if (!h4) return { signal: null, rejected: false, reason: null };
+    if (!h4) {
+      logger.scan(`${this.symbol}: kein H4-${bias === 'LONG' ? 'HH+HL' : 'LH+LL'} — kein Setup`);
+      return { signal: null, rejected: false, reason: null };
+    }
 
     const h1 = this.getH1Retest(bias);
-    if (!h1) return { signal: null, rejected: false, reason: null };
+    if (!h1) {
+      logger.scan(`${this.symbol}: D1/H4=${bias} | kein H1-Retest in 15-Pip-Fenster`);
+      return { signal: null, rejected: false, reason: null };
+    }
 
     const m15 = this.getM15Entry(bias, h1.level);
-    if (!m15) return { signal: null, rejected: false, reason: null };
+    if (!m15) {
+      logger.scan(`${this.symbol}: D1/H4=${bias} | H1-Retest=${h1.level.toFixed(this.dec())} | kein M15-Entry`);
+      return { signal: null, rejected: false, reason: null };
+    }
 
     const signal = this.buildSignal(bias, h4, h1, m15);
     if (!signal) {
+      logger.scan(`${this.symbol}: REJECTED — ${this._lastRejectionReason}`);
       return { signal: null, rejected: true, reason: this._lastRejectionReason ?? 'Filter rejected' };
     }
+
+    logger.setup(
+      `${this.symbol}: ${bias} Setup\n` +
+      `  D1: ${bias === 'LONG' ? 'HH+HL Aufwärtstrend' : 'LH+LL Abwärtstrend'}\n` +
+      `  H4: ${h4.description}\n` +
+      `  H1: ${h1.description}\n` +
+      `  M15: ${m15.description}\n` +
+      `  Entry: ${signal.entryZone[0].toFixed(this.dec())}–${signal.entryZone[1].toFixed(this.dec())} | SL: ${signal.stopLoss.toFixed(this.dec())} | TP: ${signal.target1.toFixed(this.dec())} | RR: 1.3:1`
+    );
+
     return { signal, rejected: false, reason: null };
   }
 
