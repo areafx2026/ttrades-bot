@@ -79,10 +79,6 @@ function shouldScan(symbol: string): boolean {
 
 async function syncClosedTrades(): Promise<void> {
   const executor = new MT5TradeExecutor();
-  const telegram = new TelegramNotifier(
-    process.env.TELEGRAM_BOT_TOKEN!,
-    process.env.TELEGRAM_CHAT_ID!
-  );
 
   try {
     // ── 1. MT5: welche Symbole sind noch offen? ──────────────────────────────
@@ -207,17 +203,7 @@ async function syncClosedTrades(): Promise<void> {
 
       logger.info(`Trade abgeschlossen: ${trade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
 
-      const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
-      await telegram.sendMessage(
-        `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>
-` +
-        `${trade.type === 'LONG' ? '📈' : '📉'} ${trade.type} | ${result}
-` +
-        `Close: <code>${closePrice.toFixed(dec)}</code>
-` +
-        `P&L: <b>${pnlPips >= 0 ? '+' : ''}${pnlPips.toFixed(1)} pips</b>  ` +
-        `(<b>${pnlEUR >= 0 ? '+' : ''}€${pnlEUR.toFixed(2)}</b>)`
-      );
+
     }
 
   } catch (err) {
@@ -312,13 +298,7 @@ async function executeTrade(
       ? fillPrice + realRisk * 1.3
       : fillPrice - realRisk * 1.3;
 
-    await telegram.sendMessage(
-      `✅ <b>Trade geöffnet — ${symbol}</b>\n` +
-      `${signal.type === 'LONG' ? '📈' : '📉'} ${signal.type} | ${signal.phase} | #${result.dealId}\n` +
-      `Entry: <code>${fillPrice.toFixed(dec)}</code>\n` +
-      `SL: <code>${signal.stopLoss.toFixed(dec)}</code> | TP: <code>${realTP.toFixed(dec)}</code>\n` +
-      `R:R: <b>1.30:1</b>`
-    );
+
   } else {
     logger.warn(`Trade skipped for ${symbol}: ${result.message}`);
     if (result.message.includes('verpasst')) activeSymbols.delete(symbol);
