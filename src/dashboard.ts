@@ -131,7 +131,7 @@ app.get('/', async (req, res) => {
   td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
   #tab-log td { white-space: normal; }
   #tab-log td:nth-child(3) { min-width: 300px; max-width: 600px; white-space: normal; word-wrap: break-word; }
-  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:hover td { background: rgba(0,0,0,0.03); }
   .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 1px; }
   .badge.win  { background: rgba(34,197,94,0.15); color: var(--green); }
   .badge.loss { background: rgba(239,68,68,0.15); color: var(--red); }
@@ -425,7 +425,7 @@ async function updateMT5Status() {
     if (d.connected) {
       dot.className = 'mt5-dot online';
       statusText.textContent = 'Verbunden';
-      statusText.style.color = '#22c55e';
+      statusText.style.color = '#16a34a';
     } else {
       dot.className = 'mt5-dot offline';
       statusText.textContent = 'Getrennt';
@@ -439,7 +439,7 @@ async function updateMT5Status() {
     }
   } catch {
     document.getElementById('mt5-dot').className = 'mt5-dot offline';
-    document.getElementById('mt5-status-text').textContent = 'Offline';
+    const offlineEl = document.getElementById('mt5-status-text'); offlineEl.textContent = 'Offline'; offlineEl.style.color = '#dc2626';
   }
 }
 
