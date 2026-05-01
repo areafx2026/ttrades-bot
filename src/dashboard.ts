@@ -96,13 +96,13 @@ app.get('/', async (req, res) => {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --border: #1e1e2e;
-    --text: #e2e8f0;
-    --muted: #64748b;
-    --green: #22c55e;
-    --red: #ef4444;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --border: #d1d5db;
+    --text: #111827;
+    --muted: #6b7280;
+    --green: #16a34a;
+    --red: #dc2626;
     --blue: #3b82f6;
     --amber: #f59e0b;
     --purple: #a855f7;
@@ -517,7 +517,7 @@ function renderWinRate() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx2 => { if (ctx2.datasetIndex === 0) return '50% Linie'; const d = data[ctx2.dataIndex]; const marker = markers.find(m => m.idx === ctx2.dataIndex); const lines = [ctx2.parsed.y + '%']; if (marker) lines.push('Version: ' + marker.version); if (d) lines.push(d.date); return lines; } } } },
-      scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => v + '%' } } }
+      scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: '#e5e7eb' }, ticks: { color: '#6b7280', callback: v => v + '%' } } }
     }
   });
 }
@@ -535,7 +535,7 @@ function renderEquity() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { x: { display: false }, y: { grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => '€' + v } } }
+      scales: { x: { display: false }, y: { grid: { color: '#e5e7eb' }, ticks: { color: '#64748b', callback: v => '€' + v } } }
     }
   });
 }
