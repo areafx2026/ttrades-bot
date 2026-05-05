@@ -125,11 +125,16 @@ export class FractalAnalyzer {
     return null;
   }
 
-  // ─── STEP 2: H4 Confirmation ───────────────────────────────────────────────
-  // H4 muss dieselbe Swing-Struktur zeigen wie D1
+  // ─── STEP 2: H4 Confirmation — v2.3 lockerer ─────────────────────────────────
+  // H4 muss in Trendrichtung tendieren — kein perfektes HH+HL/LH+LL erforderlich
+  // LONG: mindestens eines von: (a) letzter H4 Close > vorheriger H4 Close
+  //                             (b) letztes H4 HL höher als vorheriges H4 HL
+  // SHORT: mindestens eines von: (a) letzter H4 Close < vorheriger H4 Close
+  //                              (b) letztes H4 LH tiefer als vorheriges H4 LH
+  // Gibt das letzte relevante H4 Swing Low (LONG) oder Swing High (SHORT) als Level zurück
   private getH4Confirmation(bias: SignalType): { level: number; description: string } | null {
     const c = this.h4;
-    if (c.length < 10) return null;
+    if (c.length < 6) return null;
 
     const swingHighs: number[] = [];
     const swingLows:  number[] = [];
@@ -139,21 +144,25 @@ export class FractalAnalyzer {
       if (c[i].low  < c[i-1].low  && c[i].low  < c[i+1].low)  swingLows.push(c[i].low);
     }
 
-    if (swingHighs.length < 2 || swingLows.length < 2) return null;
+    // Trendrichtung H4: letzten 3 Closes vergleichen
+    const last  = c[c.length - 1];
+    const prev  = c[c.length - 3];
+    const prev2 = c[c.length - 6];
+    const h4Bullish = last.close > prev.close && prev.close > prev2.close;
+    const h4Bearish = last.close < prev.close && prev.close < prev2.close;
 
-    const [prevSH, lastSH] = swingHighs.slice(-2);
-    const [prevSL, lastSL] = swingLows.slice(-2);
-
-    if (bias === 'LONG' && lastSH > prevSH && lastSL > prevSL) {
+    if (bias === 'LONG' && h4Bullish) {
+      const level = swingLows.length > 0 ? swingLows[swingLows.length - 1] : last.low;
       return {
-        level: lastSL,
-        description: `H4 Bullisch: HH ${lastSH.toFixed(this.dec())} HL ${lastSL.toFixed(this.dec())}`,
+        level,
+        description: `H4 Aufwärts: Close ${last.close.toFixed(this.dec())} > ${prev.close.toFixed(this.dec())}`,
       };
     }
-    if (bias === 'SHORT' && lastSH < prevSH && lastSL < prevSL) {
+    if (bias === 'SHORT' && h4Bearish) {
+      const level = swingHighs.length > 0 ? swingHighs[swingHighs.length - 1] : last.high;
       return {
-        level: lastSH,
-        description: `H4 Bärisch: LH ${lastSH.toFixed(this.dec())} LL ${lastSL.toFixed(this.dec())}`,
+        level,
+        description: `H4 Abwärts: Close ${last.close.toFixed(this.dec())} < ${prev.close.toFixed(this.dec())}`,
       };
     }
     return null;
@@ -168,7 +177,7 @@ export class FractalAnalyzer {
     if (c.length < 10) return null;
 
     const pip          = this.pip();
-    const retestWindow = pip * 15;
+    const retestWindow = pip * 25; // v2.3: von 15 auf 25 Pips erweitert
     const currentPrice = c[c.length - 1].close;
     const lastCandle   = c[c.length - 1];
 

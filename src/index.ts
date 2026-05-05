@@ -160,47 +160,24 @@ async function syncClosedTrades(): Promise<void> {
       const dec = trade.symbol.includes('JPY') ? 3 : 5;
       const entryPrice = trade.fillPrice ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
 
-      // MT5 P&L holen — Methode 1: per Position-Ticket (zuverlässigste Methode)
-      let closePrice: number = entryPrice;
-      let pnlEUR: number = 0;
-      let closedAt: string = new Date().toISOString();
-      let dealFound = false;
+      // MT5 History für dieses Symbol suchen — Deal muss nach Trade-Open liegen
+      const tradeOpenMs = new Date(trade.openedAt).getTime();
+      const deal = latestDealBySymbol.get(trade.symbol);
+      const dealIsAfterOpen = deal && new Date(deal.time + 'Z').getTime() > tradeOpenMs;
 
-      try {
-        const posRes = await axios.get(`${MT5_SERVER}/history/position`, {
-          params: { ticket: trade.dealId },
-          timeout: 10000,
-        });
-        const posDeals: any[] = posRes.data ?? [];
-        const closingDeal = posDeals.find((d: any) => d.entry === 1 || d.entry === 2 || d.entry === 3);
-        if (closingDeal) {
-          closePrice = closingDeal.price;
-          pnlEUR = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt = new Date(closingDeal.time + 'Z').toISOString();
-          dealFound = true;
-          logger.sync(`MT5 Position-Deal: ${trade.symbol} [${trade.dealId}] close=${closePrice} pnlEUR=${pnlEUR}`);
-        }
-      } catch {
-        logger.warn(`Position-History Fehler für ${trade.dealId}`);
-      }
+      let closePrice: number;
+      let pnlEUR: number;
+      let closedAt: string;
 
-      // Methode 2: Fallback auf Zeitfenster-History
-      if (!dealFound) {
-        const tradeOpenMs = new Date(trade.openedAt).getTime();
-        const deal = latestDealBySymbol.get(trade.symbol);
-        const dealIsAfterOpen = deal && new Date(deal.time + 'Z').getTime() > tradeOpenMs;
-        if (deal && dealIsAfterOpen) {
-          closePrice = deal.price;
-          pnlEUR = Math.round((deal.profit + deal.commission + deal.swap) * 100) / 100;
-          closedAt = new Date(deal.time + 'Z').toISOString();
-          dealFound = true;
-          logger.sync(`MT5 History-Deal: ${trade.symbol} close=${closePrice} pnlEUR=${pnlEUR}`);
-        }
-      }
-
-      // Methode 3: Tick-Fallback
-      if (!dealFound) {
-        logger.warn(`Kein MT5 Deal für ${trade.symbol} [${trade.dealId}] — Tick-Fallback`);
+      if (deal && dealIsAfterOpen) {
+        // Echte Werte aus MT5
+        closePrice = deal.price;
+        pnlEUR = Math.round((deal.profit + deal.commission + deal.swap) * 100) / 100;
+        closedAt = new Date(deal.time + 'Z').toISOString();
+        logger.info(`MT5 deal gefunden für ${trade.symbol}: close=${closePrice} pnlEUR=${pnlEUR}`);
+      } else {
+        // Fallback: aktuellen Tick nehmen
+        logger.warn(`Kein MT5 Deal für ${trade.symbol} — Tick-Fallback`);
         try {
           const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol: trade.symbol } });
           closePrice = (tick.data.bid + tick.data.ask) / 2;
