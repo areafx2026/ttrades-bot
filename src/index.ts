@@ -325,7 +325,7 @@ async function executeTrade(
         stop_loss:            signal.stopLoss,
         stop_pips:            Math.round(stopPips * 10) / 10,
         target1:              signal.target1 ?? signal.targetPrice,
-        target2:              signal.target2 ?? null,
+        target2:              signal.target2 ?? signal.target1 ?? signal.targetPrice,
         risk_reward:          signal.riskReward ?? 1.3,
         size_points:          (result as any).lots ?? 0,
         session:              getActiveSession() ?? undefined,
