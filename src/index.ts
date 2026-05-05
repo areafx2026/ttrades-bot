@@ -148,17 +148,55 @@ async function syncClosedTrades(): Promise<void> {
     }
 
     // ── 4. Geschlossene Trades verarbeiten ───────────────────────────────────
-    const openTrades = loadTrades().filter(t => !t.closedAt);
+    // Kombiniere JSON-offene Trades UND DB-offene Trades
+    const jsonOpenTrades = loadTrades().filter(t => !t.closedAt);
+    const dbOpenTradesForClose = getDbOpenTrades();
 
-    for (const trade of openTrades) {
+    // Baue vereinheitlichte Liste: DB hat Vorrang (neuere Trades), JSON als Fallback für alte
+    interface UnifiedTrade {
+      symbol: string;
+      type: string;
+      dealId: string;
+      openedAt: string;
+      entryPrice: number;
+      source: 'db' | 'json';
+    }
+    const unifiedOpen: UnifiedTrade[] = [];
+
+    // DB-Trades zuerst
+    for (const t of dbOpenTradesForClose) {
+      unifiedOpen.push({
+        symbol:     t.symbol,
+        type:       t.type,
+        dealId:     t.id,
+        openedAt:   t.opened_at,
+        entryPrice: t.entry_price,
+        source:     'db',
+      });
+    }
+    // JSON-Trades nur wenn Symbol nicht schon per DB erfasst
+    const dbSymbols = new Set(unifiedOpen.map(t => t.symbol));
+    for (const t of jsonOpenTrades) {
+      if (!dbSymbols.has(t.symbol)) {
+        unifiedOpen.push({
+          symbol:     t.symbol,
+          type:       t.type,
+          dealId:     t.dealId!,
+          openedAt:   t.openedAt,
+          entryPrice: t.fillPrice ?? (t.entryZone[0] + t.entryZone[1]) / 2,
+          source:     'json',
+        });
+      }
+    }
+
+    for (const trade of unifiedOpen) {
       // Symbol noch in MT5 offen → nichts tun
       if (openSymbols.has(trade.symbol)) continue;
 
-      logger.info(`Trade geschlossen erkannt (Symbol-Sync): ${trade.symbol}`);
+      logger.info(`Trade geschlossen erkannt (Symbol-Sync): ${trade.symbol} [${trade.source}]`);
 
       const pip = trade.symbol.includes('JPY') ? 0.01 : 0.0001;
       const dec = trade.symbol.includes('JPY') ? 3 : 5;
-      const entryPrice = trade.fillPrice ?? (trade.entryZone[0] + trade.entryZone[1]) / 2;
 
       // MT5 History für dieses Symbol suchen — Deal muss nach Trade-Open liegen
       const tradeOpenMs = new Date(trade.openedAt).getTime();
@@ -182,7 +220,7 @@ async function syncClosedTrades(): Promise<void> {
           const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol: trade.symbol } });
           closePrice = (tick.data.bid + tick.data.ask) / 2;
         } catch {
-          closePrice = entryPrice;
+          closePrice = trade.entryPrice;
         }
         pnlEUR = 0;
         closedAt = new Date().toISOString();
@@ -190,31 +228,28 @@ async function syncClosedTrades(): Promise<void> {
 
       // Pips nach Richtung
       const rawPnlPips = trade.type === 'LONG'
-        ? (closePrice - entryPrice) / pip
-        : (entryPrice - closePrice) / pip;
+        ? (closePrice - trade.entryPrice) / pip
+        : (trade.entryPrice - closePrice) / pip;
       const pnlPips = Math.round(rawPnlPips * 10) / 10;
 
-      // WIN/LOSS: aus EUR P&L wenn vorhanden, sonst Pips
+      // WIN/LOSS
       const result = pnlEUR !== 0
         ? (pnlEUR > 0.5 ? 'WIN' : pnlEUR < -0.5 ? 'LOSS' : 'BREAKEVEN')
         : (pnlPips > 0.5 ? 'WIN' : pnlPips < -0.5 ? 'LOSS' : 'BREAKEVEN');
 
-      // DB aktualisieren
-      logClosedTrade(trade.dealId!, closePrice, closedAt);
+      // JSON + DB aktualisieren
+      logClosedTrade(trade.dealId, closePrice, closedAt);
       savePineScript();
-      closeTrade(trade.dealId!, closePrice, closedAt, 'SL/TP/Market', pnlPips, pnlEUR, result);
+      closeTrade(trade.dealId, closePrice, closedAt, 'SL/TP/Market', pnlPips, pnlEUR, result);
       activeSymbols.delete(trade.symbol);
 
       logger.info(`Trade abgeschlossen: ${trade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
 
       const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
       await telegram.sendMessage(
-        `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>
-` +
-        `${trade.type === 'LONG' ? '📈' : '📉'} ${trade.type} | ${result}
-` +
-        `Close: <code>${closePrice.toFixed(dec)}</code>
-` +
+        `${resultEmoji} <b>Trade geschlossen — ${trade.symbol}</b>\n` +
+        `${trade.type === 'LONG' ? '📈' : '📉'} ${trade.type} | ${result}\n` +
+        `Close: <code>${closePrice.toFixed(dec)}</code>\n` +
         `P&L: <b>${pnlPips >= 0 ? '+' : ''}${pnlPips.toFixed(1)} pips</b>  ` +
         `(<b>${pnlEUR >= 0 ? '+' : ''}€${pnlEUR.toFixed(2)}</b>)`
       );
@@ -268,6 +303,44 @@ async function executeTrade(
     logOpenTrade(signal, result.dealId);
     savePineScript();
     activeSymbols.add(symbol);
+
+    // ── DB insert ────────────────────────────────────────────────────────────
+    try {
+      const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
+      const fillPrice = signal.currentPrice;
+      const stopPips  = Math.abs(fillPrice - signal.stopLoss) / pip;
+      const entryDistPips = Math.abs(fillPrice - ((signal.entryZone?.[0] ?? fillPrice) + (signal.entryZone?.[1] ?? fillPrice)) / 2) / pip;
+
+      insertTrade({
+        id:                   String(result.dealId),
+        symbol,
+        type:                 signal.type,
+        phase:                signal.phase,
+        entry_zone_low:       signal.entryZone?.[0] ?? fillPrice,
+        entry_zone_high:      signal.entryZone?.[1] ?? fillPrice,
+        entry_price:          fillPrice,
+        entry_distance_pips:  Math.round(entryDistPips * 10) / 10,
+        stop_loss:            signal.stopLoss,
+        stop_pips:            Math.round(stopPips * 10) / 10,
+        target1:              signal.target1 ?? signal.targetPrice,
+        target2:              signal.target2 ?? null,
+        risk_reward:          signal.riskReward ?? 1.3,
+        size_points:          result.lots ?? 0,
+        session:              getActiveSession(),
+        weekday:              new Date().getDay(),
+        opened_at:            new Date().toISOString(),
+        daily_bias:           signal.dailyBias ?? signal.type,
+        h4_confirmation:      signal.h4Confirmation ?? null,
+        h1_context:           signal.h1Context ?? null,
+        m15_setup:            signal.m15Setup ?? null,
+        currency_strength:    null,
+        strength_score:       null,
+        fvg_present:          0,
+      });
+      logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
+    } catch (dbErr: any) {
+      logger.error(`insertTrade failed for ${symbol} [${result.dealId}]: ${dbErr.message}`);
+    }
 
 
 
