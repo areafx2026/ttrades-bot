@@ -170,10 +170,12 @@ def get_history():
         return jsonify({'error': 'MT5 not connected'}), 500
 
     hours = int(request.args.get('hours', 168))
-    from_time = datetime.now(timezone.utc).timestamp() - hours * 3600
+    now_utc = datetime.now(timezone.utc)
+    from_dt = datetime.utcfromtimestamp(now_utc.timestamp() - hours * 3600)
+    to_dt   = datetime.utcfromtimestamp(now_utc.timestamp())
 
-    # deals_get gibt alle Deals im Zeitraum zurück
-    deals = mt5.history_deals_get(from_time, datetime.now(timezone.utc).timestamp())
+    # history_deals_get erwartet naive datetime-Objekte (UTC), keine Timestamps
+    deals = mt5.history_deals_get(from_dt, to_dt)
     if deals is None:
         return jsonify([])
 

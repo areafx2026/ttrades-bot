@@ -103,8 +103,12 @@ export function logOpenTrade(signal: TradeSignal, dealId: string): TradeRecord {
     h1_context:       signal.h1Context,
   };
 
-  insertTrade(dbTrade);
-  logger.info(`Trade logged (SQLite): ${signal.symbol} ${signal.type} [${dealId}]`);
+  try {
+    insertTrade(dbTrade);
+    logger.trade(`Trade logged (SQLite): ${signal.symbol} ${signal.type} [${dealId}]`);
+  } catch (err: any) {
+    logger.error(`insertTrade failed for ${signal.symbol} [${dealId}]: ${err?.message ?? JSON.stringify(err)}`);
+  }
   return dbToRecord(dbTrade);
 }
 
