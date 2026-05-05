@@ -170,7 +170,7 @@ async function syncClosedTrades(): Promise<void> {
         type:       t.type,
         dealId:     t.id,
         openedAt:   t.opened_at,
-        entryPrice: t.entry_price,
+        entryPrice: t.entry_price ?? 0,
         source:     'db',
       });
     }
@@ -325,16 +325,16 @@ async function executeTrade(
         target1:              signal.target1 ?? signal.targetPrice,
         target2:              signal.target2 ?? null,
         risk_reward:          signal.riskReward ?? 1.3,
-        size_points:          result.lots ?? 0,
-        session:              getActiveSession(),
+        size_points:          (result as any).lots ?? 0,
+        session:              getActiveSession() ?? undefined,
         weekday:              new Date().getDay(),
         opened_at:            new Date().toISOString(),
         daily_bias:           signal.dailyBias ?? signal.type,
-        h4_confirmation:      signal.h4Confirmation ?? null,
-        h1_context:           signal.h1Context ?? null,
-        m15_setup:            signal.m15Setup ?? null,
-        currency_strength:    null,
-        strength_score:       null,
+        h4_confirmation:      signal.h4Confirmation ?? undefined,
+        h1_context:           signal.h1Context ?? undefined,
+        m15_setup:            signal.m15Setup ?? undefined,
+        currency_strength:    undefined,
+        strength_score:       undefined,
         fvg_present:          0,
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
