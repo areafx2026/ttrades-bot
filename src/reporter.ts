@@ -1,4 +1,4 @@
-import { analyzeTradesWithAI } from './aiAnalyzer';
+// import { analyzeTradesWithAI } from './aiAnalyzer'; // deaktiviert
 import { loadZones } from './zoneManager';
 import { getDb, getAllTrades, getOpenTrades, DbTrade } from './database';
 import { TelegramNotifier } from './telegram';
@@ -153,14 +153,5 @@ export async function sendDailyReport(telegram: TelegramNotifier): Promise<void>
   // Zone coverage check
   await checkZoneCoverage(telegram);
 
-  // AI analysis — only if there were closed trades
-  if (closedToday.length > 0) {
-    logger.info('Requesting AI trade analysis...');
-    const analysis = await analyzeTradesWithAI();
-    if (analysis) {
-      await telegram.sendMessage(
-        `🤖 <b>KI-Analyse — ${dateStr}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` + analysis
-      );
-    }
-  }
+  // AI analysis deaktiviert (kein ANTHROPIC_API_KEY konfiguriert)
 }
