@@ -79,28 +79,41 @@ export function logOpenTrade(signal: TradeSignal, dealId: string): TradeRecord {
   const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
   const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
   const stopPips = Math.abs(entryMid - signal.stopLoss) / pip;
+  const entryDistPips = Math.abs(signal.currentPrice - entryMid) / pip;
+  const openedDate = new Date();
 
   const db = getDb();
   const version = db.prepare('SELECT version FROM strategy_log ORDER BY changed_at DESC LIMIT 1').get() as any;
 
   const dbTrade: DbTrade = {
-    id:               dealId,
-    symbol:           signal.symbol,
-    type:             signal.type,
-    phase:            signal.phase,
-    entry_zone_low:   signal.entryZone[0],
-    entry_zone_high:  signal.entryZone[1],
-    entry_price:      signal.currentPrice,
-    stop_loss:        signal.stopLoss,
-    stop_pips:        Math.round(stopPips * 10) / 10,
-    target1:          signal.target1,
-    target2:          signal.target2,
-    risk_reward:      signal.riskReward,
-    opened_at:        new Date().toISOString(),
-    strategy_version: version?.version ?? 'v2.1',
-    daily_bias:       signal.dailyBias,
-    h4_confirmation:  signal.h4Confirmation,
-    h1_context:       signal.h1Context,
+    id:                   dealId,
+    symbol:               signal.symbol,
+    type:                 signal.type,
+    phase:                signal.phase,
+    entry_zone_low:       signal.entryZone[0],
+    entry_zone_high:      signal.entryZone[1],
+    entry_price:          signal.currentPrice,
+    entry_distance_pips:  Math.round(entryDistPips * 10) / 10,
+    stop_loss:            signal.stopLoss,
+    stop_pips:            Math.round(stopPips * 10) / 10,
+    target1:              signal.target1,
+    target2:              signal.target2,
+    risk_reward:          signal.riskReward,
+    size_points:          0,
+    session:              undefined,
+    weekday:              openedDate.getUTCDay(),
+    opened_at:            openedDate.toISOString(),
+    strategy_version:     version?.version ?? 'v2.3',
+    daily_bias:           signal.dailyBias,
+    h4_confirmation:      signal.h4Confirmation,
+    h1_context:           signal.h1Context,
+    m15_setup:            signal.m15Setup,
+    fvg_present:          signal.fvgLevel != null ? 1 : 0,
+    exhaustion_detected:  undefined,
+    currency_strength:    undefined,
+    strength_score:       undefined,
+    zone_note:            undefined,
+    zone_status:          undefined,
   };
 
   try {
