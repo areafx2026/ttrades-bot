@@ -521,6 +521,90 @@ async function startup() {
     if (mt5Positions.length > 0) {
       logger.sys(`Restored ${mt5Positions.length} open MT5 position(s): ${mt5Positions.map(p => p.symbol).join(', ')}`);
     }
+
+    // ── Startup-Reconciliation ────────────────────────────────────────────────
+    // Für jede offene MT5-Position prüfen ob sie in der DB existiert.
+    // Falls nicht → automatisch eintragen (passiert wenn Bot während Trade-Open abstürzt)
+    const db = getDb();
+    for (const pos of mt5Positions) {
+      const existing = db.prepare('SELECT id FROM trades WHERE id = ?').get(pos.dealId);
+      if (!existing) {
+        logger.sys(`Reconciliation: ${pos.symbol} [${pos.dealId}] nicht in DB — trage nach`);
+
+        const pip = pos.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const dec = pos.symbol.includes('JPY') ? 3 : 5;
+        const sl   = pos.stopLevel;
+        const tp   = pos.profitLevel;
+        const entry = pos.openLevel;
+        const risk  = Math.abs(entry - sl);
+        const reward = Math.abs(tp - entry);
+        const rr = risk > 0 ? Math.round((reward / risk) * 100) / 100 : 1.3;
+        const type = pos.direction === 'BUY' ? 'LONG' : 'SHORT';
+        const target2 = type === 'LONG'
+          ? entry + risk * 2.6
+          : entry - risk * 2.6;
+
+        // Opened_at aus MT5 History holen
+        let openedAt = new Date().toISOString();
+        try {
+          const histRes = await axios.get(`${MT5_SERVER}/history/position`, {
+            params: { ticket: pos.dealId },
+            timeout: 5000,
+          });
+          const deals: any[] = histRes.data ?? [];
+          const openDeal = deals.find((d: any) => d.entry === 0);
+          if (openDeal) {
+            openedAt = new Date(openDeal.time + 'Z').toISOString();
+          }
+        } catch { /* use current time as fallback */ }
+
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO trades (
+              id, symbol, type, phase,
+              entry_zone_low, entry_zone_high, entry_price,
+              stop_loss, target1, target2, risk_reward,
+              opened_at, strategy_version,
+              entry_distance_pips, stop_pips,
+              size_points, zone_note, zone_status,
+              exhaustion_detected, currency_strength,
+              strength_score, fvg_present
+            ) VALUES (
+              @id, @symbol, @type, @phase,
+              @entry_zone_low, @entry_zone_high, @entry_price,
+              @stop_loss, @target1, @target2, @risk_reward,
+              @opened_at, @strategy_version,
+              0, @stop_pips,
+              0, null, null,
+              null, null,
+              null, 0
+            )
+          `).run({
+            id:               pos.dealId,
+            symbol:           pos.symbol,
+            type,
+            phase:            'RECONCILED',
+            entry_zone_low:   entry,
+            entry_zone_high:  entry,
+            entry_price:      entry,
+            stop_loss:        sl,
+            target1:          tp,
+            target2,
+            risk_reward:      rr,
+            opened_at:        openedAt,
+            strategy_version: 'v2.3',
+            stop_pips:        Math.round((risk / pip) * 10) / 10,
+          });
+          logger.sys(`Reconciliation OK: ${pos.symbol} [${pos.dealId}] eingetragen`);
+        } catch (dbErr: any) {
+          logger.error(`Reconciliation DB error for ${pos.symbol}: ${dbErr?.message}`);
+        }
+      }
+    }
+
+    // Danach syncClosedTrades für Trades die während Offline geschlossen wurden
+    await syncClosedTrades();
+
   } catch (err) {
     logger.warn('Could not fetch MT5 positions on startup — will sync on first scan');
   }
