@@ -1,8 +1,44 @@
 from flask import Flask, jsonify, request
 import MetaTrader5 as mt5
 from datetime import datetime, timezone
+import logging
+import logging.handlers
+import os
+import time
 
 app = Flask(__name__)
+
+# ─── File Logging ──────────────────────────────────────────────────────────────
+LOG_DIR = os.path.join(os.getcwd(), 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
+def get_log_filename():
+    return os.path.join(LOG_DIR, f"mt5server-{datetime.now().strftime('%d-%m-%Y')}.log")
+
+class DailyFileHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            with open(get_log_filename(), 'a', encoding='utf-8') as f:
+                f.write(self.format(record) + '\n')
+        except Exception:
+            pass
+
+log = logging.getLogger('mt5server')
+log.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('[%(asctime)s] %(levelname)-5s %(message)s',
+                               datefmt='%d.%m.%Y, %H:%M:%S')
+
+file_handler = DailyFileHandler()
+file_handler.setFormatter(formatter)
+log.addHandler(file_handler)
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(formatter)
+log.addHandler(console_handler)
+
+def ts():
+    return datetime.now().strftime('%d.%m.%Y, %H:%M:%S')
 
 TIMEFRAMES = {
     'MINUTE':    mt5.TIMEFRAME_M1,
@@ -17,6 +53,7 @@ TIMEFRAMES = {
 
 def ensure_mt5():
     if not mt5.initialize():
+        log.error(f'MT5 initialize() failed: {mt5.last_error()}')
         return False
     return True
 
@@ -24,6 +61,7 @@ def ensure_mt5():
 def health():
     ok = ensure_mt5()
     info = mt5.account_info()
+    log.debug(f'GET /health — mt5={ok} balance={info.balance if info else None}')
     return jsonify({
         'mt5': ok,
         'balance': info.balance if info else None,
@@ -69,6 +107,7 @@ def get_tick():
 def get_positions():
     if not ensure_mt5():
         return jsonify({'error': 'MT5 not connected'}), 500
+    log.debug('GET /positions')
     positions = mt5.positions_get()
     if positions is None:
         return jsonify([])
@@ -120,10 +159,15 @@ def open_position():
         'type_filling':  mt5.ORDER_FILLING_IOC,
     }
 
+    log.info(f'ORDER SEND: {symbol} {direction} size={size} sl={sl} tp={tp}')
+    t0 = time.time()
     result = mt5.order_send(request_obj)
+    elapsed = round((time.time() - t0) * 1000)
     if result.retcode == mt5.TRADE_RETCODE_DONE:
+        log.info(f'ORDER OK: {symbol} ticket={result.order} ({elapsed}ms)')
         return jsonify({'success': True, 'dealId': str(result.order)})
     else:
+        log.error(f'ORDER FAILED: {symbol} retcode={result.retcode} comment={result.comment} ({elapsed}ms)')
         return jsonify({'success': False, 'error': result.comment, 'retcode': result.retcode}), 400
 
 @app.route('/positions/<ticket>', methods=['DELETE'])
@@ -153,10 +197,15 @@ def close_position(ticket):
         'type_filling':  mt5.ORDER_FILLING_IOC,
     }
 
+    log.info(f'CLOSE SEND: ticket={ticket} {pos.symbol} {direction}')
+    t0 = time.time()
     result = mt5.order_send(request_obj)
+    elapsed = round((time.time() - t0) * 1000)
     if result.retcode == mt5.TRADE_RETCODE_DONE:
+        log.info(f'CLOSE OK: ticket={ticket} ({elapsed}ms)')
         return jsonify({'success': True, 'message': f'Position {ticket} closed'})
     else:
+        log.error(f'CLOSE FAILED: ticket={ticket} retcode={result.retcode} comment={result.comment} ({elapsed}ms)')
         return jsonify({'success': False, 'error': result.comment, 'retcode': result.retcode}), 400
 
 # ─── NEU: Geschlossene Trades aus MT5-History ─────────────────────────────────
@@ -246,5 +295,5 @@ def get_history_by_position():
     return jsonify(result)
 
 if __name__ == '__main__':
-    print("MT5 Server startet auf Port 5000...")
+    log.info('MT5 Server startet auf Port 5000...')
     app.run(host='127.0.0.1', port=5000)
