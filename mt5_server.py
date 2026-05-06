@@ -37,6 +37,18 @@ console_handler = logging.StreamHandler()
 console_handler.setFormatter(formatter)
 log.addHandler(console_handler)
 
+# Werkzeug (Flask HTTP request logs) in dieselbe Datei umleiten
+werkzeug_log = logging.getLogger('werkzeug')
+werkzeug_log.setLevel(logging.DEBUG)
+werkzeug_log.addHandler(file_handler)
+werkzeug_log.addHandler(console_handler)
+
+# Auch Flask selbst
+flask_log = logging.getLogger('flask.app')
+flask_log.setLevel(logging.DEBUG)
+flask_log.addHandler(file_handler)
+flask_log.addHandler(console_handler)
+
 def ts():
     return datetime.now().strftime('%d.%m.%Y, %H:%M:%S')
 
