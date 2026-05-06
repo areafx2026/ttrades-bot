@@ -231,12 +231,11 @@ def get_history():
         return jsonify({'error': 'MT5 not connected'}), 500
 
     hours = int(request.args.get('hours', 168))
-    now_utc = datetime.now(timezone.utc)
-    from_dt = datetime.utcfromtimestamp(now_utc.timestamp() - hours * 3600)
-    to_dt   = datetime.utcfromtimestamp(now_utc.timestamp())
-
-    # history_deals_get erwartet naive datetime-Objekte (UTC), keine Timestamps
-    deals = mt5.history_deals_get(from_dt, to_dt)
+    # MT5 interpretiert timezone-naive datetime als LOKALE Zeit.
+    # datetime.now() (ohne utc) gibt lokale Zeit zurück — korrekt für MT5.
+    now_local  = datetime.now()
+    from_local = datetime.fromtimestamp(now_local.timestamp() - hours * 3600)
+    deals = mt5.history_deals_get(from_local, now_local)
     if deals is None:
         return jsonify([])
 
