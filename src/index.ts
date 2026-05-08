@@ -150,7 +150,7 @@ async function syncClosedTrades(): Promise<void> {
       try {
         const histRes = await axios.get(`${MT5_SERVER}/history/position`, {
           params: { ticket: dbTrade.id },
-          timeout: 10000,
+          timeout: 5000,
         });
         const deals: any[] = histRes.data ?? [];
 
@@ -160,7 +160,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
           logger.info(`Closing-Deal gefunden: ${dbTrade.symbol} close=${closePrice} pnlEUR=${pnlEUR} reason="${closeReason}"`);
         } else {
@@ -224,14 +224,14 @@ async function syncClosedTrades(): Promise<void> {
       try {
         const histRes = await axios.get(`${MT5_SERVER}/history/position`, {
           params: { ticket: trade.dealId },
-          timeout: 10000,
+          timeout: 5000,
         });
         const deals: any[] = histRes.data ?? [];
         const closingDeal = deals.find((d: any) => d.entry === 1);
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
         }
       } catch { /* proceed with fallback */ }
@@ -422,7 +422,11 @@ async function analyzeSymbol(
 // ─── Main scan ────────────────────────────────────────────────────────────────
 
 async function runScan() {
-  await syncClosedTrades();
+  // syncClosedTrades mit 20s Timeout — verhindert dass der Scan blockiert
+  await Promise.race([
+    syncClosedTrades(),
+    new Promise<void>((_, reject) => setTimeout(() => reject(new Error('syncClosedTrades timeout')), 20000))
+  ]).catch((err: any) => logger.warn(`syncClosedTrades abgebrochen: ${err?.message}`));
 
   if (!isMarketOpen()) {
     if (marketWasOpen) { logger.info('Market closed — signal scanning paused.'); marketWasOpen = false; }
@@ -554,7 +558,7 @@ async function startup() {
           const deals: any[] = histRes.data ?? [];
           const openDeal = deals.find((d: any) => d.entry === 0);
           if (openDeal) {
-            openedAt = new Date(openDeal.time + 'Z').toISOString();
+            openedAt = new Date(openDeal.time.endsWith('Z') ? openDeal.time : openDeal.time + 'Z').toISOString();
           }
         } catch { /* use current time as fallback */ }
 
@@ -592,7 +596,7 @@ async function startup() {
             target2,
             risk_reward:      rr,
             opened_at:        openedAt,
-            strategy_version: 'v2.3',
+            strategy_version: 'v2.4',
             stop_pips:        Math.round((risk / pip) * 10) / 10,
           });
           logger.sys(`Reconciliation OK: ${pos.symbol} [${pos.dealId}] eingetragen`);
@@ -600,6 +604,107 @@ async function startup() {
           logger.error(`Reconciliation DB error for ${pos.symbol}: ${dbErr?.message}`);
         }
       }
+    }
+
+    // ── History-Reconciliation ───────────────────────────────────────────────
+    // Prüfe MT5-History der letzten 48h auf TTFM-Bot-Trades die nicht in DB sind
+    // (passiert wenn Bot abstürzt nachdem Trade geöffnet aber vor DB-Eintrag)
+    try {
+      const histRes = await axios.get(`${MT5_SERVER}/history`, {
+        params: { hours: 48, all: '1' },
+        timeout: 5000,
+      });
+      const allDeals: any[] = histRes.data ?? [];
+
+      // Nur Opening-Deals vom Bot
+      const openingDeals = allDeals.filter((d: any) =>
+        d.entry === 0 && d.comment === 'TTFM Bot' && d.symbol !== ''
+      );
+
+      for (const deal of openingDeals) {
+        const existingTrade = db.prepare('SELECT id FROM trades WHERE id = ?').get(deal.ticket);
+        if (existingTrade) continue; // bereits in DB
+
+        logger.sys(`History-Reconciliation: ${deal.symbol} [${deal.ticket}] nicht in DB — trage nach`);
+
+        const pip = deal.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const entry = deal.price;
+        const type = deal.type === 'SELL' ? 'SHORT' : 'LONG';
+        const openedAt = new Date(deal.time.endsWith('Z') ? deal.time : deal.time + 'Z').toISOString();
+
+        // Closing-Deal suchen
+        const closingDeals = allDeals.filter((d: any) =>
+          d.entry === 1 && d.symbol === deal.symbol &&
+          new Date(d.time.endsWith('Z') ? d.time : d.time + 'Z').getTime() > new Date(openedAt).getTime()
+        );
+        const closingDeal = closingDeals.sort((a: any, b: any) =>
+          new Date(a.time).getTime() - new Date(b.time).getTime()
+        )[0];
+
+        // Position-Details aus MT5 holen (für SL/TP)
+        let sl = entry;
+        let tp = entry;
+        let rr = 1.3;
+        try {
+          const posHistRes = await axios.get(`${MT5_SERVER}/history/position`, {
+            params: { ticket: deal.ticket },
+            timeout: 5000,
+          });
+          const posDeals: any[] = posHistRes.data ?? [];
+          // SL/TP aus dem Closing-Deal-Kommentar extrahieren wenn vorhanden
+          if (closingDeal?.comment?.includes('[sl ')) {
+            sl = parseFloat(closingDeal.comment.replace('[sl ', '').replace(']', ''));
+          }
+          if (closingDeal?.comment?.includes('[tp ')) {
+            tp = parseFloat(closingDeal.comment.replace('[tp ', '').replace(']', ''));
+          }
+        } catch { /* ignore */ }
+
+        const risk = Math.abs(entry - sl) || pip * 15;
+        const reward = Math.abs(tp - entry) || risk * 1.3;
+        rr = Math.round((reward / risk) * 100) / 100;
+        const target2 = type === 'LONG' ? entry + risk * 2.6 : entry - risk * 2.6;
+
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO trades (
+              id, symbol, type, phase,
+              entry_zone_low, entry_zone_high, entry_price,
+              stop_loss, target1, target2, risk_reward,
+              opened_at, strategy_version,
+              entry_distance_pips, stop_pips,
+              size_points, zone_note, zone_status,
+              exhaustion_detected, currency_strength,
+              strength_score, fvg_present
+            ) VALUES (
+              @id, @symbol, @type, @phase,
+              @entry, @entry, @entry,
+              @sl, @tp, @target2, @rr,
+              @opened_at, 'v2.3',
+              0, @stop_pips,
+              0, null, null,
+              null, null, null, 0
+            )
+          `).run({
+            id:        deal.ticket,
+            symbol:    deal.symbol,
+            type,
+            phase:     'RECONCILED',
+            entry,
+            sl,
+            tp,
+            target2,
+            rr,
+            opened_at: openedAt,
+            stop_pips: Math.round((risk / pip) * 10) / 10,
+          });
+          logger.sys(`History-Reconciliation OK: ${deal.symbol} [${deal.ticket}] eingetragen`);
+        } catch (dbErr: any) {
+          logger.error(`History-Reconciliation DB error: ${dbErr?.message}`);
+        }
+      }
+    } catch (histErr: any) {
+      logger.warn(`History-Reconciliation fehler: ${histErr?.message}`);
     }
 
     // Danach syncClosedTrades für Trades die während Offline geschlossen wurden
