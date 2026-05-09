@@ -435,9 +435,8 @@ async function runScan() {
   if (onlyForexClosed) {
     if (marketWasOpen) { logger.sys('Forex market closed — only scanning crypto'); marketWasOpen = false; }
   } else {
-    marketWasOpen = true;
+    if (!marketWasOpen) { logger.sys('Forex market open — scanning resumed'); marketWasOpen = true; }
   }
-  if (!marketWasOpen) { logger.info('Market open — signal scanning resumed.'); marketWasOpen = true; }
 
   const nowMEZ = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
   const rulesCheck = isBlockedByRules(nowMEZ);
