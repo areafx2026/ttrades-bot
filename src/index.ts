@@ -445,10 +445,11 @@ async function runScan() {
   // (crypto handled per-symbol below)
 
   const toScan = SYMBOLS.filter(s => shouldScan(s));
-  if (toScan.length === 0) return;
+  const effectiveToScan = onlyForexClosed ? toScan.filter(s => isCrypto(s)) : toScan;
+  if (effectiveToScan.length === 0) return;
 
-  const fastCount = toScan.filter(s => activeSymbols.has(s)).length;
-  logger.sys(`Scanning ${toScan.length} symbols (${fastCount} fast / ${toScan.length - fastCount} slow)`);
+  const fastCount = effectiveToScan.filter(s => activeSymbols.has(s)).length;
+  logger.sys(`Scanning ${effectiveToScan.length} symbols (${fastCount} fast / ${effectiveToScan.length - fastCount} slow)`);
 
   const mt5 = new MT5API();
   const telegram = new TelegramNotifier(
@@ -476,10 +477,10 @@ async function runScan() {
     const noSetupSymbols: string[] = [];
 
     for (const symbol of [...active, ...passive]) {
+      // Forex: nicht scannen wenn Markt zu oder Rules blockieren
+      if (!isCrypto(symbol) && (onlyForexClosed || rulesCheck.blocked)) continue;
       try {
-        // Forex: nicht scannen wenn Markt zu oder Rules blockieren
-    if (!isCrypto(symbol) && (onlyForexClosed || rulesCheck.blocked)) continue;
-    const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
+        const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
         if (outcome === 'no_setup') noSetupSymbols.push(symbol);
       } catch (err) {
         logger.error(`Error analyzing ${symbol}:`, err);
