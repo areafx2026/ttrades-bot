@@ -35,6 +35,8 @@ export class MT5TradeExecutor {
   }
 
   isCoolingDown(symbol: string): { cooling: boolean; remainingMinutes: number } {
+    // Crypto: no cooldown
+    if (['BTCUSD', 'ETHUSD'].includes(symbol)) return { cooling: false, remainingMinutes: 0 };
     const lastClose = cooldownMap.get(symbol);
     if (!lastClose) return { cooling: false, remainingMinutes: 0 };
     const elapsed = Date.now() - lastClose;
@@ -86,7 +88,7 @@ export class MT5TradeExecutor {
     signal: TradeSignal,
     currentPrice: number
   ): Promise<number> {
-    const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
+    const pip = signal.symbol.includes('JPY') ? 0.01 : signal.symbol === 'BTCUSD' ? 1.0 : 0.0001;
     const stopPips = Math.abs(currentPrice - signal.stopLoss) / pip;
 
     if (stopPips <= 0) return 0.01;
@@ -178,7 +180,7 @@ export class MT5TradeExecutor {
     }
 
     // 4. Validate SL/TP still on correct side
-    const pip = signal.symbol.includes('JPY') ? 0.01 : 0.0001;
+    const pip = signal.symbol.includes('JPY') ? 0.01 : signal.symbol === 'BTCUSD' ? 1.0 : 0.0001;
     const entryMid = (signal.entryZone[0] + signal.entryZone[1]) / 2;
     const distanceFromEntry = Math.abs(currentPrice - entryMid) / pip;
     const maxEntryDistance = 15;

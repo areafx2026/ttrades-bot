@@ -14,7 +14,7 @@ export function getDb(): Database.Database {
     db = new Database(DB_PATH);
     db.pragma('journal_mode = WAL');
     initSchema();
-    logger.sys(`SQLite database initialized: ${DB_PATH}`);
+    logger.info(`SQLite database initialized: ${DB_PATH}`);
   }
   return db;
 }
@@ -69,6 +69,7 @@ function initSchema(): void {
       mfe_pct_of_tp REAL,
       -- Meta
       strategy_version TEXT,
+      asset_class TEXT DEFAULT 'forex',
       notes TEXT
     );
 
@@ -155,6 +156,7 @@ export interface DbTrade {
   mfe_pct_of_tp?: number;
   // Meta
   strategy_version?: string;
+  asset_class?: string;
   notes?: string;
 }
 
@@ -169,7 +171,8 @@ export function insertTrade(trade: DbTrade): void {
       daily_bias, h4_confirmation, h1_context, m15_setup,
       currency_strength, strength_score, zone_note, zone_status,
       fvg_present, exhaustion_detected,
-      strategy_version
+      strategy_version,
+      asset_class
     ) VALUES (
       @id, @symbol, @type, @phase,
       @entry_zone_low, @entry_zone_high, @entry_price, @entry_distance_pips,
@@ -178,7 +181,8 @@ export function insertTrade(trade: DbTrade): void {
       @daily_bias, @h4_confirmation, @h1_context, @m15_setup,
       @currency_strength, @strength_score, @zone_note, @zone_status,
       @fvg_present, @exhaustion_detected,
-      @strategy_version
+      @strategy_version,
+      @asset_class
     )
   `).run(trade);
 }

@@ -53,7 +53,9 @@ app.get('/', async (req, res) => {
   const filterStats = getFilterRejections(7);
   const filterBySymbol = getFilterRejectionsBySymbol(7);
   const activeTab = req.query.logSort !== undefined ? 'log' : 'trades';
-  const allTrades = getAllTrades().sort((a, b) => {
+  const allTradesRaw = getAllTrades();
+  const assetFilter = req.query.asset as string ?? 'forex';
+  const allTrades = allTradesRaw.filter(t => (t.asset_class ?? 'forex') === assetFilter).sort((a, b) => {
     const da = new Date(a.opened_at).getTime();
     const db2 = new Date(b.opened_at).getTime();
     return sortAsc ? da - db2 : db2 - da;
@@ -96,13 +98,13 @@ app.get('/', async (req, res) => {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #f0f2f5;
-    --surface: #ffffff;
-    --border: #d1d5db;
-    --text: #111827;
-    --muted: #6b7280;
-    --green: #16a34a;
-    --red: #dc2626;
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --green: #22c55e;
+    --red: #ef4444;
     --blue: #3b82f6;
     --amber: #f59e0b;
     --purple: #a855f7;
@@ -131,7 +133,7 @@ app.get('/', async (req, res) => {
   td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 14px; white-space: nowrap; }
   #tab-log td { white-space: normal; }
   #tab-log td:nth-child(3) { min-width: 300px; max-width: 600px; white-space: normal; word-wrap: break-word; }
-  tr:hover td { background: rgba(0,0,0,0.03); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
   .badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 4px; letter-spacing: 1px; }
   .badge.win  { background: rgba(34,197,94,0.15); color: var(--green); }
   .badge.loss { background: rgba(239,68,68,0.15); color: var(--red); }
@@ -425,7 +427,7 @@ async function updateMT5Status() {
     if (d.connected) {
       dot.className = 'mt5-dot online';
       statusText.textContent = 'Verbunden';
-      statusText.style.color = '#16a34a';
+      statusText.style.color = '#22c55e';
     } else {
       dot.className = 'mt5-dot offline';
       statusText.textContent = 'Getrennt';
@@ -439,7 +441,7 @@ async function updateMT5Status() {
     }
   } catch {
     document.getElementById('mt5-dot').className = 'mt5-dot offline';
-    const offlineEl = document.getElementById('mt5-status-text'); offlineEl.textContent = 'Offline'; offlineEl.style.color = '#dc2626';
+    document.getElementById('mt5-status-text').textContent = 'Offline';
   }
 }
 
@@ -517,7 +519,7 @@ function renderWinRate() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx2 => { if (ctx2.datasetIndex === 0) return '50% Linie'; const d = data[ctx2.dataIndex]; const marker = markers.find(m => m.idx === ctx2.dataIndex); const lines = [ctx2.parsed.y + '%']; if (marker) lines.push('Version: ' + marker.version); if (d) lines.push(d.date); return lines; } } } },
-      scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: '#e5e7eb' }, ticks: { color: '#6b7280', callback: v => v + '%' } } }
+      scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => v + '%' } } }
     }
   });
 }
@@ -535,7 +537,7 @@ function renderEquity() {
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },
-      scales: { x: { display: false }, y: { grid: { color: '#e5e7eb' }, ticks: { color: '#64748b', callback: v => '€' + v } } }
+      scales: { x: { display: false }, y: { grid: { color: '#1e1e2e' }, ticks: { color: '#64748b', callback: v => '€' + v } } }
     }
   });
 }

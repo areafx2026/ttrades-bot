@@ -5,7 +5,7 @@ import { FractalAnalyzer } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
-import { isMarketOpen, getActiveSession } from './marketHours';
+import { isMarketOpen, getActiveSession, isCrypto } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
@@ -49,7 +49,9 @@ const SYMBOLS = [
   'AUDUSD', 'NZDUSD', 'EURGBP', 'EURJPY',
   'EURAUD', 'EURCAD', 'GBPNZD', 'GBPJPY', 'AUDJPY',
   'AUDNZD', 'AUDCAD', 'CADJPY',
-  'GBPCAD', 'GBPAUD'
+  'GBPCAD', 'GBPAUD',
+  // Crypto — 24/7
+  'BTCUSD',
 ];
 
 const MT5_SERVER = 'http://127.0.0.1:5000';
@@ -160,7 +162,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
+          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
           logger.info(`Closing-Deal gefunden: ${dbTrade.symbol} close=${closePrice} pnlEUR=${pnlEUR} reason="${closeReason}"`);
         } else {
@@ -231,7 +233,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
+          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
         }
       } catch { /* proceed with fallback */ }
@@ -428,15 +430,20 @@ async function runScan() {
     new Promise<void>((_, reject) => setTimeout(() => reject(new Error('syncClosedTrades timeout')), 20000))
   ]).catch((err: any) => logger.warn(`syncClosedTrades abgebrochen: ${err?.message}`));
 
-  if (!isMarketOpen()) {
-    if (marketWasOpen) { logger.info('Market closed — signal scanning paused.'); marketWasOpen = false; }
-    return;
+  // Crypto scannt immer, Forex nur wenn Markt offen
+  const onlyForexClosed = !isMarketOpen();
+  if (onlyForexClosed) {
+    if (marketWasOpen) { logger.sys('Forex market closed — only scanning crypto'); marketWasOpen = false; }
+  } else {
+    marketWasOpen = true;
   }
   if (!marketWasOpen) { logger.info('Market open — signal scanning resumed.'); marketWasOpen = true; }
 
   const nowMEZ = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Berlin' }));
   const rulesCheck = isBlockedByRules(nowMEZ);
-  if (rulesCheck.blocked) { logger.info(`Signal scan skipped — ${rulesCheck.reason}`); return; }
+  // Rules gelten nur für Forex, nicht für Crypto
+  const forexBlocked = !onlyForexClosed && rulesCheck.blocked;
+  // (crypto handled per-symbol below)
 
   const toScan = SYMBOLS.filter(s => shouldScan(s));
   if (toScan.length === 0) return;
@@ -471,7 +478,9 @@ async function runScan() {
 
     for (const symbol of [...active, ...passive]) {
       try {
-        const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
+        // Forex: nicht scannen wenn Markt zu oder Rules blockieren
+    if (!isCrypto(symbol) && (onlyForexClosed || rulesCheck.blocked)) continue;
+    const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
         if (outcome === 'no_setup') noSetupSymbols.push(symbol);
       } catch (err) {
         logger.error(`Error analyzing ${symbol}:`, err);
@@ -558,7 +567,7 @@ async function startup() {
           const deals: any[] = histRes.data ?? [];
           const openDeal = deals.find((d: any) => d.entry === 0);
           if (openDeal) {
-            openedAt = new Date(openDeal.time.endsWith('Z') ? openDeal.time : openDeal.time + 'Z').toISOString();
+            openedAt = new Date(openDeal.time + 'Z').toISOString();
           }
         } catch { /* use current time as fallback */ }
 
@@ -596,7 +605,7 @@ async function startup() {
             target2,
             risk_reward:      rr,
             opened_at:        openedAt,
-            strategy_version: 'v2.4',
+            strategy_version: 'v2.3',
             stop_pips:        Math.round((risk / pip) * 10) / 10,
           });
           logger.sys(`Reconciliation OK: ${pos.symbol} [${pos.dealId}] eingetragen`);
@@ -630,12 +639,12 @@ async function startup() {
         const pip = deal.symbol.includes('JPY') ? 0.01 : 0.0001;
         const entry = deal.price;
         const type = deal.type === 'SELL' ? 'SHORT' : 'LONG';
-        const openedAt = new Date(deal.time.endsWith('Z') ? deal.time : deal.time + 'Z').toISOString();
+        const openedAt = new Date(deal.time + 'Z').toISOString();
 
         // Closing-Deal suchen
         const closingDeals = allDeals.filter((d: any) =>
           d.entry === 1 && d.symbol === deal.symbol &&
-          new Date(d.time.endsWith('Z') ? d.time : d.time + 'Z').getTime() > new Date(openedAt).getTime()
+          new Date(d.time + 'Z').getTime() > new Date(openedAt).getTime()
         );
         const closingDeal = closingDeals.sort((a: any, b: any) =>
           new Date(a.time).getTime() - new Date(b.time).getTime()

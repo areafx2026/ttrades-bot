@@ -1,3 +1,7 @@
+// BTC symbols trade 24/7 — no market hours restriction
+export const CRYPTO_SYMBOLS = ['BTCUSD', 'ETHUSD', 'XRPUSD'];
+export function isCrypto(symbol: string): boolean { return CRYPTO_SYMBOLS.includes(symbol); }
+
 // Returns true if Forex market is currently open (UTC)
 // Sun 21:05 UTC open → Fri 21:00 UTC close
 // Daily break: 20:55 - 21:05 UTC (Mon-Thu)

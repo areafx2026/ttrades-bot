@@ -58,8 +58,8 @@ export class FractalAnalyzer {
   ) {}
 
   private _lastRejectionReason: string | null = null;
-  private pip(): number { return this.symbol.includes('JPY') ? 0.01 : 0.0001; }
-  private dec(): number { return this.symbol.includes('JPY') ? 3 : 5; }
+  private pip(): number { return this.symbol.includes('JPY') ? 0.01 : this.symbol === 'BTCUSD' ? 1.0 : 0.0001; }
+  private dec(): number { return this.symbol.includes('JPY') ? 3 : this.symbol === 'BTCUSD' ? 2 : 5; }
 
   analyze(): AnalyzeResult {
     const bias = this.getDailyBias();
