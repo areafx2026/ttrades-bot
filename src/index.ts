@@ -102,6 +102,69 @@ async function syncClosedTrades(): Promise<void> {
     activeSymbols.clear();
     for (const p of mt5Positions) activeSymbols.add(p.symbol);
 
+    // ── Live-Reconciliation: MT5-Positionen gegen DB abgleichen ─────────────────
+    // Bei jedem Sync-Zyklus prüfen ob MT5-Positionen in der DB fehlen
+    // (passiert wenn insertTrade fehlschlägt oder Bot während Trade-Open abstürzt)
+    const db = getDb();
+    for (const pos of mt5Positions) {
+      const existing = db.prepare('SELECT id FROM trades WHERE id = ?').get(String(pos.dealId));
+      if (!existing) {
+        logger.sync(`Live-Reconciliation: ${pos.symbol} [${pos.dealId}] nicht in DB — trage nach`);
+        const pip = pos.symbol.includes('JPY') ? 0.01 : pos.symbol === 'BTCUSD' ? 1.0 : 0.0001;
+        const entry = pos.openLevel;
+        const sl = pos.stopLevel;
+        const tp = pos.profitLevel;
+        const risk = Math.abs(entry - sl) || pip * 15;
+        const type = pos.direction === 'BUY' ? 'LONG' : 'SHORT';
+        const target2 = type === 'LONG' ? entry + risk * 2.6 : entry - risk * 2.6;
+
+        // Opened_at aus MT5 History holen
+        let openedAt = new Date().toISOString();
+        try {
+          const histRes = await axios.get(`${MT5_SERVER}/history/position`, {
+            params: { ticket: pos.dealId }, timeout: 5000,
+          });
+          const openDeal = histRes.data.find((d: any) => d.entry === 0);
+          if (openDeal) openedAt = new Date(openDeal.time.endsWith('Z') ? openDeal.time : openDeal.time + 'Z').toISOString();
+        } catch { /* use current time */ }
+
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO trades (
+              id, symbol, type, phase,
+              entry_zone_low, entry_zone_high, entry_price,
+              stop_loss, target1, target2, risk_reward,
+              opened_at, strategy_version, asset_class,
+              entry_distance_pips, stop_pips, size_points,
+              zone_note, zone_status, exhaustion_detected,
+              currency_strength, strength_score, fvg_present
+            ) VALUES (
+              @id, @symbol, @type, 'RECONCILED',
+              @entry, @entry, @entry,
+              @sl, @tp, @target2, 1.3,
+              @opened_at, 'v2.4', @asset_class,
+              0, @stop_pips, 0,
+              null, null, null, null, null, 0
+            )
+          `).run({
+            id:        String(pos.dealId),
+            symbol:    pos.symbol,
+            type,
+            entry,
+            sl,
+            tp,
+            target2,
+            opened_at: openedAt,
+            asset_class: pos.symbol === 'BTCUSD' ? 'crypto' : 'forex',
+            stop_pips: Math.round((risk / pip) * 10) / 10,
+          });
+          logger.sync(`Live-Reconciliation OK: ${pos.symbol} [${pos.dealId}]`);
+        } catch (dbErr: any) {
+          logger.error(`Live-Reconciliation DB error: ${dbErr?.message}`);
+        }
+      }
+    }
+
     // ── 2. DB-offene Trades prüfen ───────────────────────────────────────────
     const dbOpenTrades = getDbOpenTrades();
 
