@@ -230,7 +230,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
           logger.info(`Closing-Deal gefunden: ${dbTrade.symbol} close=${closePrice} pnlEUR=${pnlEUR} reason="${closeReason}"`);
         } else {
@@ -301,7 +301,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
         }
       } catch { /* proceed with fallback */ }
@@ -649,7 +649,7 @@ async function startup() {
           const deals: any[] = histRes.data ?? [];
           const openDeal = deals.find((d: any) => d.entry === 0);
           if (openDeal) {
-            openedAt = new Date(openDeal.time + 'Z').toISOString();
+            openedAt = new Date(openDeal.time.endsWith('Z') ? openDeal.time : openDeal.time + 'Z').toISOString();
           }
         } catch { /* use current time as fallback */ }
 
@@ -721,12 +721,12 @@ async function startup() {
         const pip = deal.symbol.includes('JPY') ? 0.01 : 0.0001;
         const entry = deal.price;
         const type = deal.type === 'SELL' ? 'SHORT' : 'LONG';
-        const openedAt = new Date(deal.time + 'Z').toISOString();
+        const openedAt = new Date(deal.time.endsWith('Z') ? deal.time : deal.time + 'Z').toISOString();
 
         // Closing-Deal suchen
         const closingDeals = allDeals.filter((d: any) =>
           d.entry === 1 && d.symbol === deal.symbol &&
-          new Date(d.time + 'Z').getTime() > new Date(openedAt).getTime()
+          new Date(d.time.endsWith('Z') ? d.time : d.time + 'Z').getTime() > new Date(openedAt).getTime()
         );
         const closingDeal = closingDeals.sort((a: any, b: any) =>
           new Date(a.time).getTime() - new Date(b.time).getTime()
