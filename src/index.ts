@@ -1,11 +1,16 @@
 import 'dotenv/config';
 import axios from 'axios';
-import { MT5API } from './mt5Api';
+import { MT5API, Candle } from './mt5Api';
 import { FractalAnalyzer } from './fractalAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
 import { isMarketOpen, getActiveSession, isCrypto } from './marketHours';
+
+function isWeekend(): boolean {
+  const day = new Date().getUTCDay();
+  return day === 0 || day === 6; // 0=Sunday, 6=Saturday
+}
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
@@ -340,6 +345,11 @@ async function executeTrade(
         currency_strength:    undefined,
         strength_score:       undefined,
         fvg_present:          0,
+        zone_note:            undefined,
+        zone_status:          undefined,
+        exhaustion_detected:  undefined,
+        asset_class:          symbol === 'BTCUSD' ? 'crypto' : 'forex',
+        strategy_version:     'v2.4',
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
     } catch (dbErr: any) {
@@ -383,7 +393,9 @@ async function analyzeSymbol(
     return 'open';
   }
 
-  const dailyCandles = await mt5.getCandles(symbol, 'DAY', 20);
+  const isBtcWeekend = symbol === 'BTCUSD' && isWeekend();
+
+  const dailyCandles = await mt5.getCandles(symbol, 'DAY', 40); // 40 D1 voor betere swing detectie
   await new Promise(r => setTimeout(r, 100));
   const h4Candles = await mt5.getCandles(symbol, 'HOUR_4', 40);
   await new Promise(r => setTimeout(r, 100));
@@ -391,8 +403,15 @@ async function analyzeSymbol(
   await new Promise(r => setTimeout(r, 100));
   const m15Candles = await mt5.getCandles(symbol, 'MINUTE_15', 80);
 
-  const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
-  const analyzeResult = analyzer.analyze();
+  // M5 alleen laden voor BTC in het weekend
+  let m5Candles: Candle[] = [];
+  if (isBtcWeekend) {
+    await new Promise(r => setTimeout(r, 100));
+    m5Candles = await mt5.getCandles(symbol, 'MINUTE_5', 100);
+  }
+
+  const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles, m5Candles);
+  const analyzeResult = isBtcWeekend ? analyzer.analyzeWeekend() : analyzer.analyze();
   const signal = analyzeResult.signal;
 
   if (analyzeResult.rejected && analyzeResult.reason) {
