@@ -213,8 +213,8 @@ export class FractalAnalyzer {
     const risk = Math.abs(entryPrice - stopLoss);
 
     // Min Stop: 5 Pips (JPY: 8 Pips)
-    const minRisk = pip * (this.symbol.includes('JPY') ? 8 : 5);
-    if (risk < minRisk) {
+    const minRisk = pip * (this.symbol.includes('JPY') ? 8 : this.symbol === 'BTCUSD' ? 50 : 5);
+    if (risk < minRisk - pip * 0.5) { // 0.5 pip Toleranz für Floating-Point
       this._lastRejectionReason = `Stop zu klein: ${(risk / pip).toFixed(1)} < ${minRisk / pip} pips`;
       return null;
     }
