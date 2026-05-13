@@ -466,42 +466,39 @@ async function updateMT5Status() {
 updateMT5Status();
 setInterval(updateMT5Status, 10000);
 
-// S/R Zonen laden und anzeigen
 async function updateSRZones() {
   try {
     const res = await fetch('/api/sr-zones');
     const data = await res.json();
     const grid = document.getElementById('sr-zones-grid');
     if (!grid) return;
-
     const symbols = Object.keys(data);
     if (symbols.length === 0) {
-      grid.innerHTML = '<div style="color:var(--muted)">Noch keine S/R Zonen berechnet — warte auf ersten Scan...</div>';
+      grid.innerHTML = '<div style="color:var(--muted)">Noch keine S/R Zonen — warte auf ersten Scan...</div>';
       return;
     }
-
-    grid.innerHTML = symbols.map(sym => {
+    grid.innerHTML = symbols.map(function(sym) {
       const zones = data[sym];
-      const zoneHtml = zones.map(z => {
+      const dec = sym.includes('JPY') ? 3 : 5;
+      const zoneHtml = zones.map(function(z) {
         const col = z.type === 'resistance' ? '#dc2626' : z.type === 'support' ? '#16a34a' : '#6b7280';
-        const label = z.type === 'resistance' ? 'RES' : z.type === 'support' ? 'SUP' : 'IN';
-        const dec = sym.includes('JPY') ? 3 : 5;
-        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:${col}22;border-left:3px solid ${col};border-radius:3px;margin-bottom:4px;font-size:12px">
-          <span style="color:${col};font-weight:700">${label}</span>
-          <span style="color:var(--muted)">${z.lo.toFixed(dec)} – ${z.hi.toFixed(dec)}</span>
-          <span style="color:var(--muted);font-size:10px">str:${z.strength}</span>
-        </div>`;
+        const lbl = z.type === 'resistance' ? 'RES' : z.type === 'support' ? 'SUP' : 'IN';
+        return '<div style="display:flex;justify-content:space-between;padding:4px 8px;background:' + col + '22;border-left:3px solid ' + col + ';border-radius:3px;margin-bottom:4px;font-size:12px">' +
+          '<span style="color:' + col + ';font-weight:700">' + lbl + '</span>' +
+          '<span style="color:var(--muted)">' + z.lo.toFixed(dec) + ' – ' + z.hi.toFixed(dec) + '</span>' +
+          '<span style="color:var(--muted);font-size:10px">str:' + z.strength + '</span>' +
+          '</div>';
       }).join('');
-      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px">
-        <div style="font-weight:700;color:var(--text);margin-bottom:8px">${sym}</div>
-        ${zoneHtml || '<div style="color:var(--muted);font-size:12px">keine Zonen</div>'}
-      </div>`;
+      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px">' +
+        '<div style="font-weight:700;color:var(--text);margin-bottom:8px">' + sym + '</div>' +
+        (zoneHtml || '<div style="color:var(--muted);font-size:12px">keine Zonen</div>') +
+        '</div>';
     }).join('');
-  } catch {}
+  } catch(e) {}
 }
 
 updateSRZones();
-setInterval(updateSRZones, 60000); // jede Minute aktualisieren
+setInterval(updateSRZones, 60000);
 
 function toggleLogSort() {
   const url = new URL(window.location.href);
