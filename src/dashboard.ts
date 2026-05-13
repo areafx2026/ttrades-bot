@@ -28,6 +28,20 @@ function pnlColor(val?: number): string {
 }
 
 // MT5 status endpoint — proxied from Python server
+// S/R Zonen API — liest aus srCache in index.ts
+// wird über globale Variable übergeben
+let _srCacheRef: Map<string, any[]> | null = null;
+export function setSrCacheRef(cache: Map<string, any[]>) { _srCacheRef = cache; }
+
+app.get('/api/sr-zones', (req, res) => {
+  if (!_srCacheRef) return res.json({});
+  const result: Record<string, any[]> = {};
+  for (const [sym, zones] of _srCacheRef.entries()) {
+    result[sym] = zones;
+  }
+  res.json(result);
+});
+
 app.get('/api/mt5-status', async (req, res) => {
   try {
     const health = await axios.get(`${MT5_SERVER}/health`, { timeout: 3000 });
@@ -53,9 +67,7 @@ app.get('/', async (req, res) => {
   const filterStats = getFilterRejections(7);
   const filterBySymbol = getFilterRejectionsBySymbol(7);
   const activeTab = req.query.logSort !== undefined ? 'log' : 'trades';
-  const allTradesRaw = getAllTrades();
-  const assetFilter = req.query.asset as string ?? 'forex';
-  const allTrades = allTradesRaw.filter(t => (t.asset_class ?? 'forex') === assetFilter).sort((a, b) => {
+  const allTrades = getAllTrades().sort((a, b) => {
     const da = new Date(a.opened_at).getTime();
     const db2 = new Date(b.opened_at).getTime();
     return sortAsc ? da - db2 : db2 - da;
@@ -289,6 +301,12 @@ app.get('/', async (req, res) => {
 
   <!-- Symbole -->
   <div id="tab-symbols" class="tab-content">
+    <div id="sr-zones-section" style="margin-bottom:24px">
+      <h3 style="color:var(--text);margin-bottom:12px">📊 Support/Resistance Zonen (D1)</h3>
+      <div id="sr-zones-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
+        <div style="color:var(--muted)">Wird geladen...</div>
+      </div>
+    </div>
     <div class="card">
       <div class="section-title">Win/Loss nach Symbol</div>
       <div class="table-wrap">
@@ -447,6 +465,43 @@ async function updateMT5Status() {
 
 updateMT5Status();
 setInterval(updateMT5Status, 10000);
+
+// S/R Zonen laden und anzeigen
+async function updateSRZones() {
+  try {
+    const res = await fetch('/api/sr-zones');
+    const data = await res.json();
+    const grid = document.getElementById('sr-zones-grid');
+    if (!grid) return;
+
+    const symbols = Object.keys(data);
+    if (symbols.length === 0) {
+      grid.innerHTML = '<div style="color:var(--muted)">Noch keine S/R Zonen berechnet — warte auf ersten Scan...</div>';
+      return;
+    }
+
+    grid.innerHTML = symbols.map(sym => {
+      const zones = data[sym];
+      const zoneHtml = zones.map(z => {
+        const col = z.type === 'resistance' ? '#dc2626' : z.type === 'support' ? '#16a34a' : '#6b7280';
+        const label = z.type === 'resistance' ? 'RES' : z.type === 'support' ? 'SUP' : 'IN';
+        const dec = sym.includes('JPY') ? 3 : 5;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:${col}22;border-left:3px solid ${col};border-radius:3px;margin-bottom:4px;font-size:12px">
+          <span style="color:${col};font-weight:700">${label}</span>
+          <span style="color:var(--muted)">${z.lo.toFixed(dec)} – ${z.hi.toFixed(dec)}</span>
+          <span style="color:var(--muted);font-size:10px">str:${z.strength}</span>
+        </div>`;
+      }).join('');
+      return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px">
+        <div style="font-weight:700;color:var(--text);margin-bottom:8px">${sym}</div>
+        ${zoneHtml || '<div style="color:var(--muted);font-size:12px">keine Zonen</div>'}
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+updateSRZones();
+setInterval(updateSRZones, 60000); // jede Minute aktualisieren
 
 function toggleLogSort() {
   const url = new URL(window.location.href);

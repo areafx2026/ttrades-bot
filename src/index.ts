@@ -2,16 +2,16 @@ import 'dotenv/config';
 import axios from 'axios';
 import { MT5API } from './mt5Api';
 import { FractalAnalyzer } from './fractalAnalyzer';
+import { calculateSR, checkSRFilter } from './srAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
 import { isMarketOpen, getActiveSession, isCrypto } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
-import { openTradeResilient, closeTradeResilient, reconcile, makeTempId, isTempId } from './tradeManager';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
 import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
-import { startDashboard } from './dashboard';
+import { startDashboard, setSrCacheRef } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
 
@@ -60,6 +60,7 @@ const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
 let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
+const srCache = new Map<string, any[]>(); // S/R Zonen pro Symbol für Dashboard
 const lastScanned = new Map<string, number>();
 const FAST_INTERVAL_MS = 30 * 1000;
 const SLOW_INTERVAL_MS = 2 * 60 * 1000;
@@ -98,8 +99,7 @@ async function syncClosedTrades(): Promise<void> {
     activeSymbols.clear();
     for (const p of mt5Positions) activeSymbols.add(p.symbol);
 
-    // ── Live-Reconciliation via tradeManager ─────────────────────────────────
-    await reconcile(mt5Positions, false);
+    // ── 2. DB-offene Trades prüfen ───────────────────────────────────────────
     const dbOpenTrades = getDbOpenTrades();
 
     // Tick aufzeichnen + Time-based close für noch offene Trades
@@ -137,10 +137,72 @@ async function syncClosedTrades(): Promise<void> {
     //   - Verknüpfung läuft über DEAL_POSITION_ID, nicht über Symbol oder Zeit
 
     for (const dbTrade of dbOpenTrades) {
-      if (openTickets.has(dbTrade.id)) continue; // noch offen in MT5
+      // Noch offen in MT5 → nichts tun
+      if (openTickets.has(dbTrade.id)) continue;
 
-      const closed = await closeTradeResilient(dbTrade, telegram);
-      if (closed) activeSymbols.delete(dbTrade.symbol);
+      const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
+      const dec = dbTrade.symbol.includes('JPY') ? 3 : 5;
+
+      logger.info(`Trade geschlossen erkannt: ${dbTrade.symbol} [ticket=${dbTrade.id}]`);
+
+      // Closing-Deal per Position-Ticket holen
+      let closePrice: number;
+      let pnlEUR: number;
+      let closedAt: string;
+      let closeReason = 'SL/TP/Market';
+
+      try {
+        const histRes = await axios.get(`${MT5_SERVER}/history/position`, {
+          params: { ticket: dbTrade.id },
+          timeout: 5000,
+        });
+        const deals: any[] = histRes.data ?? [];
+
+        // Closing-Deal = entry === 1 (OUT)
+        const closingDeal = deals.find((d: any) => d.entry === 1);
+
+        if (closingDeal) {
+          closePrice  = closingDeal.price;
+          pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
+          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closeReason = closingDeal.comment ?? 'SL/TP/Market';
+          logger.info(`Closing-Deal gefunden: ${dbTrade.symbol} close=${closePrice} pnlEUR=${pnlEUR} reason="${closeReason}"`);
+        } else {
+          // Kein Closing-Deal yet → Trade noch nicht wirklich zu (Race condition)
+          logger.warn(`Kein Closing-Deal für ${dbTrade.symbol} [${dbTrade.id}] — übersprungen`);
+          continue;
+        }
+      } catch (e: any) {
+        logger.error(`History-Lookup fehlgeschlagen für ${dbTrade.symbol}: ${e.message}`);
+        continue;
+      }
+
+      // Pips berechnen
+      const entryPrice = dbTrade.entry_price ?? closePrice;
+      const rawPnlPips = dbTrade.type === 'LONG'
+        ? (closePrice - entryPrice) / pip
+        : (entryPrice - closePrice) / pip;
+      const pnlPips = Math.round(rawPnlPips * 10) / 10;
+
+      // WIN/LOSS immer aus EUR P&L (echte MT5-Werte)
+      const result = pnlEUR > 0.5 ? 'WIN' : pnlEUR < -0.5 ? 'LOSS' : 'BREAKEVEN';
+
+      // DB + JSON aktualisieren
+      logClosedTrade(dbTrade.id, closePrice, closedAt);
+      savePineScript();
+      closeTrade(dbTrade.id, closePrice, closedAt, closeReason, pnlPips, pnlEUR, result);
+      activeSymbols.delete(dbTrade.symbol);
+
+      logger.info(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
+
+      const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
+      await telegram.sendMessage(
+        `${resultEmoji} <b>Trade geschlossen — ${dbTrade.symbol}</b>\n` +
+        `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${result}\n` +
+        `Close: <code>${closePrice.toFixed(dec)}</code>\n` +
+        `P&L: <b>${pnlPips >= 0 ? '+' : ''}${pnlPips.toFixed(1)} pips</b>  ` +
+        `(<b>${pnlEUR >= 0 ? '+' : ''}€${pnlEUR.toFixed(2)}</b>)`
+      );
     }
 
     // ── 4. JSON-Fallback: alte Trades die noch nicht in DB sind ─────────────
@@ -239,16 +301,54 @@ async function executeTrade(
     }
   }
 
-  // Resiliente Trade-Mechanik: DB zuerst, dann Order, dann verifizieren
-  const assetClass = symbol === 'BTCUSD' ? 'crypto' : 'forex';
-  const tradeResult = await openTradeResilient(
-    signal, executor, getActiveSession(), assetClass, 'v2.4'
-  );
+  const result = await executor.openTrade(signal);
+  logger.trade(`openTrade result: ${JSON.stringify(result)}`);
 
-  if (tradeResult.success && tradeResult.dealId) {
-    logger.trade(`Trade opened for ${symbol}: ${tradeResult.dealId}`);
-    activeSymbols.add(symbol);
+  if (result.success && result.dealId) {
+    logger.trade(`Trade opened for ${symbol}: ${result.dealId}`);
+    logOpenTrade(signal, result.dealId);
     savePineScript();
+    activeSymbols.add(symbol);
+
+    // ── DB insert ────────────────────────────────────────────────────────────
+    try {
+      const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
+      const fillPrice = signal.currentPrice;
+      const stopPips  = Math.abs(fillPrice - signal.stopLoss) / pip;
+      const entryDistPips = Math.abs(fillPrice - ((signal.entryZone?.[0] ?? fillPrice) + (signal.entryZone?.[1] ?? fillPrice)) / 2) / pip;
+
+      insertTrade({
+        id:                   String(result.dealId),
+        symbol,
+        type:                 signal.type,
+        phase:                signal.phase,
+        entry_zone_low:       signal.entryZone?.[0] ?? fillPrice,
+        entry_zone_high:      signal.entryZone?.[1] ?? fillPrice,
+        entry_price:          fillPrice,
+        entry_distance_pips:  Math.round(entryDistPips * 10) / 10,
+        stop_loss:            signal.stopLoss,
+        stop_pips:            Math.round(stopPips * 10) / 10,
+        target1:              signal.target1 ?? signal.targetPrice,
+        target2:              signal.target2 ?? signal.target1 ?? signal.targetPrice,
+        risk_reward:          signal.riskReward ?? 1.3,
+        size_points:          (result as any).lots ?? 0,
+        session:              getActiveSession() ?? undefined,
+        weekday:              new Date().getDay(),
+        opened_at:            new Date().toISOString(),
+        daily_bias:           signal.dailyBias ?? signal.type,
+        h4_confirmation:      signal.h4Confirmation ?? undefined,
+        h1_context:           signal.h1Context ?? undefined,
+        m15_setup:            signal.m15Setup ?? undefined,
+        currency_strength:    undefined,
+        strength_score:       undefined,
+        fvg_present:          0,
+      });
+      logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
+    } catch (dbErr: any) {
+      logger.error(`insertTrade failed for ${symbol} [${result.dealId}]: ${dbErr.message}`);
+    }
+
+
 
     const fillPrice = signal.currentPrice;
     const realRisk = Math.abs(fillPrice - signal.stopLoss);
@@ -258,14 +358,14 @@ async function executeTrade(
 
     await telegram.sendMessage(
       `✅ <b>Trade geöffnet — ${symbol}</b>\n` +
-      `${signal.type === 'LONG' ? '📈' : '📉'} ${signal.type} | ${signal.phase} | #${tradeResult.dealId}\n` +
+      `${signal.type === 'LONG' ? '📈' : '📉'} ${signal.type} | ${signal.phase} | #${result.dealId}\n` +
       `Entry: <code>${fillPrice.toFixed(dec)}</code>\n` +
       `SL: <code>${signal.stopLoss.toFixed(dec)}</code> | TP: <code>${realTP.toFixed(dec)}</code>\n` +
       `R:R: <b>1.30:1</b>`
     );
   } else {
-    logger.warn(`Trade skipped for ${symbol}: ${tradeResult.message}`);
-    if (tradeResult.message.includes('verpasst')) activeSymbols.delete(symbol);
+    logger.warn(`Trade skipped for ${symbol}: ${result.message}`);
+    if (result.message.includes('verpasst')) activeSymbols.delete(symbol);
   }
 }
 
@@ -285,7 +385,8 @@ async function analyzeSymbol(
     return 'open';
   }
 
-  const dailyCandles = await mt5.getCandles(symbol, 'DAY', 20);
+  const d1Count = symbol === 'BTCUSD' ? 40 : 250;
+  const dailyCandles = await mt5.getCandles(symbol, 'DAY', d1Count);
   await new Promise(r => setTimeout(r, 100));
   const h4Candles = await mt5.getCandles(symbol, 'HOUR_4', 40);
   await new Promise(r => setTimeout(r, 100));
@@ -428,6 +529,7 @@ async function startup() {
   initZones();
   getDb();
   startDashboard();
+  setSrCacheRef(srCache);
 
   try {
     const executor = new MT5TradeExecutor();
@@ -437,10 +539,188 @@ async function startup() {
       logger.sys(`Restored ${mt5Positions.length} open MT5 position(s): ${mt5Positions.map(p => p.symbol).join(', ')}`);
     }
 
-    // ── Startup-Reconciliation + History via tradeManager ──────────────────
-    await reconcile(mt5Positions, true);
+    // ── Startup-Reconciliation ────────────────────────────────────────────────
+    // Für jede offene MT5-Position prüfen ob sie in der DB existiert.
+    // Falls nicht → automatisch eintragen (passiert wenn Bot während Trade-Open abstürzt)
+    const db = getDb();
+    for (const pos of mt5Positions) {
+      const existing = db.prepare('SELECT id FROM trades WHERE id = ?').get(pos.dealId);
+      if (!existing) {
+        logger.sys(`Reconciliation: ${pos.symbol} [${pos.dealId}] nicht in DB — trage nach`);
 
-    // Danach syncClosedTrades     // Danach syncClosedTrades für Trades die während Offline geschlossen wurden
+        const pip = pos.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const dec = pos.symbol.includes('JPY') ? 3 : 5;
+        const sl   = pos.stopLevel;
+        const tp   = pos.profitLevel;
+        const entry = pos.openLevel;
+        const risk  = Math.abs(entry - sl);
+        const reward = Math.abs(tp - entry);
+        const rr = risk > 0 ? Math.round((reward / risk) * 100) / 100 : 1.3;
+        const type = pos.direction === 'BUY' ? 'LONG' : 'SHORT';
+        const target2 = type === 'LONG'
+          ? entry + risk * 2.6
+          : entry - risk * 2.6;
+
+        // Opened_at aus MT5 History holen
+        let openedAt = new Date().toISOString();
+        try {
+          const histRes = await axios.get(`${MT5_SERVER}/history/position`, {
+            params: { ticket: pos.dealId },
+            timeout: 5000,
+          });
+          const deals: any[] = histRes.data ?? [];
+          const openDeal = deals.find((d: any) => d.entry === 0);
+          if (openDeal) {
+            openedAt = new Date(openDeal.time + 'Z').toISOString();
+          }
+        } catch { /* use current time as fallback */ }
+
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO trades (
+              id, symbol, type, phase,
+              entry_zone_low, entry_zone_high, entry_price,
+              stop_loss, target1, target2, risk_reward,
+              opened_at, strategy_version,
+              entry_distance_pips, stop_pips,
+              size_points, zone_note, zone_status,
+              exhaustion_detected, currency_strength,
+              strength_score, fvg_present
+            ) VALUES (
+              @id, @symbol, @type, @phase,
+              @entry_zone_low, @entry_zone_high, @entry_price,
+              @stop_loss, @target1, @target2, @risk_reward,
+              @opened_at, @strategy_version,
+              0, @stop_pips,
+              0, null, null,
+              null, null,
+              null, 0
+            )
+          `).run({
+            id:               pos.dealId,
+            symbol:           pos.symbol,
+            type,
+            phase:            'RECONCILED',
+            entry_zone_low:   entry,
+            entry_zone_high:  entry,
+            entry_price:      entry,
+            stop_loss:        sl,
+            target1:          tp,
+            target2,
+            risk_reward:      rr,
+            opened_at:        openedAt,
+            strategy_version: 'v2.3',
+            stop_pips:        Math.round((risk / pip) * 10) / 10,
+          });
+          logger.sys(`Reconciliation OK: ${pos.symbol} [${pos.dealId}] eingetragen`);
+        } catch (dbErr: any) {
+          logger.error(`Reconciliation DB error for ${pos.symbol}: ${dbErr?.message}`);
+        }
+      }
+    }
+
+    // ── History-Reconciliation ───────────────────────────────────────────────
+    // Prüfe MT5-History der letzten 48h auf TTFM-Bot-Trades die nicht in DB sind
+    // (passiert wenn Bot abstürzt nachdem Trade geöffnet aber vor DB-Eintrag)
+    try {
+      const histRes = await axios.get(`${MT5_SERVER}/history`, {
+        params: { hours: 48, all: '1' },
+        timeout: 5000,
+      });
+      const allDeals: any[] = histRes.data ?? [];
+
+      // Nur Opening-Deals vom Bot
+      const openingDeals = allDeals.filter((d: any) =>
+        d.entry === 0 && d.comment === 'TTFM Bot' && d.symbol !== ''
+      );
+
+      for (const deal of openingDeals) {
+        const existingTrade = db.prepare('SELECT id FROM trades WHERE id = ?').get(deal.ticket);
+        if (existingTrade) continue; // bereits in DB
+
+        logger.sys(`History-Reconciliation: ${deal.symbol} [${deal.ticket}] nicht in DB — trage nach`);
+
+        const pip = deal.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const entry = deal.price;
+        const type = deal.type === 'SELL' ? 'SHORT' : 'LONG';
+        const openedAt = new Date(deal.time + 'Z').toISOString();
+
+        // Closing-Deal suchen
+        const closingDeals = allDeals.filter((d: any) =>
+          d.entry === 1 && d.symbol === deal.symbol &&
+          new Date(d.time + 'Z').getTime() > new Date(openedAt).getTime()
+        );
+        const closingDeal = closingDeals.sort((a: any, b: any) =>
+          new Date(a.time).getTime() - new Date(b.time).getTime()
+        )[0];
+
+        // Position-Details aus MT5 holen (für SL/TP)
+        let sl = entry;
+        let tp = entry;
+        let rr = 1.3;
+        try {
+          const posHistRes = await axios.get(`${MT5_SERVER}/history/position`, {
+            params: { ticket: deal.ticket },
+            timeout: 5000,
+          });
+          const posDeals: any[] = posHistRes.data ?? [];
+          // SL/TP aus dem Closing-Deal-Kommentar extrahieren wenn vorhanden
+          if (closingDeal?.comment?.includes('[sl ')) {
+            sl = parseFloat(closingDeal.comment.replace('[sl ', '').replace(']', ''));
+          }
+          if (closingDeal?.comment?.includes('[tp ')) {
+            tp = parseFloat(closingDeal.comment.replace('[tp ', '').replace(']', ''));
+          }
+        } catch { /* ignore */ }
+
+        const risk = Math.abs(entry - sl) || pip * 15;
+        const reward = Math.abs(tp - entry) || risk * 1.3;
+        rr = Math.round((reward / risk) * 100) / 100;
+        const target2 = type === 'LONG' ? entry + risk * 2.6 : entry - risk * 2.6;
+
+        try {
+          db.prepare(`
+            INSERT OR IGNORE INTO trades (
+              id, symbol, type, phase,
+              entry_zone_low, entry_zone_high, entry_price,
+              stop_loss, target1, target2, risk_reward,
+              opened_at, strategy_version,
+              entry_distance_pips, stop_pips,
+              size_points, zone_note, zone_status,
+              exhaustion_detected, currency_strength,
+              strength_score, fvg_present
+            ) VALUES (
+              @id, @symbol, @type, @phase,
+              @entry, @entry, @entry,
+              @sl, @tp, @target2, @rr,
+              @opened_at, 'v2.3',
+              0, @stop_pips,
+              0, null, null,
+              null, null, null, 0
+            )
+          `).run({
+            id:        deal.ticket,
+            symbol:    deal.symbol,
+            type,
+            phase:     'RECONCILED',
+            entry,
+            sl,
+            tp,
+            target2,
+            rr,
+            opened_at: openedAt,
+            stop_pips: Math.round((risk / pip) * 10) / 10,
+          });
+          logger.sys(`History-Reconciliation OK: ${deal.symbol} [${deal.ticket}] eingetragen`);
+        } catch (dbErr: any) {
+          logger.error(`History-Reconciliation DB error: ${dbErr?.message}`);
+        }
+      }
+    } catch (histErr: any) {
+      logger.warn(`History-Reconciliation fehler: ${histErr?.message}`);
+    }
+
+    // Danach syncClosedTrades für Trades die während Offline geschlossen wurden
     await syncClosedTrades();
 
   } catch (err) {
