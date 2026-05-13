@@ -22,6 +22,7 @@
 
 import axios from 'axios';
 import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades, DbTrade } from './database';
+import { brokerToUtc } from './marketHours';
 import { savePineScript } from './tradeLogger';
 import { logger } from './logger';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
@@ -170,7 +171,7 @@ export async function openTradeResilient(
       });
       const openDeal = (histRes.data ?? []).find((d: any) => d.entry === 0);
       if (openDeal) {
-        const openedAt = new Date(openDeal.time.endsWith('Z') ? openDeal.time : openDeal.time + 'Z').toISOString();
+        const openedAt = brokerToUtc(openDeal.time);
         db.prepare('UPDATE trades SET opened_at = ? WHERE id = ?').run(openedAt, realId);
         tlog('UPDATE', signal.symbol, realId, `opened_at korrigiert auf ${openedAt}`);
       }
@@ -222,7 +223,7 @@ export async function closeTradeResilient(
 
     closePrice  = closingDeal.price;
     pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-    closedAt    = new Date(closingDeal.time.endsWith('Z') ? closingDeal.time : closingDeal.time + 'Z').toISOString();
+    closedAt    = brokerToUtc(closingDeal.time);
     closeReason = closingDeal.comment ?? 'SL/TP/Market';
 
     tlog('CLOSE DATA', dbTrade.symbol, dbTrade.id,
@@ -422,7 +423,7 @@ export async function reconcile(
       });
       const openDeal = (histRes.data ?? []).find((d: any) => d.entry === 0);
       if (openDeal) {
-        openedAt = new Date(openDeal.time.endsWith('Z') ? openDeal.time : openDeal.time + 'Z').toISOString();
+        openedAt = brokerToUtc(openDeal.time);
       }
     } catch { /* use now */ }
 
@@ -482,7 +483,7 @@ export async function reconcile(
         const pip   = deal.symbol.includes('JPY') ? 0.01 : deal.symbol === 'BTCUSD' ? 1.0 : 0.0001;
         const entry = deal.price;
         const type  = deal.type === 'SELL' ? 'SHORT' : 'LONG';
-        const openedAt = new Date(deal.time.endsWith('Z') ? deal.time : deal.time + 'Z').toISOString();
+        const openedAt = brokerToUtc(deal.time);
 
         // SL/TP aus Closing-Deal-Kommentar
         const closingDeal = allDeals.find((d: any) =>
