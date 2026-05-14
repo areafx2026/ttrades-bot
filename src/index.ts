@@ -342,6 +342,11 @@ async function executeTrade(
         currency_strength:    undefined,
         strength_score:       undefined,
         fvg_present:          0,
+        zone_note:            undefined,
+        zone_status:          undefined,
+        exhaustion_detected:  undefined,
+        asset_class:          symbol === 'BTCUSD' ? 'crypto' : 'forex',
+        strategy_version:     'v2.4',
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
     } catch (dbErr: any) {
