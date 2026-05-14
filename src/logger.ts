@@ -27,7 +27,9 @@ function rotateLogs(): void {
 }
 
 function writeToFile(line: string): void {
-  try { fs.appendFileSync(getLogFile(), line + '\n', 'utf-8'); } catch { /* ignore */ }
+  try {
+    fs.appendFileSync(getLogFile(), line + '\n', 'utf-8');
+  } catch { /* ignore */ }
 }
 
 rotateLogs();
@@ -38,35 +40,37 @@ const timestamp = () => new Date().toLocaleString('de-DE', {
   hour: '2-digit', minute: '2-digit', second: '2-digit',
 });
 
-// Kategorie-Breite: 5 Zeichen für saubere Ausrichtung
-// SCAN  — Symbol analysiert, kein/ablehnendes Setup
-// SETUP — vollständiges Signal gefunden
-// TRADE — Trade geöffnet oder geschlossen
-// RISK  — Lot-Berechnung, SL/TP/RR Details
-// SYNC  — MT5-Sync, Positionen, History
-// SYS   — Bot-Start, Verbindung, Konfiguration
-// WARN  — Warnungen
-// ERROR — Fehler
+// ─── Konsolen-Filter ──────────────────────────────────────────────────────────
+// Nur diese Kategorien erscheinen in der Konsole (Live-Monitoring)
+// Alles andere geht nur ins File-Log
+const CONSOLE_CATEGORIES = new Set(['SETUP', 'TRADE', 'RISK', 'ERROR', 'WARN']);
 
-function log(category: string, msg: string, args: any[]): string {
-  const cat = category.padEnd(5).slice(0, 5);
-  const extra = args.length
-    ? ' ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')
-    : '';
-  return `[${timestamp()}] ${cat} ${msg}${extra}`;
+function log(category: string, label: string, msg: string, args: any[]): void {
+  const extra = args.length ? ' ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') : '';
+  const line = `[${timestamp()}] ${label} ${msg}${extra}`;
+
+  // Immer ins File
+  writeToFile(line);
+
+  // Konsole nur für relevante Kategorien
+  if (CONSOLE_CATEGORIES.has(category)) {
+    if (category === 'ERROR') console.error(line);
+    else if (category === 'WARN') console.warn(line);
+    else console.log(line);
+  }
 }
 
 export const logger = {
-  // Standard-Levels (Kompatibilität mit bestehendem Code)
-  info:  (msg: string, ...args: any[]) => { const l = log('INFO', msg, args); console.log(l);   writeToFile(l); },
-  warn:  (msg: string, ...args: any[]) => { const l = log('WARN', msg, args); console.warn(l);  writeToFile(l); },
-  error: (msg: string, ...args: any[]) => { const l = log('ERROR', msg, args); console.error(l); writeToFile(l); },
+  // Trade-relevante Kategorien → Konsole + File
+  setup:  (msg: string, ...args: any[]) => log('SETUP', 'SETUP', msg, args),
+  trade:  (msg: string, ...args: any[]) => log('TRADE', 'TRADE', msg, args),
+  risk:   (msg: string, ...args: any[]) => log('RISK',  'RISK ', msg, args),
+  warn:   (msg: string, ...args: any[]) => log('WARN',  'WARN ', msg, args),
+  error:  (msg: string, ...args: any[]) => log('ERROR', 'ERROR', msg, args),
 
-  // Neue Kategorien
-  scan:  (msg: string, ...args: any[]) => { const l = log('SCAN', msg, args);  console.log(l);  writeToFile(l); },
-  setup: (msg: string, ...args: any[]) => { const l = log('SETUP', msg, args); console.log(l);  writeToFile(l); },
-  trade: (msg: string, ...args: any[]) => { const l = log('TRADE', msg, args); console.log(l);  writeToFile(l); },
-  risk:  (msg: string, ...args: any[]) => { const l = log('RISK', msg, args);  console.log(l);  writeToFile(l); },
-  sync:  (msg: string, ...args: any[]) => { const l = log('SYNC', msg, args);  console.log(l);  writeToFile(l); },
-  sys:   (msg: string, ...args: any[]) => { const l = log('SYS', msg, args);   console.log(l);  writeToFile(l); },
+  // Nur File
+  sys:    (msg: string, ...args: any[]) => log('SYS',   'SYS  ', msg, args),
+  scan:   (msg: string, ...args: any[]) => log('SCAN',  'SCAN ', msg, args),
+  sync:   (msg: string, ...args: any[]) => log('SYNC',  'SYNC ', msg, args),
+  info:   (msg: string, ...args: any[]) => log('INFO',  'INFO ', msg, args),
 };
