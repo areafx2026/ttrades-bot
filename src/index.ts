@@ -519,6 +519,7 @@ cron.schedule('5 22 * * 1-5', () => {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 async function startup() {
+  logger.boot(`TTrades Bot v2.4 gestartet — ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}`);
   logger.sys('TTrades Fractal Model Bot started');
   logger.sys(`Monitoring: ${SYMBOLS.join(', ')}`);
   logger.sys(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);

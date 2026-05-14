@@ -43,7 +43,7 @@ const timestamp = () => new Date().toLocaleString('de-DE', {
 // ─── Konsolen-Filter ──────────────────────────────────────────────────────────
 // Nur diese Kategorien erscheinen in der Konsole (Live-Monitoring)
 // Alles andere geht nur ins File-Log
-const CONSOLE_CATEGORIES = new Set(['SETUP', 'TRADE', 'RISK', 'ERROR', 'WARN']);
+const CONSOLE_CATEGORIES = new Set(['SETUP', 'TRADE', 'RISK', 'ERROR', 'WARN', 'BOOT']);
 
 function log(category: string, label: string, msg: string, args: any[]): void {
   const extra = args.length ? ' ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ') : '';
@@ -62,6 +62,7 @@ function log(category: string, label: string, msg: string, args: any[]): void {
 
 export const logger = {
   // Trade-relevante Kategorien → Konsole + File
+  boot:   (msg: string, ...args: any[]) => log('BOOT',  'BOOT ', msg, args),
   setup:  (msg: string, ...args: any[]) => log('SETUP', 'SETUP', msg, args),
   trade:  (msg: string, ...args: any[]) => log('TRADE', 'TRADE', msg, args),
   risk:   (msg: string, ...args: any[]) => log('RISK',  'RISK ', msg, args),
