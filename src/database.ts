@@ -99,6 +99,17 @@ function initSchema(): void {
       PRIMARY KEY (trade_id, recorded_at)
     );
 
+    CREATE TABLE IF NOT EXISTS spreads (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol     TEXT NOT NULL,
+      recorded_at TEXT NOT NULL,
+      bid        REAL NOT NULL,
+      ask        REAL NOT NULL,
+      spread_pips REAL NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_spreads_symbol ON spreads(symbol);
+    CREATE INDEX IF NOT EXISTS idx_spreads_time ON spreads(recorded_at);
     CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol);
     CREATE INDEX IF NOT EXISTS idx_trades_result ON trades(result);
     CREATE INDEX IF NOT EXISTS idx_trades_opened ON trades(opened_at);
@@ -358,6 +369,36 @@ export function getFilterRejectionsBySymbol(days: number = 7): any[] {
 }
 
 // ─── Statistics ───────────────────────────────────────────────────────────────
+
+export function recordSpread(symbol: string, bid: number, ask: number): void {
+  const db = getDb();
+  const pip = symbol.includes('JPY') ? 0.01 : symbol === 'BTCUSD' ? 1.0 : 0.0001;
+  const spreadPips = Math.round(((ask - bid) / pip) * 10) / 10;
+  db.prepare(`
+    INSERT INTO spreads (symbol, recorded_at, bid, ask, spread_pips)
+    VALUES (@symbol, @recordedAt, @bid, @ask, @spreadPips)
+  `).run({ symbol, recordedAt: new Date().toISOString(), bid, ask, spreadPips });
+}
+
+export function getSpreadStats(days: number = 2): any[] {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  return getDb().prepare(`
+    SELECT
+      symbol,
+      ROUND(AVG(spread_pips), 1) as avg_spread,
+      ROUND(MIN(spread_pips), 1) as min_spread,
+      ROUND(MAX(spread_pips), 1) as max_spread,
+      COUNT(*) as samples,
+      -- Spread nach Tageszeit (MEZ = UTC+2)
+      ROUND(AVG(CASE WHEN CAST(strftime('%H', recorded_at) AS INTEGER) BETWEEN 6 AND 9 THEN spread_pips END), 1) as spread_london_open,
+      ROUND(AVG(CASE WHEN CAST(strftime('%H', recorded_at) AS INTEGER) BETWEEN 13 AND 16 THEN spread_pips END), 1) as spread_ny_open,
+      ROUND(AVG(CASE WHEN CAST(strftime('%H', recorded_at) AS INTEGER) BETWEEN 21 AND 23 THEN spread_pips END), 1) as spread_night
+    FROM spreads
+    WHERE recorded_at >= ?
+    GROUP BY symbol
+    ORDER BY avg_spread DESC
+  `).all(since) as any[];
+}
 
 export function getStats() {
   const db = getDb();

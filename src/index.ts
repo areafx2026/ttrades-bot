@@ -10,7 +10,7 @@ import { isMarketOpen, getActiveSession, isCrypto } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
-import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
+import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, recordSpread } from './database';
 import { startDashboard, setSrCacheRef } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
@@ -60,6 +60,28 @@ const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
 let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
+
+// ─── Spread Logger ────────────────────────────────────────────────────────────
+const SPREAD_INTERVAL_MS = 15 * 60 * 1000; // 15 Minuten
+let lastSpreadLog = 0;
+
+async function logSpreads(mt5: MT5API): Promise<void> {
+  const now = Date.now();
+  if (now - lastSpreadLog < SPREAD_INTERVAL_MS) return;
+  lastSpreadLog = now;
+
+  const forexSymbols = SYMBOLS.filter(s => s !== 'BTCUSD');
+  for (const symbol of forexSymbols) {
+    try {
+      const tick = await mt5.getTick(symbol);
+      if (tick?.bid && tick?.ask) {
+        recordSpread(symbol, tick.bid, tick.ask);
+      }
+      await new Promise(r => setTimeout(r, 100));
+    } catch { /* ignore per-symbol errors */ }
+  }
+  logger.sys(`Spreads geloggt für ${forexSymbols.length} Symbole`);
+}
 const srCache = new Map<string, any[]>(); // S/R Zonen pro Symbol für Dashboard
 const lastScanned = new Map<string, number>();
 const FAST_INTERVAL_MS = 30 * 1000;
@@ -342,11 +364,6 @@ async function executeTrade(
         currency_strength:    undefined,
         strength_score:       undefined,
         fvg_present:          0,
-        zone_note:            undefined,
-        zone_status:          undefined,
-        exhaustion_detected:  undefined,
-        asset_class:          symbol === 'BTCUSD' ? 'crypto' : 'forex',
-        strategy_version:     'v2.4',
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
     } catch (dbErr: any) {
@@ -432,6 +449,10 @@ async function analyzeSymbol(
 // ─── Main scan ────────────────────────────────────────────────────────────────
 
 async function runScan() {
+  // Spread Logger (alle 15 Min)
+  const mt5ForSpreads = new MT5API();
+  await logSpreads(mt5ForSpreads);
+
   // syncClosedTrades mit 20s Timeout — verhindert dass der Scan blockiert
   await Promise.race([
     syncClosedTrades(),
