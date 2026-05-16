@@ -28,20 +28,6 @@ function pnlColor(val?: number): string {
 }
 
 // MT5 status endpoint — proxied from Python server
-// S/R Zonen API — liest aus srCache in index.ts
-// wird über globale Variable übergeben
-let _srCacheRef: Map<string, any[]> | null = null;
-export function setSrCacheRef(cache: Map<string, any[]>) { _srCacheRef = cache; }
-
-app.get('/api/sr-zones', (req, res) => {
-  if (!_srCacheRef) return res.json({});
-  const result: Record<string, any[]> = {};
-  for (const [sym, zones] of _srCacheRef.entries()) {
-    result[sym] = zones;
-  }
-  res.json(result);
-});
-
 app.get('/api/mt5-status', async (req, res) => {
   try {
     const health = await axios.get(`${MT5_SERVER}/health`, { timeout: 3000 });
@@ -85,6 +71,29 @@ app.get('/', async (req, res) => {
   const winRate     = totalClosed.length > 0 ? Math.round(totalWins / totalClosed.length * 100) : 0;
   const avgMAE      = totalClosed.filter(t => t.mae_pips).reduce((s, t) => s + (t.mae_pips ?? 0), 0) / (totalClosed.filter(t => t.mae_pips).length || 1);
   const avgMFE      = totalClosed.filter(t => t.mfe_pips).reduce((s, t) => s + (t.mfe_pips ?? 0), 0) / (totalClosed.filter(t => t.mfe_pips).length || 1);
+
+  // Neue Statistiken: Haltedauer + MAE/MFE Verhältnis
+  const wins_dur    = totalClosed.filter(t => t.result === 'WIN' && t.hold_duration_min);
+  const losses_dur  = totalClosed.filter(t => t.result === 'LOSS' && t.hold_duration_min);
+  const avgHoldWin  = wins_dur.length > 0 ? Math.round(wins_dur.reduce((s, t) => s + (t.hold_duration_min ?? 0), 0) / wins_dur.length) : null;
+  const avgHoldLoss = losses_dur.length > 0 ? Math.round(losses_dur.reduce((s, t) => s + (t.hold_duration_min ?? 0), 0) / losses_dur.length) : null;
+
+  // MAE/MFE Verhältnis: MFE/MAE > 1 = Trade hatte Momentum, < 1 = Trade war sofort gegen uns
+  const maeVsMfeData = totalClosed
+    .filter(t => t.mae_pips != null && t.mfe_pips != null && t.mae_pips !== 0)
+    .map(t => ({
+      symbol:   t.symbol,
+      result:   t.result,
+      holdMin:  t.hold_duration_min ?? 0,
+      mae:      Math.abs(t.mae_pips ?? 0),
+      mfe:      Math.abs(t.mfe_pips ?? 0),
+      ratio:    Math.round(Math.abs(t.mfe_pips ?? 0) / Math.abs(t.mae_pips ?? 0.001) * 100) / 100,
+      pnlEur:   t.pnl_eur ?? 0,
+    }))
+    .sort((a, b) => b.ratio - a.ratio);
+
+  const avgRatioWin  = maeVsMfeData.filter(t => t.result === 'WIN').reduce((s, t) => s + t.ratio, 0) / (maeVsMfeData.filter(t => t.result === 'WIN').length || 1);
+  const avgRatioLoss = maeVsMfeData.filter(t => t.result === 'LOSS').reduce((s, t) => s + t.ratio, 0) / (maeVsMfeData.filter(t => t.result === 'LOSS').length || 1);
 
   const equityPoints = (stats.equity as any[]).map((e, i) => `{x:${i},y:${e.cumulative?.toFixed(2) ?? 0}}`).join(',');
 
@@ -228,6 +237,7 @@ app.get('/', async (req, res) => {
   <div class="tab-nav">
     <button class="tab-btn" id="btn-trades" onclick="showTab('trades')">Trades</button>
     <button class="tab-btn" id="btn-maemfe" onclick="showTab('maemfe')">MAE/MFE</button>
+    <button class="tab-btn" id="btn-duration" onclick="showTab('duration')">⏱ Analyse</button>
     <button class="tab-btn" id="btn-symbols" onclick="showTab('symbols')">Symbole</button>
     <button class="tab-btn" id="btn-versions" onclick="showTab('versions')">Versionen</button>
     <button class="tab-btn" id="btn-equity" onclick="showTab('equity')">Equity</button>
@@ -300,13 +310,66 @@ app.get('/', async (req, res) => {
   </div>
 
   <!-- Symbole -->
-  <div id="tab-symbols" class="tab-content">
-    <div id="sr-zones-section" style="margin-bottom:24px">
-      <h3 style="color:var(--text);margin-bottom:12px">📊 Support/Resistance Zonen (D1)</h3>
-      <div id="sr-zones-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">
-        <div style="color:var(--muted)">Wird geladen...</div>
+  <div id="tab-duration" class="tab-content">
+    <h3 style="color:var(--text);margin-bottom:16px">⏱ Haltedauer & MAE/MFE Verhältnis</h3>
+
+    <!-- Haltedauer -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+        <div style="color:var(--muted);font-size:12px;margin-bottom:4px">Ø Haltedauer WIN</div>
+        <div style="font-size:24px;font-weight:700;color:var(--green)">${avgHoldWin !== null ? avgHoldWin + ' min' : '—'}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+        <div style="color:var(--muted);font-size:12px;margin-bottom:4px">Ø Haltedauer LOSS</div>
+        <div style="font-size:24px;font-weight:700;color:var(--red)">${avgHoldLoss !== null ? avgHoldLoss + ' min' : '—'}</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+        <div style="color:var(--muted);font-size:12px;margin-bottom:4px">Ø MFE/MAE WIN</div>
+        <div style="font-size:24px;font-weight:700;color:var(--green)">${avgRatioWin.toFixed(2)}x</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center">
+        <div style="color:var(--muted);font-size:12px;margin-bottom:4px">Ø MFE/MAE LOSS</div>
+        <div style="font-size:24px;font-weight:700;color:var(--red)">${avgRatioLoss.toFixed(2)}x</div>
       </div>
     </div>
+
+    <!-- MAE/MFE Tabelle -->
+    <div style="color:var(--muted);font-size:12px;margin-bottom:8px">
+      MFE/MAE Ratio > 1 = Trade hatte Momentum in Gewinnrichtung | < 1 = Trade war sofort unter Druck
+    </div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead>
+        <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--border)">
+          <th style="padding:8px">Symbol</th>
+          <th style="padding:8px">Ergebnis</th>
+          <th style="padding:8px">Dauer</th>
+          <th style="padding:8px">MAE</th>
+          <th style="padding:8px">MFE</th>
+          <th style="padding:8px">MFE/MAE</th>
+          <th style="padding:8px">P&L €</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${maeVsMfeData.map(t => {
+          const rc = t.result === 'WIN' ? 'var(--green)' : 'var(--red)';
+          const ratioColor = t.ratio >= 1 ? 'var(--green)' : 'var(--red)';
+          return \`<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px;font-weight:600">\${t.symbol}</td>
+            <td style="padding:8px;color:\${rc}">\${t.result}</td>
+            <td style="padding:8px">\${t.holdMin}m</td>
+            <td style="padding:8px;color:var(--red)">-\${t.mae.toFixed(1)}p</td>
+            <td style="padding:8px;color:var(--green)">+\${t.mfe.toFixed(1)}p</td>
+            <td style="padding:8px;font-weight:700;color:\${ratioColor}">\${t.ratio.toFixed(2)}x</td>
+            <td style="padding:8px;color:\${rc}">\${t.pnlEur >= 0 ? '+' : ''}\${t.pnlEur.toFixed(2)}</td>
+          </tr>\`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div id="tab-symbols" class="tab-content">
     <div class="card">
       <div class="section-title">Win/Loss nach Symbol</div>
       <div class="table-wrap">
@@ -465,40 +528,6 @@ async function updateMT5Status() {
 
 updateMT5Status();
 setInterval(updateMT5Status, 10000);
-
-async function updateSRZones() {
-  try {
-    const res = await fetch('/api/sr-zones');
-    const data = await res.json();
-    const grid = document.getElementById('sr-zones-grid');
-    if (!grid) return;
-    const symbols = Object.keys(data);
-    if (symbols.length === 0) {
-      grid.innerHTML = '<div style="color:var(--muted)">Noch keine S/R Zonen — warte auf ersten Scan...</div>';
-      return;
-    }
-    grid.innerHTML = symbols.map(function(sym) {
-      const zones = data[sym];
-      const dec = sym.includes('JPY') ? 3 : 5;
-      const zoneHtml = zones.map(function(z) {
-        const col = z.type === 'resistance' ? '#dc2626' : z.type === 'support' ? '#16a34a' : '#6b7280';
-        const lbl = z.type === 'resistance' ? 'RES' : z.type === 'support' ? 'SUP' : 'IN';
-        return '<div style="display:flex;justify-content:space-between;padding:4px 8px;background:' + col + '22;border-left:3px solid ' + col + ';border-radius:3px;margin-bottom:4px;font-size:12px">' +
-          '<span style="color:' + col + ';font-weight:700">' + lbl + '</span>' +
-          '<span style="color:var(--muted)">' + z.lo.toFixed(dec) + ' – ' + z.hi.toFixed(dec) + '</span>' +
-          '<span style="color:var(--muted);font-size:10px">str:' + z.strength + '</span>' +
-          '</div>';
-      }).join('');
-      return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px">' +
-        '<div style="font-weight:700;color:var(--text);margin-bottom:8px">' + sym + '</div>' +
-        (zoneHtml || '<div style="color:var(--muted);font-size:12px">keine Zonen</div>') +
-        '</div>';
-    }).join('');
-  } catch(e) {}
-}
-
-updateSRZones();
-setInterval(updateSRZones, 60000);
 
 function toggleLogSort() {
   const url = new URL(window.location.href);
