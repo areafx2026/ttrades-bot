@@ -6,11 +6,11 @@ import { calculateSR, checkSRFilter } from './srAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
 import { isDuplicate, cacheSignal } from './signalCache';
-import { isMarketOpen, getActiveSession, isCrypto } from './marketHours';
+import { isMarketOpen, getActiveSession, isCrypto, brokerToUtc } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
-import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, recordSpread } from './database';
+import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
 import { startDashboard, setSrCacheRef } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
@@ -60,28 +60,6 @@ const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
 let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
-
-// ─── Spread Logger ────────────────────────────────────────────────────────────
-const SPREAD_INTERVAL_MS = 15 * 60 * 1000; // 15 Minuten
-let lastSpreadLog = 0;
-
-async function logSpreads(mt5: MT5API): Promise<void> {
-  const now = Date.now();
-  if (now - lastSpreadLog < SPREAD_INTERVAL_MS) return;
-  lastSpreadLog = now;
-
-  const forexSymbols = SYMBOLS.filter(s => s !== 'BTCUSD');
-  for (const symbol of forexSymbols) {
-    try {
-      const tick = await mt5.getTick(symbol);
-      if (tick?.bid && tick?.ask) {
-        recordSpread(symbol, tick.bid, tick.ask);
-      }
-      await new Promise(r => setTimeout(r, 100));
-    } catch { /* ignore per-symbol errors */ }
-  }
-  logger.sys(`Spreads geloggt für ${forexSymbols.length} Symbole`);
-}
 const srCache = new Map<string, any[]>(); // S/R Zonen pro Symbol für Dashboard
 const lastScanned = new Map<string, number>();
 const FAST_INTERVAL_MS = 30 * 1000;
@@ -186,7 +164,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closedAt    = brokerToUtc(closingDeal.time);
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
           logger.info(`Closing-Deal gefunden: ${dbTrade.symbol} close=${closePrice} pnlEUR=${pnlEUR} reason="${closeReason}"`);
         } else {
@@ -257,7 +235,7 @@ async function syncClosedTrades(): Promise<void> {
         if (closingDeal) {
           closePrice  = closingDeal.price;
           pnlEUR      = Math.round((closingDeal.profit + closingDeal.commission + closingDeal.swap) * 100) / 100;
-          closedAt    = new Date(closingDeal.time + 'Z').toISOString();
+          closedAt    = brokerToUtc(closingDeal.time);
           closeReason = closingDeal.comment ?? 'SL/TP/Market';
         }
       } catch { /* proceed with fallback */ }
@@ -364,6 +342,11 @@ async function executeTrade(
         currency_strength:    undefined,
         strength_score:       undefined,
         fvg_present:          0,
+        zone_note:            undefined,
+        zone_status:          undefined,
+        exhaustion_detected:  undefined,
+        asset_class:          symbol === 'BTCUSD' ? 'crypto' : 'forex',
+        strategy_version:     'v2.4',
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
     } catch (dbErr: any) {
@@ -449,10 +432,6 @@ async function analyzeSymbol(
 // ─── Main scan ────────────────────────────────────────────────────────────────
 
 async function runScan() {
-  // Spread Logger (alle 15 Min)
-  const mt5ForSpreads = new MT5API();
-  await logSpreads(mt5ForSpreads);
-
   // syncClosedTrades mit 20s Timeout — verhindert dass der Scan blockiert
   await Promise.race([
     syncClosedTrades(),
@@ -598,7 +577,7 @@ async function startup() {
           const deals: any[] = histRes.data ?? [];
           const openDeal = deals.find((d: any) => d.entry === 0);
           if (openDeal) {
-            openedAt = new Date(openDeal.time + 'Z').toISOString();
+            openedAt = brokerToUtc(openDeal.time);
           }
         } catch { /* use current time as fallback */ }
 
@@ -670,12 +649,12 @@ async function startup() {
         const pip = deal.symbol.includes('JPY') ? 0.01 : 0.0001;
         const entry = deal.price;
         const type = deal.type === 'SELL' ? 'SHORT' : 'LONG';
-        const openedAt = new Date(deal.time + 'Z').toISOString();
+        const openedAt = brokerToUtc(deal.time);
 
         // Closing-Deal suchen
         const closingDeals = allDeals.filter((d: any) =>
           d.entry === 1 && d.symbol === deal.symbol &&
-          new Date(d.time + 'Z').getTime() > new Date(openedAt).getTime()
+          new Date(brokerToUtc(d.time)).getTime() > new Date(openedAt).getTime()
         );
         const closingDeal = closingDeals.sort((a: any, b: any) =>
           new Date(a.time).getTime() - new Date(b.time).getTime()
