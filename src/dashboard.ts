@@ -28,6 +28,13 @@ function pnlColor(val?: number): string {
 }
 
 // MT5 status endpoint — proxied from Python server
+app.get('/api/sr-zones', (req, res) => {
+  if (!_srCacheRef) return res.json({});
+  const result: Record<string, any[]> = {};
+  for (const [sym, zones] of _srCacheRef.entries()) result[sym] = zones;
+  res.json(result);
+});
+
 app.get('/api/mt5-status', async (req, res) => {
   try {
     const health = await axios.get(`${MT5_SERVER}/health`, { timeout: 3000 });
@@ -354,15 +361,15 @@ app.get('/', async (req, res) => {
         ${maeVsMfeData.map(t => {
           const rc = t.result === 'WIN' ? 'var(--green)' : 'var(--red)';
           const ratioColor = t.ratio >= 1 ? 'var(--green)' : 'var(--red)';
-          return \`<tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px;font-weight:600">\${t.symbol}</td>
-            <td style="padding:8px;color:\${rc}">\${t.result}</td>
-            <td style="padding:8px">\${t.holdMin}m</td>
-            <td style="padding:8px;color:var(--red)">-\${t.mae.toFixed(1)}p</td>
-            <td style="padding:8px;color:var(--green)">+\${t.mfe.toFixed(1)}p</td>
-            <td style="padding:8px;font-weight:700;color:\${ratioColor}">\${t.ratio.toFixed(2)}x</td>
-            <td style="padding:8px;color:\${rc}">\${t.pnlEur >= 0 ? '+' : ''}\${t.pnlEur.toFixed(2)}</td>
-          </tr>\`;
+          return `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:8px;font-weight:600">${t.symbol}</td>
+            <td style="padding:8px;color:${rc}">${t.result}</td>
+            <td style="padding:8px">${t.holdMin}m</td>
+            <td style="padding:8px;color:var(--red)">-${t.mae.toFixed(1)}p</td>
+            <td style="padding:8px;color:var(--green)">+${t.mfe.toFixed(1)}p</td>
+            <td style="padding:8px;font-weight:700;color:${ratioColor}">${t.ratio.toFixed(2)}x</td>
+            <td style="padding:8px;color:${rc}">${t.pnlEur >= 0 ? '+' : ''}${t.pnlEur.toFixed(2)}</td>
+          </tr>`;
         }).join('')}
       </tbody>
     </table>
@@ -635,6 +642,9 @@ app.post('/log', (req, res) => {
   }
   res.redirect('/');
 });
+
+let _srCacheRef: Map<string, any[]> | null = null;
+export function setSrCacheRef(cache: Map<string, any[]>) { _srCacheRef = cache; }
 
 export function startDashboard(): void {
   const port = parseInt(process.env.DASHBOARD_PORT ?? '3001');
