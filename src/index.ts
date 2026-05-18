@@ -5,7 +5,7 @@ import { FractalAnalyzer } from './fractalAnalyzer';
 import { calculateSR, checkSRFilter } from './srAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
-import { isDuplicate, cacheSignal } from './signalCache';
+import { isDuplicate, cacheSignal, clearCacheEntry } from './signalCache';
 import { isMarketOpen, getActiveSession, isCrypto, brokerToUtc } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
@@ -192,6 +192,7 @@ async function syncClosedTrades(): Promise<void> {
       savePineScript();
       closeTrade(dbTrade.id, closePrice, closedAt, closeReason, pnlPips, pnlEUR, result);
       activeSymbols.delete(dbTrade.symbol);
+      clearCacheEntry(dbTrade.symbol, dbTrade.type, dbTrade.phase);
 
       logger.info(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
 
@@ -250,6 +251,7 @@ async function syncClosedTrades(): Promise<void> {
       savePineScript();
       closeTrade(trade.dealId!, closePrice, closedAt, closeReason, pnlPips, pnlEUR, result);
       activeSymbols.delete(trade.symbol);
+      clearCacheEntry(trade.symbol, trade.type, trade.phase);
 
       const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
       await telegram.sendMessage(

@@ -69,6 +69,11 @@ export function cacheSignal(symbol: string, type: string, phase: string): void {
   saveCache(cache);
 }
 
+export function clearCacheEntry(symbol: string, type: string, phase: string): void {
+  const key = `${symbol}_${type}_${phase}`;
+  if (cache.delete(key)) saveCache(cache);
+}
+
 export function clearCache(): void {
   cache.clear();
   saveCache(cache);
