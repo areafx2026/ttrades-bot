@@ -306,7 +306,6 @@ async function executeTrade(
 
   if (result.success && result.dealId) {
     logger.trade(`Trade opened for ${symbol}: ${result.dealId}`);
-    logOpenTrade(signal, result.dealId);
     savePineScript();
     activeSymbols.add(symbol);
 
