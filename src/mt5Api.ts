@@ -33,7 +33,7 @@ export class MT5API {
     try {
       const res = await axios.get(`${MT5_SERVER}/candles`, {
         params: { symbol, resolution, count },
-        timeout: 10000,
+        timeout: Math.max(10000, count * 80),
       });
       return res.data as Candle[];
     } catch (err) {
