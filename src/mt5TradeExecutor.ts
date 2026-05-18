@@ -52,6 +52,17 @@ export class MT5TradeExecutor {
     logger.info(`Cooldown set for ${symbol} — 8h`);
   }
 
+  async modifyStopLoss(dealId: string, newSl: number): Promise<{ success: boolean; message: string }> {
+    try {
+      const res = await axios.put(`${MT5_SERVER}/positions/${dealId}/sl`, { sl: newSl }, { timeout: 10000 });
+      if (res.data.success) return { success: true, message: `SL auf ${newSl} gesetzt` };
+      return { success: false, message: res.data.error ?? 'Fehler beim SL-Modify' };
+    } catch (err: any) {
+      logger.error(`modifyStopLoss error für ${dealId}: ${err.message}`);
+      return { success: false, message: err.message };
+    }
+  }
+
   async closePosition(dealId: string): Promise<{ success: boolean; message: string }> {
     try {
       const res = await axios.delete(`${MT5_SERVER}/positions/${dealId}`, { timeout: 15000 });

@@ -125,6 +125,41 @@ async function syncClosedTrades(): Promise<void> {
             try { await executor.closePosition(dbTrade.id); } catch (e: any) { logger.error(`Time-based close error: ${e.message}`); }
           }
         }
+
+        // ── Trailing SL: bei 75% des TP → SL auf ~+5 EUR ziehen ─────────────
+        // Formel: profit_pips = stop_pips / 20  (bei €100 Risiko → €5 gesichert)
+        const tp = dbTrade.target1;
+        const stopPips = dbTrade.stop_pips ?? Math.abs(fillPrice - dbTrade.stop_loss) / pip;
+        if (tp != null && stopPips > 0) {
+          const tpDist = Math.abs(tp - fillPrice);
+          const currentMove = dbTrade.type === 'LONG' ? mid - fillPrice : fillPrice - mid;
+          const progress = tpDist > 0 ? currentMove / tpDist : 0;
+
+          if (progress >= 0.75) {
+            const dec = dbTrade.symbol.includes('JPY') ? 3 : 5;
+            const profitPips = stopPips / 20;
+            const newSl = dbTrade.type === 'LONG'
+              ? parseFloat((fillPrice + profitPips * pip).toFixed(dec))
+              : parseFloat((fillPrice - profitPips * pip).toFixed(dec));
+
+            // Nur modifizieren wenn aktueller MT5-SL noch schlechter als neuer SL
+            const mt5Pos = mt5Positions.find((p: any) => p.dealId === dbTrade.id);
+            const currentSl = mt5Pos?.stopLevel ?? dbTrade.stop_loss;
+            const slNeedsUpdate = dbTrade.type === 'LONG' ? newSl > currentSl : newSl < currentSl;
+
+            if (slNeedsUpdate) {
+              logger.trade(`Trailing SL: ${dbTrade.symbol} [${dbTrade.id}] ${(progress * 100).toFixed(0)}% zum TP → SL ${currentSl} → ${newSl} (~+5€)`);
+              const modResult = await executor.modifyStopLoss(dbTrade.id, newSl);
+              if (modResult.success) {
+                await telegram.sendMessage(
+                  `🔒 <b>SL nachgezogen — ${dbTrade.symbol}</b>\n` +
+                  `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${(progress * 100).toFixed(0)}% zum TP\n` +
+                  `Neuer SL: <code>${newSl.toFixed(dec)}</code> (~+5€ gesichert)`
+                );
+              }
+            }
+          }
+        }
       } catch { /* skip */ }
     }
 

@@ -305,6 +305,36 @@ def get_history_by_position():
 
     return jsonify(result)
 
+@app.route('/positions/<ticket>/sl', methods=['PUT'])
+def modify_sl(ticket):
+    if not ensure_mt5():
+        return jsonify({'error': 'MT5 not connected'}), 500
+    data = request.json
+    new_sl = float(data['sl'])
+
+    positions = mt5.positions_get(ticket=int(ticket))
+    if not positions:
+        return jsonify({'error': f'Position {ticket} not found'}), 404
+
+    pos = positions[0]
+    request_obj = {
+        'action':   mt5.TRADE_ACTION_SLTP,
+        'symbol':   pos.symbol,
+        'position': pos.ticket,
+        'sl':       new_sl,
+        'tp':       pos.tp,
+    }
+
+    log.info(f'MODIFY SL: ticket={ticket} {pos.symbol} new_sl={new_sl}')
+    result = mt5.order_send(request_obj)
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        log.info(f'MODIFY SL OK: ticket={ticket} new_sl={new_sl}')
+        return jsonify({'success': True})
+    else:
+        log.error(f'MODIFY SL FAILED: ticket={ticket} retcode={result.retcode} comment={result.comment}')
+        return jsonify({'success': False, 'error': result.comment, 'retcode': result.retcode}), 400
+
+
 if __name__ == '__main__':
     log.info('MT5 Server startet auf Port 5000...')
     app.run(host='127.0.0.1', port=5000)
