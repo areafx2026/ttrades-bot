@@ -153,15 +153,23 @@ export class FractalAnalyzer {
     const last = c[c.length - 1];
     const prev = c[c.length - 2];
 
+    // Mindestdistanz für MSS-Breakout: 2 Pips (kein Rauschen / Spread-Breakout)
+    const MSS_MIN_PIPS = 2;
+
     if (bias === 'LONG' && swingHighs.length > 0) {
       const lastSH = swingHighs[swingHighs.length - 1];
+      const breakoutDist = (last.close - lastSH.price) / pip;
       // MSS: vorherige Kerze unter Swing High, aktuelle Kerze schließt darüber
       if (prev.close < lastSH.price && last.close > lastSH.price) {
+        if (breakoutDist < MSS_MIN_PIPS) {
+          logger.scan(`${this.symbol}: D1=LONG | MSS-Breakout zu klein (${breakoutDist.toFixed(1)} pips < ${MSS_MIN_PIPS}) — ignoriert`);
+          return null;
+        }
         return {
           entryPrice:  last.close,
           swingLevel:  lastSH.price,
           mssCandle:   last,
-          description: `M15 MSS LONG: Close ${last.close.toFixed(this.dec())} > Swing High ${lastSH.price.toFixed(this.dec())}`,
+          description: `M15 MSS LONG: Close ${last.close.toFixed(this.dec())} > Swing High ${lastSH.price.toFixed(this.dec())} (+${breakoutDist.toFixed(1)}p)`,
         };
       }
       logger.scan(`${this.symbol}: D1=LONG | M15 kein MSS (SH=${lastSH.price.toFixed(this.dec())} close=${last.close.toFixed(this.dec())})`);
@@ -169,13 +177,18 @@ export class FractalAnalyzer {
 
     if (bias === 'SHORT' && swingLows.length > 0) {
       const lastSL = swingLows[swingLows.length - 1];
+      const breakoutDist = (lastSL.price - last.close) / pip;
       // MSS: vorherige Kerze über Swing Low, aktuelle Kerze schließt darunter
       if (prev.close > lastSL.price && last.close < lastSL.price) {
+        if (breakoutDist < MSS_MIN_PIPS) {
+          logger.scan(`${this.symbol}: D1=SHORT | MSS-Breakout zu klein (${breakoutDist.toFixed(1)} pips < ${MSS_MIN_PIPS}) — ignoriert`);
+          return null;
+        }
         return {
           entryPrice:  last.close,
           swingLevel:  lastSL.price,
           mssCandle:   last,
-          description: `M15 MSS SHORT: Close ${last.close.toFixed(this.dec())} < Swing Low ${lastSL.price.toFixed(this.dec())}`,
+          description: `M15 MSS SHORT: Close ${last.close.toFixed(this.dec())} < Swing Low ${lastSL.price.toFixed(this.dec())} (-${breakoutDist.toFixed(1)}p)`,
         };
       }
       logger.scan(`${this.symbol}: D1=SHORT | M15 kein MSS (SL=${lastSL.price.toFixed(this.dec())} close=${last.close.toFixed(this.dec())})`);
@@ -212,8 +225,9 @@ export class FractalAnalyzer {
 
     const risk = Math.abs(entryPrice - stopLoss);
 
-    // Min Stop: 5 Pips (JPY: 8 Pips)
-    const minRisk = pip * (this.symbol.includes('JPY') ? 8 : this.symbol === 'BTCUSD' ? 50 : 5);
+    // Min Stop: 8 Pips (JPY: 10 Pips, BTC: 50 Pips)
+    // Erhöht von 5 auf 8: Trades <6 Pips hatten 0% WR (zu anfällig für Spread/Rauschen)
+    const minRisk = pip * (this.symbol.includes('JPY') ? 10 : this.symbol === 'BTCUSD' ? 50 : 8);
     if (risk < minRisk - pip * 0.5) { // 0.5 pip Toleranz für Floating-Point
       this._lastRejectionReason = `Stop zu klein: ${(risk / pip).toFixed(1)} < ${minRisk / pip} pips`;
       return null;

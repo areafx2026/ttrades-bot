@@ -62,6 +62,21 @@ let marketWasOpen = true;
 const activeSymbols = new Set<string>();
 const srCache = new Map<string, any[]>(); // S/R Zonen pro Symbol für Dashboard
 const lastScanned = new Map<string, number>();
+
+// Tages-Loss-Cooldown: Symbol → Datum (YYYY-MM-DD) des letzten Losses
+// Verhindert Re-Entry am gleichen Tag nach einem SL-Hit
+const dailyLossDate = new Map<string, string>();
+
+function hasDailyLoss(symbol: string): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  return dailyLossDate.get(symbol) === today;
+}
+
+function recordDailyLoss(symbol: string): void {
+  const today = new Date().toISOString().slice(0, 10);
+  dailyLossDate.set(symbol, today);
+  logger.warn(`Tages-Sperre gesetzt für ${symbol} (Loss heute — kein Re-Entry bis Tagesende)`);
+}
 const FAST_INTERVAL_MS = 30 * 1000;
 const SLOW_INTERVAL_MS = 2 * 60 * 1000;
 
@@ -228,6 +243,7 @@ async function syncClosedTrades(): Promise<void> {
       closeTrade(dbTrade.id, closePrice, closedAt, closeReason, pnlPips, pnlEUR, result);
       activeSymbols.delete(dbTrade.symbol);
       clearCacheEntry(dbTrade.symbol, dbTrade.type, dbTrade.phase);
+      if (result === 'LOSS') recordDailyLoss(dbTrade.symbol);
 
       logger.info(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
 
@@ -450,6 +466,13 @@ async function analyzeSymbol(
 
     if (isDuplicate(signal.symbol, signal.type, signal.phase)) {
       return 'cached';
+    }
+
+    // Tages-Loss-Sperre: nach SL-Hit heute kein Re-Entry am gleichen Tag
+    if (hasDailyLoss(symbol)) {
+      logger.scan(`${symbol}: Tages-Loss-Sperre aktiv — kein Re-Entry heute`);
+      logFilterRejection(symbol, 'daily_loss_cooldown');
+      return 'rejected';
     }
 
     logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase}`);
