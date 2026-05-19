@@ -158,7 +158,7 @@ export class FractalAnalyzer {
 
     if (bias === 'LONG' && swingHighs.length > 0) {
       const lastSH = swingHighs[swingHighs.length - 1];
-      const breakoutDist = (last.close - lastSH.price) / pip;
+      const breakoutDist = (last.close - lastSH.price) / this.pip();
       // MSS: vorherige Kerze unter Swing High, aktuelle Kerze schließt darüber
       if (prev.close < lastSH.price && last.close > lastSH.price) {
         if (breakoutDist < MSS_MIN_PIPS) {
@@ -177,7 +177,7 @@ export class FractalAnalyzer {
 
     if (bias === 'SHORT' && swingLows.length > 0) {
       const lastSL = swingLows[swingLows.length - 1];
-      const breakoutDist = (lastSL.price - last.close) / pip;
+      const breakoutDist = (lastSL.price - last.close) / this.pip();
       // MSS: vorherige Kerze über Swing Low, aktuelle Kerze schließt darunter
       if (prev.close > lastSL.price && last.close < lastSL.price) {
         if (breakoutDist < MSS_MIN_PIPS) {
