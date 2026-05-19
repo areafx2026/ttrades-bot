@@ -398,7 +398,7 @@ async function executeTrade(
         zone_status:          undefined,
         exhaustion_detected:  undefined,
         asset_class:          symbol === 'BTCUSD' ? 'crypto' : 'forex',
-        strategy_version:     'v2.4',
+        strategy_version:     'v2.5',
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
     } catch (dbErr: any) {
@@ -475,7 +475,9 @@ async function analyzeSymbol(
       return 'rejected';
     }
 
-    logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase}`);
+    // v2.5 TEST: Richtung invertieren (LONG→SHORT, SHORT→LONG)
+    signal.type = signal.type === 'LONG' ? 'SHORT' : 'LONG';
+    logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase} [TEST INVERSION v2.5]`);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
     if (PAPER_TRADING) {
@@ -583,7 +585,7 @@ cron.schedule('5 22 * * 1-5', () => {
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 async function startup() {
-  logger.boot(`TTrades Bot v2.4 gestartet — ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}`);
+  logger.boot(`TTrades Bot v2.5 gestartet — ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} [TEST: Richtungs-Inversion aktiv]`);
   logger.sys('TTrades Fractal Model Bot started');
   logger.sys(`Monitoring: ${SYMBOLS.join(', ')}`);
   logger.sys(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
