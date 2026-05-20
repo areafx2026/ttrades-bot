@@ -476,7 +476,13 @@ async function analyzeSymbol(
     }
 
     // v2.5 TEST: Richtung invertieren (LONG→SHORT, SHORT→LONG)
+    // SL und TP werden am Entry-Preis gespiegelt: newValue = 2×entry - originalValue
     signal.type = signal.type === 'LONG' ? 'SHORT' : 'LONG';
+    const _entry = signal.currentPrice;
+    signal.stopLoss = parseFloat((2 * _entry - signal.stopLoss).toFixed(signal.symbol.includes('JPY') ? 3 : 5));
+    signal.target1  = parseFloat((2 * _entry - signal.target1).toFixed(signal.symbol.includes('JPY') ? 3 : 5));
+    if (signal.target2 != null)
+      signal.target2 = parseFloat((2 * _entry - signal.target2).toFixed(signal.symbol.includes('JPY') ? 3 : 5));
     logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase} [TEST INVERSION v2.5]`);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
