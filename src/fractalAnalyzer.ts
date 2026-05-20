@@ -153,8 +153,8 @@ export class FractalAnalyzer {
     const last = c[c.length - 1];
     const prev = c[c.length - 2];
 
-    // Mindestdistanz für MSS-Breakout: 2 Pips (kein Rauschen / Spread-Breakout)
-    const MSS_MIN_PIPS = 2;
+    // Mindestdistanz für MSS-Breakout: 1 Pip (Rausch-Filter)
+    const MSS_MIN_PIPS = 1;
 
     if (bias === 'LONG' && swingHighs.length > 0) {
       const lastSH = swingHighs[swingHighs.length - 1];
@@ -225,9 +225,8 @@ export class FractalAnalyzer {
 
     const risk = Math.abs(entryPrice - stopLoss);
 
-    // Min Stop: 8 Pips (JPY: 10 Pips, BTC: 50 Pips)
-    // Erhöht von 5 auf 8: Trades <6 Pips hatten 0% WR (zu anfällig für Spread/Rauschen)
-    const minRisk = pip * (this.symbol.includes('JPY') ? 10 : this.symbol === 'BTCUSD' ? 50 : 8);
+    // Min Stop: 6 Pips (JPY: 8 Pips, BTC: 50 Pips)
+    const minRisk = pip * (this.symbol.includes('JPY') ? 8 : this.symbol === 'BTCUSD' ? 50 : 6);
     if (risk < minRisk - pip * 0.5) { // 0.5 pip Toleranz für Floating-Point
       this._lastRejectionReason = `Stop zu klein: ${(risk / pip).toFixed(1)} < ${minRisk / pip} pips`;
       return null;
