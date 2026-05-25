@@ -49,13 +49,18 @@ export interface TradeSignal {
 }
 
 export class FractalAnalyzer {
+  private trendLabel: string;
+
   constructor(
     private symbol: string,
     private daily:  Candle[],
     private h4:     Candle[],  // nicht genutzt in v2.4
     private h1:     Candle[],  // nicht genutzt in v2.4
-    private m15:    Candle[]
-  ) {}
+    private m15:    Candle[],
+    trendLabel      = 'D1'     // anpassbar über TREND_TF in index.ts
+  ) {
+    this.trendLabel = trendLabel;
+  }
 
   private _lastRejectionReason: string | null = null;
   private pip(): number { return this.symbol.includes('JPY') ? 0.01 : this.symbol === 'BTCUSD' ? 1.0 : 0.0001; }
@@ -76,7 +81,7 @@ export class FractalAnalyzer {
 
     logger.setup(
       `${this.symbol}: ${bias} Setup (v2.4)\n` +
-      `  D1: ${bias === 'LONG' ? '2×HH+HL Aufwärtstrend' : '2×LH+LL Abwärtstrend'}\n` +
+      `  ${this.trendLabel}: ${bias === 'LONG' ? '2×HH+HL Aufwärtstrend' : '2×LH+LL Abwärtstrend'}\n` +
       `  ${mss.description}\n` +
       `  Entry: ${signal.entryZone[0].toFixed(this.dec())}–${signal.entryZone[1].toFixed(this.dec())} | SL: ${signal.stopLoss.toFixed(this.dec())} | TP: ${signal.target1.toFixed(this.dec())} | RR: 1.3:1`
     );
@@ -105,7 +110,7 @@ export class FractalAnalyzer {
     }
 
     if (swingHighs.length < 3 || swingLows.length < 3) {
-      logger.scan(`${this.symbol}: zu wenige D1 Swings (H:${swingHighs.length} L:${swingLows.length})`);
+      logger.scan(`${this.symbol}: zu wenige ${this.trendLabel} Swings (H:${swingHighs.length} L:${swingLows.length})`);
       return null;
     }
 
@@ -119,7 +124,7 @@ export class FractalAnalyzer {
     if (isUptrend && !isDowntrend)   return 'LONG';
     if (isDowntrend && !isUptrend)   return 'SHORT';
 
-    logger.scan(`${this.symbol}: D1 kein klarer Trend`);
+    logger.scan(`${this.symbol}: ${this.trendLabel} kein klarer Trend`);
     return null;
   }
 
@@ -162,7 +167,7 @@ export class FractalAnalyzer {
       // MSS: vorherige Kerze unter Swing High, aktuelle Kerze schließt darüber
       if (prev.close < lastSH.price && last.close > lastSH.price) {
         if (breakoutDist < MSS_MIN_PIPS) {
-          logger.scan(`${this.symbol}: D1=LONG | MSS-Breakout zu klein (${breakoutDist.toFixed(1)} pips < ${MSS_MIN_PIPS}) — ignoriert`);
+          logger.scan(`${this.symbol}: ${this.trendLabel}=LONG | MSS-Breakout zu klein (${breakoutDist.toFixed(1)} pips < ${MSS_MIN_PIPS}) — ignoriert`);
           return null;
         }
         return {
@@ -172,7 +177,7 @@ export class FractalAnalyzer {
           description: `M15 MSS LONG: Close ${last.close.toFixed(this.dec())} > Swing High ${lastSH.price.toFixed(this.dec())} (+${breakoutDist.toFixed(1)}p)`,
         };
       }
-      logger.scan(`${this.symbol}: D1=LONG | M15 kein MSS (SH=${lastSH.price.toFixed(this.dec())} close=${last.close.toFixed(this.dec())})`);
+      logger.scan(`${this.symbol}: ${this.trendLabel}=LONG | M15 kein MSS (SH=${lastSH.price.toFixed(this.dec())} close=${last.close.toFixed(this.dec())})`);
     }
 
     if (bias === 'SHORT' && swingLows.length > 0) {
@@ -181,7 +186,7 @@ export class FractalAnalyzer {
       // MSS: vorherige Kerze über Swing Low, aktuelle Kerze schließt darunter
       if (prev.close > lastSL.price && last.close < lastSL.price) {
         if (breakoutDist < MSS_MIN_PIPS) {
-          logger.scan(`${this.symbol}: D1=SHORT | MSS-Breakout zu klein (${breakoutDist.toFixed(1)} pips < ${MSS_MIN_PIPS}) — ignoriert`);
+          logger.scan(`${this.symbol}: ${this.trendLabel}=SHORT | MSS-Breakout zu klein (${breakoutDist.toFixed(1)} pips < ${MSS_MIN_PIPS}) — ignoriert`);
           return null;
         }
         return {
@@ -191,7 +196,7 @@ export class FractalAnalyzer {
           description: `M15 MSS SHORT: Close ${last.close.toFixed(this.dec())} < Swing Low ${lastSL.price.toFixed(this.dec())} (-${breakoutDist.toFixed(1)}p)`,
         };
       }
-      logger.scan(`${this.symbol}: D1=SHORT | M15 kein MSS (SL=${lastSL.price.toFixed(this.dec())} close=${last.close.toFixed(this.dec())})`);
+      logger.scan(`${this.symbol}: ${this.trendLabel}=SHORT | M15 kein MSS (SL=${lastSL.price.toFixed(this.dec())} close=${last.close.toFixed(this.dec())})`);
     }
 
     return null;
@@ -281,7 +286,7 @@ export class FractalAnalyzer {
       target2,
       riskReward,
       dailyBias:      bias,
-      dailyCandle:    `D1 ${bias === 'LONG' ? '2×HH+HL' : '2×LH+LL'}`,
+      dailyCandle:    `${this.trendLabel} ${bias === 'LONG' ? '2×HH+HL' : '2×LH+LL'}`,
       h4Confirmation: 'n/a (v2.4)',
       h1Context:      'n/a (v2.4)',
       m15Setup:       mss.description,

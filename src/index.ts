@@ -57,6 +57,13 @@ const SYMBOLS = [
 
 const MT5_SERVER = 'http://127.0.0.1:5000';
 const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
+
+// ─── Trend-Zeiteinheit ────────────────────────────────────────────────────────
+// Hier anpassen: 'DAY' | 'HOUR_4' | 'HOUR' usw.
+// TREND_COUNT: Anzahl Kerzen die geladen werden (H4 braucht mehr als D1)
+const TREND_TF:    'DAY' | 'HOUR_4' | 'HOUR' = 'HOUR_4';
+const TREND_COUNT: number = TREND_TF === 'DAY' ? 250 : TREND_TF === 'HOUR_4' ? 200 : 150;
+const TREND_LABEL: string = TREND_TF === 'DAY' ? 'D1' : TREND_TF === 'HOUR_4' ? 'H4' : 'H1';
 let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
@@ -442,8 +449,8 @@ async function analyzeSymbol(
     return 'open';
   }
 
-  const d1Count = symbol === 'BTCUSD' ? 40 : 250;
-  const dailyCandles = await mt5.getCandles(symbol, 'DAY', d1Count);
+  const trendCount   = symbol === 'BTCUSD' ? Math.min(TREND_COUNT, 100) : TREND_COUNT;
+  const dailyCandles = await mt5.getCandles(symbol, TREND_TF, trendCount);
   await new Promise(r => setTimeout(r, 100));
   const h4Candles = await mt5.getCandles(symbol, 'HOUR_4', 40);
   await new Promise(r => setTimeout(r, 100));
@@ -451,7 +458,7 @@ async function analyzeSymbol(
   await new Promise(r => setTimeout(r, 100));
   const m15Candles = await mt5.getCandles(symbol, 'MINUTE_15', 80);
 
-  const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles);
+  const analyzer = new FractalAnalyzer(symbol, dailyCandles, h4Candles, h1Candles, m15Candles, TREND_LABEL);
   const analyzeResult = analyzer.analyze();
   const signal = analyzeResult.signal;
 
