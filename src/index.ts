@@ -59,11 +59,13 @@ const MT5_SERVER = 'http://127.0.0.1:5000';
 const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
 
 // ─── Trend-Zeiteinheit ────────────────────────────────────────────────────────
-// Hier anpassen: 'DAY' | 'HOUR_4' | 'HOUR' usw.
-// TREND_COUNT: Anzahl Kerzen die geladen werden (H4 braucht mehr als D1)
-const TREND_TF:    'DAY' | 'HOUR_4' | 'HOUR' = 'HOUR_4';
-const TREND_COUNT: number = TREND_TF === 'DAY' ? 250 : TREND_TF === 'HOUR_4' ? 200 : 150;
-const TREND_LABEL: string = TREND_TF === 'DAY' ? 'D1' : TREND_TF === 'HOUR_4' ? 'H4' : 'H1';
+// Hier anpassen: 'DAY' | 'HOUR_4' | 'HOUR'
+type TrendTF = 'DAY' | 'HOUR_4' | 'HOUR';
+const TREND_TF: TrendTF = 'HOUR_4';
+const TREND_COUNT_MAP: Record<TrendTF, number> = { DAY: 250, HOUR_4: 200, HOUR: 150 };
+const TREND_LABEL_MAP: Record<TrendTF, string> = { DAY: 'D1', HOUR_4: 'H4', HOUR: 'H1' };
+const TREND_COUNT = TREND_COUNT_MAP[TREND_TF];
+const TREND_LABEL = TREND_LABEL_MAP[TREND_TF];
 let marketWasOpen = true;
 
 const activeSymbols = new Set<string>();
