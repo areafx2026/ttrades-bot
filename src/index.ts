@@ -360,14 +360,16 @@ async function executeTrade(
   executor: MT5TradeExecutor,
   telegram: TelegramNotifier
 ): Promise<void> {
-  const dec = symbol.includes('JPY') ? 3 : 5;
-  const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
+  const dec = symbol.includes('JPY') ? 3 : symbol === 'BTCUSD' ? 2 : 5;
+  const pip = symbol.includes('JPY') ? 0.01 : symbol === 'BTCUSD' ? 1.0 : 0.0001;
 
   try {
     const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol } });
     const spreadPips = (tick.data.ask - tick.data.bid) / pip;
     const spreadLimits = loadSpreadLimits();
-    const normalPips = spreadLimits[symbol] ?? spreadLimits['DEFAULT'] ?? 3.0;
+    // BTCUSD: Default-Limit 60 Pips ($60 Spread) — normaler BTC-Spread ist ~10-30 Pips
+    const defaultLimit = symbol === 'BTCUSD' ? 60.0 : 3.0;
+    const normalPips = spreadLimits[symbol] ?? spreadLimits['DEFAULT'] ?? defaultLimit;
     logSpread(symbol, spreadPips, normalPips, spreadPips > normalPips * 2);
     if (spreadPips > normalPips * 2) { activeSymbols.delete(symbol); return; }
   } catch { /* proceed anyway */ }
