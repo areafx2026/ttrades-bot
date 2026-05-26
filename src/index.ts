@@ -2,6 +2,29 @@ import 'dotenv/config';
 import axios from 'axios';
 import { MT5API } from './mt5Api';
 import { FractalAnalyzer } from './fractalAnalyzer';
+
+// ─── Globale Fehlerbehandlung ──────────────────────────────────────────────────
+// Verhindert stillen Absturz bei unhandled Promise Rejections (z.B. Axios-Fehler
+// die nicht in einem try/catch landen). Node.js ≥v15 beendet den Prozess sonst
+// ohne Log-Eintrag.
+process.on('uncaughtException', (err: Error) => {
+  try {
+    // logger evtl. noch nicht initialisiert → console als Fallback
+    const { logger: _log } = require('./logger');
+    _log.error(`UNCAUGHT EXCEPTION — Bot läuft weiter: ${err?.stack ?? err?.message}`);
+  } catch {
+    console.error('UNCAUGHT EXCEPTION (logger unavailable):', err);
+  }
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  try {
+    const { logger: _log } = require('./logger');
+    _log.error(`UNHANDLED REJECTION — Bot läuft weiter: ${reason?.stack ?? reason?.message ?? String(reason)}`);
+  } catch {
+    console.error('UNHANDLED REJECTION (logger unavailable):', reason);
+  }
+});
 import { calculateSR, checkSRFilter } from './srAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
@@ -486,17 +509,28 @@ async function analyzeSymbol(
 
     // v2.5 TEST: Richtung invertieren (LONG→SHORT, SHORT→LONG)
     // SL und TP werden am Entry-Preis gespiegelt: newValue = 2×entry - originalValue
-    signal.type = signal.type === 'LONG' ? 'SHORT' : 'LONG';
-    const _entry = signal.currentPrice;
-    signal.stopLoss = parseFloat((2 * _entry - signal.stopLoss).toFixed(signal.symbol.includes('JPY') ? 3 : 5));
-    signal.target1  = parseFloat((2 * _entry - signal.target1).toFixed(signal.symbol.includes('JPY') ? 3 : 5));
-    if (signal.target2 != null)
-      signal.target2 = parseFloat((2 * _entry - signal.target2).toFixed(signal.symbol.includes('JPY') ? 3 : 5));
+    try {
+      const dec = signal.symbol.includes('JPY') ? 3 : signal.symbol === 'BTCUSD' ? 2 : 5;
+      signal.type = signal.type === 'LONG' ? 'SHORT' : 'LONG';
+      const _entry = signal.currentPrice;
+      signal.stopLoss = parseFloat((2 * _entry - signal.stopLoss).toFixed(dec));
+      signal.target1  = parseFloat((2 * _entry - signal.target1).toFixed(dec));
+      if (signal.target2 != null)
+        signal.target2 = parseFloat((2 * _entry - signal.target2).toFixed(dec));
+    } catch (invErr: any) {
+      logger.error(`Inversion failed for ${symbol}: ${invErr?.message}`);
+      return 'rejected';
+    }
+
     logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase} [TEST INVERSION v2.5]`);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
     if (PAPER_TRADING) {
-      await executeTrade(signal, symbol, executor, telegram);
+      try {
+        await executeTrade(signal, symbol, executor, telegram);
+      } catch (execErr: any) {
+        logger.error(`executeTrade failed for ${symbol}: ${execErr?.message}`);
+      }
     }
     return 'signal';
   } else {
@@ -584,7 +618,7 @@ async function runScan() {
 // ─── Cron ────────────────────────────────────────────────────────────────────
 
 cron.schedule('*/1 * * * *', () => {
-  runScan().catch(err => logger.error('Cron error:', err));
+  runScan().catch(err => logger.error(`Cron error: ${err?.stack ?? err?.message ?? err}`));
 });
 
 cron.schedule('0 8 * * *', () => {
