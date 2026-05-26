@@ -36,9 +36,18 @@ export class MT5API {
         timeout: Math.max(10000, count * 80),
       });
       return res.data as Candle[];
-    } catch (err) {
-      logger.error(`getCandles Fehler für ${symbol} ${resolution}: ${err}`);
-      throw err;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 404) {
+        // Symbol hat (noch) keine Daten für diesen Timeframe — kein Fehler, leer zurückgeben.
+        // Passiert häufig beim ersten Zugriff auf ein Symbol oder bei HOUR (H1) für einige Paare.
+        logger.scan(`getCandles: keine Daten für ${symbol} ${resolution} (404) — leeres Array`);
+        return [];
+      }
+      // Echter Fehler (Timeout, 500, etc.) → als ERROR loggen aber NICHT werfen.
+      // Wirft nichts mehr, damit der Rest des Scans für dieses Symbol noch läuft.
+      logger.error(`getCandles Fehler für ${symbol} ${resolution}: ${err?.message ?? err}`);
+      return [];
     }
   }
 

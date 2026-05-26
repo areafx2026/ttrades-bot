@@ -477,9 +477,11 @@ async function analyzeSymbol(
   const trendCount   = symbol === 'BTCUSD' ? Math.min(TREND_COUNT, 100) : TREND_COUNT;
   const dailyCandles = await mt5.getCandles(symbol, TREND_TF, trendCount);
   await new Promise(r => setTimeout(r, 100));
-  const h4Candles = await mt5.getCandles(symbol, 'HOUR_4', 40);
-  await new Promise(r => setTimeout(r, 100));
-  const h1Candles = await mt5.getCandles(symbol, 'HOUR', 60);
+  // H4 und H1 werden in v2.4/v2.5 nicht genutzt (nur als Platzhalter an FractalAnalyzer).
+  // H4 nur holen wenn TREND_TF != HOUR_4 (sonst identisch mit dailyCandles).
+  const h4Candles = TREND_TF === 'HOUR_4' ? dailyCandles : await mt5.getCandles(symbol, 'HOUR_4', 40);
+  // H1: komplett weglassen — nie genutzt, erzeugt 404-Fehler für manche Symbole.
+  const h1Candles: import('./mt5Api').Candle[] = [];
   await new Promise(r => setTimeout(r, 100));
   const m15Candles = await mt5.getCandles(symbol, 'MINUTE_15', 80);
 

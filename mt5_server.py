@@ -89,8 +89,13 @@ def get_candles():
         return jsonify({'error': 'MT5 not connected'}), 500
     mt5.symbol_select(symbol, True)
     tf = TIMEFRAMES.get(resolution, mt5.TIMEFRAME_H1)
+    # Erster Versuch — MT5 braucht manchmal einen Moment nach symbol_select()
     rates = mt5.copy_rates_from_pos(symbol, tf, 0, count)
     if rates is None:
+        time.sleep(0.5)   # kurz warten, dann nochmal
+        rates = mt5.copy_rates_from_pos(symbol, tf, 0, count)
+    if rates is None:
+        log.warning(f'No data for {symbol} {resolution} after retry — last_error={mt5.last_error()}')
         return jsonify({'error': f'No data for {symbol}'}), 404
     candles = []
     for r in rates:
