@@ -135,10 +135,21 @@ async function syncClosedTrades(): Promise<void> {
     process.env.TELEGRAM_CHAT_ID!
   );
 
+  // ── 0. MT5 erreichbar? ─────────────────────────────────────────────────────
+  // getOpenPositions() wirft jetzt bei Timeout/Fehler (kein stilles []).
+  // Wenn MT5 nicht antwortet: sicher abbrechen — NIEMALS leere Positions-Liste
+  // als "alle geschlossen" interpretieren (würde alle offenen DB-Trades falsch schließen).
+  let mt5Positions: any[];
+  try {
+    mt5Positions = await executor.getOpenPositions();
+  } catch (mt5Err: any) {
+    logger.warn(`syncClosedTrades: MT5 nicht erreichbar (${mt5Err?.message ?? mt5Err}) — Sync übersprungen`);
+    return; // Sicherer Abbruch — keine DB-Änderungen
+  }
+
   try {
     // ── 1. MT5: welche Position-Tickets sind noch offen? ─────────────────────
     // Wir merken uns die offenen Tickets (nicht Symbole!) als Set
-    const mt5Positions = await executor.getOpenPositions();
     const openTickets  = new Set(mt5Positions.map((p: any) => String(p.dealId)));
     const openSymbols  = new Set(mt5Positions.map((p: any) => p.symbol));
 
@@ -589,9 +600,15 @@ async function runScan() {
 
     const executor = new MT5TradeExecutor();
 
-    // Get open positions once for the whole scan
-    const mt5Positions = await executor.getOpenPositions();
-    const openPositionSymbols = new Set(mt5Positions.map(p => p.symbol));
+    // Get open positions once for the whole scan — wirft bei MT5-Ausfall
+    let mt5Positions: any[];
+    try {
+      mt5Positions = await executor.getOpenPositions();
+    } catch (posErr: any) {
+      logger.warn(`runScan: MT5 Positions nicht abrufbar (${posErr?.message ?? posErr}) — Scan abgebrochen`);
+      return;
+    }
+    const openPositionSymbols = new Set(mt5Positions.map((p: any) => p.symbol));
 
     const active  = toScan.filter(s => activeSymbols.has(s));
     const passive = toScan.filter(s => !activeSymbols.has(s));

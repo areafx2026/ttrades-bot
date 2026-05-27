@@ -20,13 +20,11 @@ interface OpenPosition {
 export class MT5TradeExecutor {
 
   async getOpenPositions(): Promise<OpenPosition[]> {
-    try {
-      const res = await axios.get(`${MT5_SERVER}/positions`, { timeout: 15000 });
-      return res.data;
-    } catch (err) {
-      logger.error('Error fetching open positions:', err);
-      return [];
-    }
+    // Wirft bei Fehler — KEIN stilles [] zurückgeben!
+    // Wenn [] bei Timeout zurückgegeben wird, denkt syncClosedTrades
+    // fälschlicherweise, alle Positionen seien geschlossen → DB-Katastrophe.
+    const res = await axios.get(`${MT5_SERVER}/positions`, { timeout: 15000 });
+    return res.data;
   }
 
   async hasOpenPosition(symbol: string): Promise<boolean> {
