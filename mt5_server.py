@@ -64,10 +64,22 @@ TIMEFRAMES = {
 }
 
 def ensure_mt5():
-    if not mt5.initialize():
-        log.error(f'MT5 initialize() failed: {mt5.last_error()}')
-        return False
-    return True
+    # Erster Versuch
+    if mt5.initialize():
+        return True
+    # Fehlgeschlagen → shutdown + erneut versuchen (z.B. nach Verbindungsverlust)
+    err1 = mt5.last_error()
+    log.warning(f'MT5 initialize() fehlgeschlagen: {err1} — versuche Reconnect...')
+    try:
+        mt5.shutdown()
+    except Exception:
+        pass
+    time.sleep(1)
+    if mt5.initialize():
+        log.info('MT5 Reconnect erfolgreich')
+        return True
+    log.error(f'MT5 Reconnect fehlgeschlagen: {mt5.last_error()}')
+    return False
 
 @app.route('/health', methods=['GET'])
 def health():

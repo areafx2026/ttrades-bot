@@ -621,18 +621,14 @@ async function runScan() {
       try {
         const outcome = await analyzeSymbol(symbol, mt5, executor, telegram, openPositionSymbols);
         if (outcome === 'no_setup') noSetupSymbols.push(symbol);
-      } catch (err) {
-        logger.error(`Error analyzing ${symbol}:`, err);
+      } catch (err: any) {
+        logger.error(`Error analyzing ${symbol}: ${err?.message ?? err}`);
       }
       await new Promise(r => setTimeout(r, 150));
     }
 
-    // Log all no-setup symbols in one line
-    if (noSetupSymbols.length > 0) {
-          }
-
-  } catch (err) {
-    logger.error('Scan error:', err);
+  } catch (err: any) {
+    logger.error(`Scan error: ${err?.message ?? err}`);
   }
 }
 

@@ -23,8 +23,9 @@ export class MT5API {
       const res = await axios.get(`${MT5_SERVER}/health`);
       if (!res.data.mt5) throw new Error('MT5 nicht verbunden');
       logger.sys(`MT5 verbunden — Login: ${res.data.login}, Balance: ${res.data.balance}`);
-    } catch (err) {
-      logger.error('MT5 Server nicht erreichbar — läuft mt5_server.py?');
+    } catch (err: any) {
+      const detail = err?.response?.data?.error ?? err?.message ?? String(err);
+      logger.error(`MT5 nicht erreichbar: ${detail} — läuft mt5_server.py und ist MT5 verbunden?`);
       throw err;
     }
   }
