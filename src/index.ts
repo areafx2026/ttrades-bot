@@ -29,11 +29,11 @@ import { calculateSR, checkSRFilter } from './srAnalyzer';
 import { TelegramNotifier } from './telegram';
 import { MT5TradeExecutor } from './mt5TradeExecutor';
 import { isDuplicate, cacheSignal, clearCacheEntry } from './signalCache';
-import { isMarketOpen, getActiveSession, isCrypto, brokerToUtc } from './marketHours';
+import { isMarketOpen, getActiveSession, isCrypto, brokerToUtc, getPip, getDec } from './marketHours';
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
-import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion } from './database';
+import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, recordSpread } from './database';
 import { startDashboard, setSrCacheRef } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
@@ -75,7 +75,7 @@ const SYMBOLS = [
   'AUDNZD', 'AUDCAD', 'CADJPY',
   'GBPCAD', 'GBPAUD',
   // Crypto — 24/7
-  'BTCUSD',
+  'BTCUSD', 'ETHUSD', 'SOLUSD',
 ];
 
 const MT5_SERVER = 'http://127.0.0.1:5000';
@@ -170,7 +170,7 @@ async function syncClosedTrades(): Promise<void> {
 
         const MAX_HOLD_HOURS = 48;
         const MIN_PROGRESS_PCT = 0.5;
-        const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const pip = getPip(dbTrade.symbol);
         const fillPrice = dbTrade.entry_price ?? mid;
         const holdHours = (Date.now() - new Date(dbTrade.opened_at).getTime()) / (1000 * 60 * 60);
 
@@ -233,10 +233,10 @@ async function syncClosedTrades(): Promise<void> {
       // Noch offen in MT5 → nichts tun
       if (openTickets.has(dbTrade.id)) continue;
 
-      const pip = dbTrade.symbol.includes('JPY') ? 0.01 : 0.0001;
+      const pip = getPip(dbTrade.symbol);
       const dec = dbTrade.symbol.includes('JPY') ? 3 : 5;
 
-      logger.info(`Trade geschlossen erkannt: ${dbTrade.symbol} [ticket=${dbTrade.id}]`);
+      logger.trade(`Trade geschlossen erkannt: ${dbTrade.symbol} [ticket=${dbTrade.id}]`);
 
       // Closing-Deal per Position-Ticket holen
       let closePrice: number;
@@ -288,7 +288,7 @@ async function syncClosedTrades(): Promise<void> {
       clearCacheEntry(dbTrade.symbol, dbTrade.type, dbTrade.phase);
       if (result === 'LOSS') recordDailyLoss(dbTrade.symbol);
 
-      logger.info(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
+      logger.trade(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
 
       const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
       await telegram.sendMessage(
@@ -371,15 +371,15 @@ async function executeTrade(
   executor: MT5TradeExecutor,
   telegram: TelegramNotifier
 ): Promise<void> {
-  const dec = symbol.includes('JPY') ? 3 : symbol === 'BTCUSD' ? 2 : 5;
-  const pip = symbol.includes('JPY') ? 0.01 : symbol === 'BTCUSD' ? 1.0 : 0.0001;
+  const dec = getDec(symbol);
+  const pip = getPip(symbol);
 
   try {
     const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol } });
     const spreadPips = (tick.data.ask - tick.data.bid) / pip;
     const spreadLimits = loadSpreadLimits();
     // BTCUSD: Default-Limit 60 Pips ($60 Spread) — normaler BTC-Spread ist ~10-30 Pips
-    const defaultLimit = symbol === 'BTCUSD' ? 60.0 : 3.0;
+    const defaultLimit = isCrypto(symbol) ? 60.0 : 3.0;
     const normalPips = spreadLimits[symbol] ?? spreadLimits['DEFAULT'] ?? defaultLimit;
     logSpread(symbol, spreadPips, normalPips, spreadPips > normalPips * 2);
     if (spreadPips > normalPips * 2) { activeSymbols.delete(symbol); return; }
@@ -442,7 +442,7 @@ async function executeTrade(
         zone_note:            undefined,
         zone_status:          undefined,
         exhaustion_detected:  undefined,
-        asset_class:          symbol === 'BTCUSD' ? 'crypto' : 'forex',
+        asset_class:          isCrypto(symbol) ? 'crypto' : 'forex',
         strategy_version:     'v2.5',
       });
       logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
@@ -487,7 +487,7 @@ async function analyzeSymbol(
     return 'open';
   }
 
-  const trendCount   = symbol === 'BTCUSD' ? Math.min(TREND_COUNT, 100) : TREND_COUNT;
+  const trendCount   = isCrypto(symbol) ? Math.min(TREND_COUNT, 100) : TREND_COUNT;
   const dailyCandles = await mt5.getCandles(symbol, TREND_TF, trendCount);
   await new Promise(r => setTimeout(r, 100));
   // H4 und H1 werden in v2.4/v2.5 nicht genutzt (nur als Platzhalter an FractalAnalyzer).
@@ -522,22 +522,25 @@ async function analyzeSymbol(
       return 'rejected';
     }
 
-    // v2.5 TEST: Richtung invertieren (LONG→SHORT, SHORT→LONG)
-    // SL und TP werden am Entry-Preis gespiegelt: newValue = 2×entry - originalValue
-    try {
-      const dec = signal.symbol.includes('JPY') ? 3 : signal.symbol === 'BTCUSD' ? 2 : 5;
-      signal.type = signal.type === 'LONG' ? 'SHORT' : 'LONG';
-      const _entry = signal.currentPrice;
-      signal.stopLoss = parseFloat((2 * _entry - signal.stopLoss).toFixed(dec));
-      signal.target1  = parseFloat((2 * _entry - signal.target1).toFixed(dec));
-      if (signal.target2 != null)
-        signal.target2 = parseFloat((2 * _entry - signal.target2).toFixed(dec));
-    } catch (invErr: any) {
-      logger.error(`Inversion failed for ${symbol}: ${invErr?.message}`);
-      return 'rejected';
+    // v2.5 TEST: Richtung invertieren — NUR für Forex, NICHT für Crypto
+    // Crypto (BTCUSD) handelt weiterhin in der vom Analyzer erkannten Richtung (v2.4)
+    if (!isCrypto(symbol)) {
+      try {
+        const dec = getDec(signal.symbol);
+        signal.type = signal.type === 'LONG' ? 'SHORT' : 'LONG';
+        const _entry = signal.currentPrice;
+        signal.stopLoss = parseFloat((2 * _entry - signal.stopLoss).toFixed(dec));
+        signal.target1  = parseFloat((2 * _entry - signal.target1).toFixed(dec));
+        if (signal.target2 != null)
+          signal.target2 = parseFloat((2 * _entry - signal.target2).toFixed(dec));
+        logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase} [TEST INVERSION v2.5 — FOREX]`);
+      } catch (invErr: any) {
+        logger.error(`Inversion failed for ${symbol}: ${invErr?.message}`);
+        return 'rejected';
+      }
+    } else {
+      logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase} [v2.4 — CRYPTO, kein Inversion]`);
     }
-
-    logger.setup(`Signal found for ${symbol}: ${signal.type} ${signal.phase} [TEST INVERSION v2.5]`);
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
     if (PAPER_TRADING) {
@@ -648,10 +651,21 @@ cron.schedule('5 22 * * 1-5', () => {
   checkZoneCoverage(telegram).catch(err => logger.error('Zone check error:', err));
 });
 
+// ─── Spread-Logger: alle 15 Minuten für ALLE Symbole (inkl. Crypto) ───────────
+cron.schedule('*/15 * * * *', async () => {
+  for (const symbol of SYMBOLS) {
+    try {
+      const pip = getPip(symbol);
+      const tick = await axios.get(`${MT5_SERVER}/tick`, { params: { symbol }, timeout: 3000 });
+      recordSpread(symbol, tick.data.bid, tick.data.ask);
+    } catch { /* ignorieren — MT5 offline oder Symbol nicht verfügbar */ }
+  }
+});
+
 // ─── Startup ──────────────────────────────────────────────────────────────────
 
 async function startup() {
-  logger.boot(`TTrades Bot v2.5 gestartet — ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} [TEST: Richtungs-Inversion aktiv]`);
+  logger.boot(`TTrades Bot v2.5 gestartet — ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} [TEST: Inversion Forex | Crypto v2.4 original]`);
   logger.sys('TTrades Fractal Model Bot started');
   logger.sys(`Monitoring: ${SYMBOLS.join(', ')}`);
   logger.sys(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
@@ -681,8 +695,8 @@ async function startup() {
       if (!existing) {
         logger.sys(`Reconciliation: ${pos.symbol} [${pos.dealId}] nicht in DB — trage nach`);
 
-        const pip = pos.symbol.includes('JPY') ? 0.01 : 0.0001;
-        const dec = pos.symbol.includes('JPY') ? 3 : 5;
+        const pip = getPip(pos.symbol);
+        const dec = getDec(pos.symbol);
         const sl   = pos.stopLevel;
         const tp   = pos.profitLevel;
         const entry = pos.openLevel;
@@ -773,7 +787,7 @@ async function startup() {
 
         logger.sys(`History-Reconciliation: ${deal.symbol} [${deal.ticket}] nicht in DB — trage nach`);
 
-        const pip = deal.symbol.includes('JPY') ? 0.01 : 0.0001;
+        const pip = getPip(deal.symbol);
         const entry = deal.price;
         const type = deal.type === 'SELL' ? 'SHORT' : 'LONG';
         const openedAt = brokerToUtc(deal.time);
