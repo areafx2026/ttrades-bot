@@ -99,6 +99,11 @@ const lastScanned = new Map<string, number>();
 // Verhindert Re-Entry am gleichen Tag nach einem SL-Hit
 const dailyLossDate = new Map<string, string>();
 
+// Trades mit nachgezogenem SL: Tages-Sperre gilt NICHT
+// Logik: wenn 75% TP erreicht und SL auf +Profit gezogen wurde,
+// hat die Richtung gestimmt — kein Grund für Tagessperre
+const trailedSlTrades = new Set<string>();
+
 function hasDailyLoss(symbol: string): boolean {
   const today = new Date().toISOString().slice(0, 10);
   return dailyLossDate.get(symbol) === today;
@@ -209,6 +214,8 @@ async function syncClosedTrades(): Promise<void> {
               logger.trade(`Trailing SL: ${dbTrade.symbol} [${dbTrade.id}] ${(progress * 100).toFixed(0)}% zum TP → SL ${currentSl} → ${newSl} (~+5€)`);
               const modResult = await executor.modifyStopLoss(dbTrade.id, newSl);
               if (modResult.success) {
+                // SL erfolgreich nachgezogen → Tages-Sperre bei diesem Trade deaktivieren
+                trailedSlTrades.add(dbTrade.id);
                 await telegram.sendMessage(
                   `🔒 <b>SL nachgezogen — ${dbTrade.symbol}</b>\n` +
                   `${dbTrade.type === 'LONG' ? '📈' : '📉'} ${dbTrade.type} | ${(progress * 100).toFixed(0)}% zum TP\n` +
@@ -286,7 +293,14 @@ async function syncClosedTrades(): Promise<void> {
       closeTrade(dbTrade.id, closePrice, closedAt, closeReason, pnlPips, pnlEUR, result);
       activeSymbols.delete(dbTrade.symbol);
       clearCacheEntry(dbTrade.symbol, dbTrade.type, dbTrade.phase);
-      if (result === 'LOSS') recordDailyLoss(dbTrade.symbol);
+      if (result === 'LOSS') {
+        if (trailedSlTrades.has(dbTrade.id)) {
+          logger.info(`${dbTrade.symbol}: Tages-Sperre übersprungen — SL wurde nachgezogen (Richtung stimmte)`);
+        } else {
+          recordDailyLoss(dbTrade.symbol);
+        }
+      }
+      trailedSlTrades.delete(dbTrade.id); // aufräumen
 
       logger.trade(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
 
