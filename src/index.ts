@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import axios from 'axios';
+import { exec } from 'child_process';
 import { MT5API } from './mt5Api';
 import { FractalAnalyzer } from './fractalAnalyzer';
 
@@ -54,6 +55,25 @@ function loadSpreadLimits(): Record<string, number> {
   } catch {
     return { DEFAULT: 3.0 };
   }
+}
+
+// ─── Sound-Benachrichtigung (Windows) ────────────────────────────────────────
+// Nutzt Windows-Systemsounds via PowerShell — kein npm-Paket nötig.
+// Feuert nicht-blockierend (fire-and-forget), Fehler werden ignoriert.
+//
+// Verfügbare Sounds:
+//   Asterisk   → heller Info-Ton  (Trade geöffnet)
+//   Exclamation → freudiger Ton   (Trade WIN)
+//   Hand        → Fehler-Ton      (Trade LOSS)
+type SoundType = 'open' | 'win' | 'loss';
+function playSound(type: SoundType): void {
+  const soundMap: Record<SoundType, string> = {
+    open: 'Asterisk',
+    win:  'Exclamation',
+    loss: 'Hand',
+  };
+  const sound = soundMap[type];
+  exec(`powershell -c "[System.Media.SystemSounds]::${sound}.Play()"`, () => { /* ignore */ });
 }
 
 function logSpread(symbol: string, spreadPips: number, normalPips: number, blocked: boolean): void {
@@ -303,6 +323,7 @@ async function syncClosedTrades(): Promise<void> {
       trailedSlTrades.delete(dbTrade.id); // aufräumen
 
       logger.trade(`Trade abgeschlossen: ${dbTrade.symbol} ${result} | ${pnlPips} pips | €${pnlEUR.toFixed(2)}`);
+      playSound(result === 'WIN' ? 'win' : result === 'LOSS' ? 'loss' : 'open');
 
       const resultEmoji = result === 'WIN' ? '✅' : result === 'LOSS' ? '❌' : '➖';
       await telegram.sendMessage(
@@ -418,6 +439,7 @@ async function executeTrade(
 
   if (result.success && result.dealId) {
     logger.trade(`Trade opened for ${symbol}: ${result.dealId}`);
+    playSound('open');
     savePineScript();
     activeSymbols.add(symbol);
 
