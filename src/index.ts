@@ -58,20 +58,21 @@ function loadSpreadLimits(): Record<string, number> {
 }
 
 // ─── Sound-Benachrichtigung (Windows) ────────────────────────────────────────
-// Nutzt [console]::beep(Hz, ms) via PowerShell — kein npm-Paket nötig.
+// Nutzt WAV-Dateien aus C:\Windows\Media\ via PowerShell SoundPlayer.
 // Feuert nicht-blockierend (fire-and-forget), Fehler werden ignoriert.
 //
-//   open → einzelner mittlerer Ton       (600 Hz)
-//   win  → zwei aufsteigende Töne        (700 → 1000 Hz) arpeggio
-//   loss → ein tiefer fallender Ton      (400 Hz, lang)
+//   open → notify.wav               (Benachrichtigungs-Ping)
+//   win  → tada.wav                 (Erfolgs-Fanfare)
+//   loss → Windows Hardware Remove  (Device-Disconnect-Ton)
 type SoundType = 'open' | 'win' | 'loss';
 function playSound(type: SoundType): void {
-  const scripts: Record<SoundType, string> = {
-    open: '[console]::beep(600,180)',
-    win:  '[console]::beep(700,120); [console]::beep(1000,220)',
-    loss: '[console]::beep(380,500)',
+  const files: Record<SoundType, string> = {
+    open: 'notify.wav',
+    win:  'tada.wav',
+    loss: 'Windows Hardware Remove.wav',
   };
-  exec(`powershell -c "${scripts[type]}"`, () => { /* ignore */ });
+  const path = `C:\\Windows\\Media\\${files[type]}`;
+  exec(`powershell -c "(New-Object System.Media.SoundPlayer '${path}').Play()"`, () => { /* ignore */ });
 }
 
 function logSpread(symbol: string, spreadPips: number, normalPips: number, blocked: boolean): void {
