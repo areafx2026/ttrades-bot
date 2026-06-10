@@ -58,22 +58,20 @@ function loadSpreadLimits(): Record<string, number> {
 }
 
 // ─── Sound-Benachrichtigung (Windows) ────────────────────────────────────────
-// Nutzt Windows-Systemsounds via PowerShell — kein npm-Paket nötig.
+// Nutzt [console]::beep(Hz, ms) via PowerShell — kein npm-Paket nötig.
 // Feuert nicht-blockierend (fire-and-forget), Fehler werden ignoriert.
 //
-// Verfügbare Sounds:
-//   Asterisk   → heller Info-Ton  (Trade geöffnet)
-//   Exclamation → freudiger Ton   (Trade WIN)
-//   Hand        → Fehler-Ton      (Trade LOSS)
+//   open → einzelner mittlerer Ton       (600 Hz)
+//   win  → zwei aufsteigende Töne        (700 → 1000 Hz) arpeggio
+//   loss → ein tiefer fallender Ton      (400 Hz, lang)
 type SoundType = 'open' | 'win' | 'loss';
 function playSound(type: SoundType): void {
-  const soundMap: Record<SoundType, string> = {
-    open: 'Asterisk',
-    win:  'Exclamation',
-    loss: 'Hand',
+  const scripts: Record<SoundType, string> = {
+    open: '[console]::beep(600,180)',
+    win:  '[console]::beep(700,120); [console]::beep(1000,220)',
+    loss: '[console]::beep(380,500)',
   };
-  const sound = soundMap[type];
-  exec(`powershell -c "[System.Media.SystemSounds]::${sound}.Play()"`, () => { /* ignore */ });
+  exec(`powershell -c "${scripts[type]}"`, () => { /* ignore */ });
 }
 
 function logSpread(symbol: string, spreadPips: number, normalPips: number, blocked: boolean): void {
