@@ -1,4 +1,4 @@
-# Pivot v3.0 — start the engine as a detached background process you own.
+# Pivot v3.0 - start the engine as a detached background process you own.
 # Writes the PID to run\server.pid and logs to logs\server.*.log
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root

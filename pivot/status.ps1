@@ -1,4 +1,4 @@
-# Pivot v3.0 — show whether the engine is running + a live API check.
+# Pivot v3.0 - show whether the engine is running + a live API check.
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pidFile = "$root\run\server.pid"
 
