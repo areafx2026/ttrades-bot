@@ -38,3 +38,15 @@ def test_separate_clusters_split():
               _p(1.2000, "high"), _p(1.2000, "low")]
     # tolerance too small to merge the two price areas → no 4-touch zone
     assert build_zones(pivots, tolerance=0.0010, min_touches=4) == []
+
+
+def test_chain_does_not_merge_into_one_blob():
+    # A ladder of pivots each within `tolerance` of the previous must NOT chain
+    # into a single range-spanning zone (the 468-pip-blob bug). Anchoring the
+    # cluster to its lowest pivot caps each zone width at ~tolerance.
+    prices = [1.1000, 1.1008, 1.1016, 1.1024, 1.1032, 1.1040, 1.1048, 1.1056]
+    pivots = [_p(pr, "high" if i % 2 else "low") for i, pr in enumerate(prices)]
+    zones = build_zones(pivots, tolerance=0.0010, min_touches=4)
+    # No single zone may span the whole ladder
+    assert all(z.width <= 0.0011 for z in zones)
+    assert all(z.edge_high - z.edge_low < (prices[-1] - prices[0]) for z in zones)

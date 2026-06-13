@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     zone_tolerance_atr: float = 0.5  # cluster band half-width = ATR(D1) * this
     min_touches: int = 4           # your rule: ≥4 bounces to be an area-of-interest
     approach_zones: float = 1.0    # alert when within N zone-widths of the edge
+    entry_cooldown_min: int = 240  # after an entry attempt, wait this long (1 H4 bar)
     rr: float = 1.3                # take-profit risk-reward ratio
     d1_count: int = 300
     h4_count: int = 120

@@ -4,9 +4,9 @@
 """
 import asyncio
 import time
-import pandas as pd
 from app.config import settings
 from app.strategy import pivots, zones as zmod, deceleration, signals
+from app.strategy.market_hours import market_open
 from app.services.events import bus
 from app.engine.executor import Executor
 
@@ -18,7 +18,12 @@ class Scanner:
         self.exec = Executor(broker, session_factory, guard)
         self._zones: dict[str, list] = {}
         self._last_zone_scan = 0.0
+        self._last_attempt: dict[str, float] = {}   # symbol → ts of last entry attempt
         self.running = True
+
+    def _cooling(self, symbol: str) -> bool:
+        last = self._last_attempt.get(symbol, 0.0)
+        return time.time() - last < settings.entry_cooldown_min * 60
 
     # ── D1: rebuild zones ────────────────────────────────────────────────────
     def scan_zones(self, symbol: str) -> None:
@@ -41,13 +46,17 @@ class Scanner:
         zs = self._zones.get(symbol, [])
         if not zs:
             return
+        # Don't arm entries when the market is closed (avoids rejected-order spam).
+        if not market_open(symbol):
+            return
         h4 = self.broker.candles(symbol, "H4", settings.h4_count)
         for z in zs:
             ap = deceleration.approach(h4, z)
             if ap["dist_norm"] <= settings.approach_zones:
                 bus.publish("approach", {"symbol": symbol, "mid": z.mid, **ap})
             sig = signals.build_signal(symbol, z, ap, settings.rr)
-            if sig:
+            if sig and not self._cooling(symbol):
+                self._last_attempt[symbol] = time.time()   # one attempt per cooldown
                 await self.exec.execute(sig)
 
     def _due_zone_scan(self) -> bool:

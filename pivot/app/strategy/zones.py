@@ -42,7 +42,11 @@ def build_zones(pivots: list[Pivot], tolerance: float, min_touches: int = 4) -> 
     ps = sorted(pivots, key=lambda p: p.price)
     clusters: list[list[Pivot]] = [[ps[0]]]
     for p in ps[1:]:
-        if p.price - clusters[-1][-1].price <= tolerance:
+        # Bound the cluster to the ANCHOR (its lowest pivot), not the last one.
+        # Comparing to the last pivot lets clusters chain across the whole range
+        # (a string of pivots each within `tolerance` of the previous merges into
+        # one giant blob). Anchoring caps each zone's width at ~tolerance.
+        if p.price - clusters[-1][0].price <= tolerance:
             clusters[-1].append(p)
         else:
             clusters.append([p])
