@@ -1,12 +1,14 @@
-fastapi==0.111.0
-uvicorn[standard]==0.30.1
-sqlalchemy==2.0.30
-pydantic==2.7.1
-pydantic-settings==2.2.1
-pandas==2.2.2
-numpy==1.26.4
-apscheduler==3.10.4
-MetaTrader5==5.0.45
-python-dotenv==1.0.1
-httpx==0.27.0
-pytest==8.2.0
+# Lower bounds, not hard pins — Python 3.13 has no wheel for old MetaTrader5/numpy
+# builds, so pinning exact versions makes pip hang/backtrack. Latest wheels work.
+fastapi>=0.111
+uvicorn[standard]>=0.30
+sqlalchemy>=2.0.30
+pydantic>=2.7
+pydantic-settings>=2.2
+pandas>=2.2
+numpy>=1.26
+apscheduler>=3.10
+MetaTrader5>=5.0.45      # installed: 5.0.5735 (has a cp313 wheel)
+python-dotenv>=1.0
+httpx>=0.27
+pytest>=8.2
