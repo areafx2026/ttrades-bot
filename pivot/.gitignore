@@ -9,3 +9,8 @@ __pycache__/
 # Node / Vite
 web/node_modules/
 web/dist/
+
+# Runtime
+logs/
+run/
+server.log

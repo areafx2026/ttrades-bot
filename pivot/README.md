@@ -47,6 +47,21 @@ cd web && npm run build      # → web/dist
 cd .. && uvicorn app.main:app --host 0.0.0.0 --port 8000   # serves API + SPA
 ```
 
+## Start / stop it yourself (Windows, detached)
+
+Double-click these in `pivot\`, or run from a terminal — the engine runs as a
+background process you own (not tied to any terminal session):
+
+| Script | Does |
+|---|---|
+| `start.cmd` | Launches the engine hidden, writes PID to `run\server.pid`, logs to `logs\server.*.log` |
+| `stop.cmd`  | Stops the engine by that PID |
+| `status.cmd`| Shows RUNNING/STOPPED + a live API + account check |
+
+Dashboard once started: <http://127.0.0.1:8000>
+
+To survive reboots, register `start.cmd` as a Windows Scheduled Task ("At log on").
+
 ## Tests
 
 ```bash
