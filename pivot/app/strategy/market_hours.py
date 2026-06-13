@@ -2,7 +2,7 @@
 engine must not fire (and rack up rejected orders) when the market is shut."""
 from datetime import datetime, timezone
 
-CRYPTO = {"BTCUSD", "ETHUSD", "SOLUSD"}
+CRYPTO = {"BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"}
 
 
 def is_crypto(symbol: str) -> bool:

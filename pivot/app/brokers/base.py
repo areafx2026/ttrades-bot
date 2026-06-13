@@ -37,3 +37,9 @@ class BrokerAdapter(ABC):
     def account(self) -> dict:
         """Return {'balance', 'equity', 'margin'}."""
         ...
+
+    @abstractmethod
+    def symbol_spec(self, symbol: str) -> dict:
+        """Return {'contract_size','volume_min','volume_max','volume_step','digits'}
+        — the broker's real contract spec, used for correct per-symbol sizing."""
+        ...

@@ -9,8 +9,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./pivot.db"
 
     # ── instruments ───────────────────────────────────────────────────────────
+    # Forex (Mon–Fri) + the 5 most-traded cryptos (24/7, incl. weekends).
     symbols: list[str] = [
         "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD",
+        "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD",
     ]
 
     # ── strategy ──────────────────────────────────────────────────────────────

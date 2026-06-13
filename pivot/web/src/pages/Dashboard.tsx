@@ -6,7 +6,8 @@ import { ChartPanel } from "../components/ChartPanel";
 import { ZoneTable } from "../components/ZoneTable";
 import { TradesTable } from "../components/TradesTable";
 
-const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD"];
+const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD",
+                 "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"];
 
 export function Dashboard({ state }: { state: State }) {
   const [symbol, setSymbol] = useState(SYMBOLS[0]);

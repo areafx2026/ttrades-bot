@@ -56,11 +56,13 @@ class MT5Adapter(BrokerAdapter):
     def order_send(self, symbol, side, lots, sl, tp, comment="Pivot v3"):
         self._ensure()
         info = mt5.symbol_info_tick(symbol)
+        digits = mt5.symbol_info(symbol).digits     # round to symbol precision
         otype = mt5.ORDER_TYPE_BUY if side == "BUY" else mt5.ORDER_TYPE_SELL
         price = info.ask if side == "BUY" else info.bid
+        sl, tp = round(float(sl), digits), round(float(tp), digits)
         r = mt5.order_send({
             "action": mt5.TRADE_ACTION_DEAL, "symbol": symbol, "volume": float(lots),
-            "type": otype, "price": price, "sl": float(sl), "tp": float(tp),
+            "type": otype, "price": price, "sl": sl, "tp": tp,
             "deviation": 20, "magic": 30000, "comment": comment,
             "type_time": mt5.ORDER_TIME_GTC, "type_filling": mt5.ORDER_FILLING_IOC,
         })
@@ -89,3 +91,10 @@ class MT5Adapter(BrokerAdapter):
         self._ensure()
         a = mt5.account_info()
         return {"balance": a.balance, "equity": a.equity, "margin": a.margin}
+
+    def symbol_spec(self, symbol):
+        self._ensure()
+        mt5.symbol_select(symbol, True)
+        i = mt5.symbol_info(symbol)
+        return {"contract_size": i.trade_contract_size, "volume_min": i.volume_min,
+                "volume_max": i.volume_max, "volume_step": i.volume_step, "digits": i.digits}
