@@ -98,7 +98,7 @@ const SYMBOLS = [
 ];
 
 const MT5_SERVER = 'http://127.0.0.1:5000';
-const PAPER_TRADING = process.env.PAPER_TRADING === 'true';
+const TRADING_ENABLED = process.env.TRADING_ENABLED === 'true';
 
 // ─── Trend-Zeiteinheit ────────────────────────────────────────────────────────
 // Hier anpassen: 'DAY' | 'HOUR_4' | 'HOUR'
@@ -578,7 +578,7 @@ async function analyzeSymbol(
     }
     cacheSignal(signal.symbol, signal.type, signal.phase);
 
-    if (PAPER_TRADING) {
+    if (TRADING_ENABLED) {
       try {
         await executeTrade(signal, symbol, executor, telegram);
       } catch (execErr: any) {
@@ -703,7 +703,7 @@ async function startup() {
   logger.boot(`TTrades Bot v2.5 gestartet — ${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })} [TEST: Inversion Forex | Crypto v2.4 original]`);
   logger.sys('TTrades Fractal Model Bot started');
   logger.sys(`Monitoring: ${SYMBOLS.join(', ')}`);
-  logger.sys(`Paper trading: ${PAPER_TRADING ? 'ENABLED' : 'DISABLED'}`);
+  logger.sys(`Trading: ${TRADING_ENABLED ? 'ENABLED' : 'DISABLED'}`);
   logger.sys('Fast poll: 30s (active) | Slow poll: 2min (others)');
   logger.sys('Sweep Zone: DISABLED | Fractal Analyzer: ENABLED');
 
