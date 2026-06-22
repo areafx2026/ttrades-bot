@@ -1,5 +1,5 @@
-"""In-process pub/sub. The engine publishes; the WebSocket hub (and optionally
-Telegram) subscribe. Decouples producers from consumers — fan-out is async-safe."""
+"""In-process pub/sub. The engine publishes; the WebSocket hub and the file
+logger subscribe. Decouples producers from consumers — fan-out is async-safe."""
 import asyncio
 
 

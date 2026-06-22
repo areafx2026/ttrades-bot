@@ -38,9 +38,5 @@ class Settings(BaseSettings):
     mt5_password: str | None = None
     mt5_server: str | None = None
 
-    # ── notifications ─────────────────────────────────────────────────────────
-    telegram_bot_token: str | None = None
-    telegram_chat_id: str | None = None
-
 
 settings = Settings()

@@ -8,6 +8,7 @@ from app.config import settings
 from app.strategy import pivots, zones as zmod, deceleration, signals
 from app.strategy.market_hours import market_open
 from app.services.events import bus
+from app.services.file_logger import get_activity_logger
 from app.engine.executor import Executor
 
 
@@ -20,6 +21,7 @@ class Scanner:
         self._last_zone_scan = 0.0
         self._last_attempt: dict[str, float] = {}   # symbol → ts of last entry attempt
         self.running = True
+        self.log = get_activity_logger()
 
     def _cooling(self, symbol: str) -> bool:
         last = self._last_attempt.get(symbol, 0.0)
@@ -76,4 +78,9 @@ class Scanner:
                 except Exception as e:
                     bus.publish("error", {"symbol": s, "msg": str(e)})
                 await asyncio.sleep(0.2)
+            # Heartbeat: proves the loop is alive even when nothing triggers.
+            open_n = sum(1 for s in settings.symbols if market_open(s))
+            zones_n = sum(len(z) for z in self._zones.values())
+            self.log.info(f"[CYCLE]    {len(settings.symbols)} symbols | "
+                          f"{zones_n} zones held | {open_n} markets open")
             await asyncio.sleep(settings.scan_interval_s)
