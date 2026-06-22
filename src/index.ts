@@ -34,7 +34,8 @@ import { isMarketOpen, getActiveSession, isCrypto, brokerToUtc, getPip, getDec }
 import { loadRules, isBlockedByRules, getMaxTrades } from './rulesEngine';
 import { logOpenTrade, logClosedTrade, loadTrades, savePineScript } from './tradeLogger';
 import { sendDailyReport, checkZoneCoverage } from './reporter';
-import { getDb, insertTrade, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, recordSpread } from './database';
+import { getDb, closeTrade, recordPriceTick, getOpenTrades as getDbOpenTrades, getCurrentStrategyVersion, recordSpread } from './database';
+import { openTradeResilient } from './tradeManager';
 import { startDashboard, setSrCacheRef } from './dashboard';
 import { logger } from './logger';
 import * as fs from 'fs';
@@ -433,59 +434,21 @@ async function executeTrade(
     }
   }
 
-  const result = await executor.openTrade(signal);
-  logger.trade(`openTrade result: ${JSON.stringify(result)}`);
+  const strategyVersion = getCurrentStrategyVersion();
+  const result = await openTradeResilient(
+    signal,
+    executor,
+    getActiveSession() ?? null,
+    isCrypto(symbol) ? 'crypto' : 'forex',
+    strategyVersion === 'v1.0' ? 'v2.5' : strategyVersion,
+  );
+  logger.trade(`openTradeResilient result: ${JSON.stringify(result)}`);
 
   if (result.success && result.dealId) {
     logger.trade(`Trade opened for ${symbol}: ${result.dealId}`);
     playSound('open');
     savePineScript();
     activeSymbols.add(symbol);
-
-    // ── DB insert ────────────────────────────────────────────────────────────
-    try {
-      const pip = symbol.includes('JPY') ? 0.01 : 0.0001;
-      const fillPrice = signal.currentPrice;
-      const stopPips  = Math.abs(fillPrice - signal.stopLoss) / pip;
-      const entryDistPips = Math.abs(fillPrice - ((signal.entryZone?.[0] ?? fillPrice) + (signal.entryZone?.[1] ?? fillPrice)) / 2) / pip;
-
-      insertTrade({
-        id:                   String(result.dealId),
-        symbol,
-        type:                 signal.type,
-        phase:                signal.phase,
-        entry_zone_low:       signal.entryZone?.[0] ?? fillPrice,
-        entry_zone_high:      signal.entryZone?.[1] ?? fillPrice,
-        entry_price:          fillPrice,
-        entry_distance_pips:  Math.round(entryDistPips * 10) / 10,
-        stop_loss:            signal.stopLoss,
-        stop_pips:            Math.round(stopPips * 10) / 10,
-        target1:              signal.target1 ?? signal.targetPrice,
-        target2:              signal.target2 ?? signal.target1 ?? signal.targetPrice,
-        risk_reward:          signal.riskReward ?? 1.3,
-        size_points:          (result as any).lots ?? 0,
-        session:              getActiveSession() ?? undefined,
-        weekday:              new Date().getDay(),
-        opened_at:            new Date().toISOString(),
-        daily_bias:           signal.dailyBias ?? signal.type,
-        h4_confirmation:      signal.h4Confirmation ?? undefined,
-        h1_context:           signal.h1Context ?? undefined,
-        m15_setup:            signal.m15Setup ?? undefined,
-        currency_strength:    undefined,
-        strength_score:       undefined,
-        fvg_present:          0,
-        zone_note:            undefined,
-        zone_status:          undefined,
-        exhaustion_detected:  undefined,
-        asset_class:          isCrypto(symbol) ? 'crypto' : 'forex',
-        strategy_version:     'v2.5',
-      });
-      logger.trade(`DB insert OK for ${symbol} [${result.dealId}]`);
-    } catch (dbErr: any) {
-      logger.error(`insertTrade failed for ${symbol} [${result.dealId}]: ${dbErr.message}`);
-    }
-
-
 
     const fillPrice = signal.currentPrice;
     const realRisk = Math.abs(fillPrice - signal.stopLoss);
