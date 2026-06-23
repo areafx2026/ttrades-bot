@@ -9,6 +9,14 @@ def is_crypto(symbol: str) -> bool:
     return symbol in CRYPTO
 
 
+def pip_size(symbol: str) -> float:
+    """One pip in price terms. Crypto uses $1 (matches the v2 convention);
+    JPY pairs use 0.01; all other forex 0.0001."""
+    if is_crypto(symbol):
+        return 1.0
+    return 0.01 if "JPY" in symbol else 0.0001
+
+
 def is_forex_open(now: datetime | None = None) -> bool:
     """Approximate FX session: open Sun 21:00 UTC → Fri 21:00 UTC.
     Ignores bank holidays (MT5 will still reject those — handled by cooldown)."""

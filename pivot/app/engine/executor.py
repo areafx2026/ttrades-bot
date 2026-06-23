@@ -26,6 +26,7 @@ class Executor:
                 ticket=r.get("ticket"), symbol=sig.symbol, side=Side(sig.side),
                 state=TradeState.OPEN if r["ok"] else TradeState.REJECTED,
                 entry=sig.entry, sl=sig.sl, tp=sig.tp, lots=lots,
+                fill_price=r.get("fill"),   # real MT5 execution price, not the zone-mid
                 risk_eur=settings.risk_eur, rr=sig.rr,
                 decel_snapshot=sig.decel, opened_at=datetime.utcnow(),
             ))
@@ -33,7 +34,8 @@ class Executor:
 
         if r["ok"]:
             bus.publish("fill", {"symbol": sig.symbol, "side": sig.side,
-                                 "entry": sig.entry, "sl": sig.sl, "tp": sig.tp,
+                                 "entry": sig.entry, "fill": r.get("fill"),
+                                 "sl": sig.sl, "tp": sig.tp,
                                  "lots": lots, "ticket": r["ticket"], "sound": "open"})
         else:
             bus.publish("reject", {"symbol": sig.symbol, "error": r["error"]})

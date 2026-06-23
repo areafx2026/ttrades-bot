@@ -26,11 +26,18 @@ class BrokerAdapter(ABC):
     @abstractmethod
     def order_send(self, symbol: str, side: str, lots: float,
                    sl: float, tp: float, comment: str = "") -> dict:
-        """Return {'ok', 'ticket', 'error', 'retcode'}."""
+        """Return {'ok', 'ticket', 'fill', 'error', 'retcode'} — 'fill' is the
+        real execution price (None when the order was rejected)."""
         ...
 
     @abstractmethod
     def close(self, ticket: str) -> dict:
+        ...
+
+    @abstractmethod
+    def closed_position(self, ticket: str) -> dict | None:
+        """Closing details for a now-closed position, or None if not yet closed.
+        Return {'close_price', 'profit', 'closed_at'} with closed_at in UTC."""
         ...
 
     @abstractmethod

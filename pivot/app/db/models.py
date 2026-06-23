@@ -67,6 +67,14 @@ class Trade(Base):
     result = Column(String)                            # WIN / LOSS / BE
     opened_at = Column(DateTime)
     closed_at = Column(DateTime)
+    hold_duration_min = Column(Integer)                # minutes the position was open
+    # Trade-quality analytics, filled on close from the live-tracked extremes:
+    mae_price = Column(Float)                          # worst price reached against us
+    mfe_price = Column(Float)                          # best price reached in our favour
+    mae_pips = Column(Float)                           # adverse excursion, in pips
+    mfe_pips = Column(Float)                           # favourable excursion, in pips
+    mae_pct_of_sl = Column(Float)                      # 1.0 = price tagged the stop
+    mfe_pct_of_tp = Column(Float)                      # 1.0 = price tagged the target
     decel_snapshot = Column(JSON)                      # H4 ranges at entry (audit)
     zone = relationship("Zone", back_populates="trades")
 

@@ -10,6 +10,7 @@ from app.strategy.market_hours import market_open
 from app.services.events import bus
 from app.services.file_logger import get_activity_logger
 from app.engine.executor import Executor
+from app.engine.reconcile import Reconciler
 
 
 class Scanner:
@@ -17,6 +18,7 @@ class Scanner:
         self.broker = broker
         self.db = session_factory
         self.exec = Executor(broker, session_factory, guard)
+        self.reconciler = Reconciler(broker, session_factory)
         self._zones: dict[str, list] = {}
         self._last_zone_scan = 0.0
         self._last_attempt: dict[str, float] = {}   # symbol → ts of last entry attempt
@@ -78,6 +80,11 @@ class Scanner:
                 except Exception as e:
                     bus.publish("error", {"symbol": s, "msg": str(e)})
                 await asyncio.sleep(0.2)
+            # Reconcile MT5 closes + update live MAE/MFE on the open book.
+            try:
+                self.reconciler.run()
+            except Exception as e:
+                bus.publish("error", {"symbol": "RECONCILE", "msg": str(e)})
             # Heartbeat: proves the loop is alive even when nothing triggers.
             open_n = sum(1 for s in settings.symbols if market_open(s))
             zones_n = sum(len(z) for z in self._zones.values())

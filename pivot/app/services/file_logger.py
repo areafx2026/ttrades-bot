@@ -46,7 +46,11 @@ def format_event(msg: dict) -> str:
                 f"dir={msg.get('direction')}")
     if kind == "fill":
         return (f"[FILL]     {sym} {msg.get('side')} {msg.get('lots')} lots @ "
-                f"{msg.get('entry')} SL={msg.get('sl')} TP={msg.get('tp')} "
+                f"{msg.get('fill', msg.get('entry'))} SL={msg.get('sl')} "
+                f"TP={msg.get('tp')} ticket={msg.get('ticket')}")
+    if kind == "closed":
+        return (f"[CLOSE]    {sym} {msg.get('side')} {msg.get('result')} "
+                f"pnl={msg.get('pnl_eur')} @ {msg.get('close')} "
                 f"ticket={msg.get('ticket')}")
     if kind == "reject":
         return f"[REJECT]   {sym}: {msg.get('error')}"

@@ -1,5 +1,8 @@
 """MetaTrader5 in-process adapter. No HTTP, no bridge — direct terminal calls.
 Reconnect logic is centralized here (the single source of the v2 bridge bugs)."""
+import time as _time
+from datetime import datetime
+
 import pandas as pd
 from app.brokers.base import BrokerAdapter
 
@@ -68,6 +71,7 @@ class MT5Adapter(BrokerAdapter):
         })
         ok = r.retcode == mt5.TRADE_RETCODE_DONE
         return {"ok": ok, "ticket": str(r.order) if ok else None,
+                "fill": float(r.price) if ok else None,   # real execution price
                 "error": None if ok else r.comment, "retcode": r.retcode}
 
     def close(self, ticket):
@@ -86,6 +90,33 @@ class MT5Adapter(BrokerAdapter):
             "type_time": mt5.ORDER_TIME_GTC, "type_filling": mt5.ORDER_FILLING_IOC,
         })
         return {"ok": r.retcode == mt5.TRADE_RETCODE_DONE, "error": r.comment}
+
+    def _broker_utc_offset_h(self) -> int:
+        """Pepperstone's server clock runs UTC+2/+3 (DST). Derive the offset live
+        from a tick instead of hardcoding it, so the DST switch never breaks
+        close-time conversion. Epochs are TZ-independent, so the gap between the
+        broker's tick time and real UTC now is the server offset."""
+        tk = mt5.symbol_info_tick("EURUSD")
+        if not tk or not tk.time:
+            return 0
+        return round((tk.time - _time.time()) / 3600)
+
+    def closed_position(self, ticket):
+        """Closing details for a position that has left the open book, or None if
+        no close deal is visible yet (caller retries next cycle)."""
+        self._ensure()
+        deals = mt5.history_deals_get(position=int(ticket))
+        if not deals:
+            return None
+        outs = [d for d in deals if d.entry == mt5.DEAL_ENTRY_OUT]
+        if not outs:
+            return None
+        last = max(outs, key=lambda d: d.time)
+        # Realised P/L = gross profit + swap + commission across every deal leg.
+        pnl = sum(d.profit + d.swap + d.commission for d in deals)
+        off = self._broker_utc_offset_h()
+        return {"close_price": float(last.price), "profit": float(pnl),
+                "closed_at": datetime.utcfromtimestamp(last.time - off * 3600)}
 
     def account(self):
         self._ensure()

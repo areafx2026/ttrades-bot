@@ -14,6 +14,7 @@ from app.engine.risk import Guard
 from app.engine.scanner import Scanner
 from app.services.events import bus
 from app.services.file_logger import run_file_logger
+from app.services.recorder import run_event_recorder, run_account_snapshots
 from app.api import deps, routes_account, routes_zones, routes_trades, routes_control
 
 broker = MT5Adapter(settings.mt5_login, settings.mt5_password, settings.mt5_server)
@@ -30,11 +31,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # dashboard still serves even if MT5 is down
         print(f"[boot] MT5 connect failed: {e}")
     log_task = asyncio.create_task(run_file_logger())
+    rec_task = asyncio.create_task(run_event_recorder())
+    snap_task = asyncio.create_task(run_account_snapshots(broker))
     task = asyncio.create_task(scanner.run_forever())
     yield
     scanner.running = False
     task.cancel()
     log_task.cancel()
+    rec_task.cancel()
+    snap_task.cancel()
 
 
 app = FastAPI(title="Pivot v3.0", version="3.0.0", lifespan=lifespan)

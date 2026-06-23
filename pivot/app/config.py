@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     max_lots: float = 1.0
     max_open_trades: int = 3
     scan_interval_s: int = 60
+    snapshot_interval_s: int = 300   # account_snapshots cadence (equity curve)
 
     # ── broker (MT5) ──────────────────────────────────────────────────────────
     mt5_login: int | None = None
