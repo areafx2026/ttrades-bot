@@ -4,7 +4,17 @@ import { useEffect, useRef } from "react";
 type Zone = { low: number; high: number; mid: number; touches: number };
 type Candle = { time: number; open: number; high: number; low: number; close: number };
 
-export function ChartPanel({ candles, zones }: { candles: Candle[]; zones: Zone[] }) {
+/** Price-axis precision matched to the instrument (same buckets as the table):
+ *  forex 4 dp, JPY 3 dp, BTC/ETH/SOL 2 dp, sub-€1 coins (XRP/DOGE) 5 dp. */
+function priceFormat(symbol: string): { precision: number; minMove: number } {
+  if (symbol.includes("JPY")) return { precision: 3, minMove: 0.001 };
+  if (symbol === "XRPUSD" || symbol === "DOGEUSD") return { precision: 5, minMove: 0.00001 };
+  if (["BTCUSD", "ETHUSD", "SOLUSD"].includes(symbol)) return { precision: 2, minMove: 0.01 };
+  return { precision: 4, minMove: 0.0001 };   // forex
+}
+
+export function ChartPanel({ candles, zones, symbol }:
+                           { candles: Candle[]; zones: Zone[]; symbol: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi>();
 
@@ -21,6 +31,7 @@ export function ChartPanel({ candles, zones }: { candles: Candle[]; zones: Zone[
     const series = chart.addCandlestickSeries({
       upColor: "#3fb950", downColor: "#f85149",
       wickUpColor: "#3fb950", wickDownColor: "#f85149", borderVisible: false,
+      priceFormat: { type: "price", ...priceFormat(symbol) },
     });
     series.setData(candles as any);
 
@@ -33,7 +44,7 @@ export function ChartPanel({ candles, zones }: { candles: Candle[]; zones: Zone[
     });
 
     return () => chart.remove();
-  }, [candles, zones]);
+  }, [candles, zones, symbol]);
 
   return <div ref={ref} style={{ width: "100%" }} />;
 }

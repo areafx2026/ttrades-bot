@@ -8,9 +8,11 @@ import { TradesTable } from "../components/TradesTable";
 
 const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD",
                  "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"];
+const TIMEFRAMES = ["D1", "H4", "H1"];   // zones built on D1, entries armed on H4
 
 export function Dashboard({ state }: { state: State }) {
   const [symbol, setSymbol] = useState(SYMBOLS[0]);
+  const [tf, setTf] = useState("H4");
   const [candles, setCandles] = useState<any[]>([]);
   const [account, setAccount] = useState<any>(null);
   const [trades, setTrades] = useState<any[]>([]);
@@ -34,8 +36,8 @@ export function Dashboard({ state }: { state: State }) {
   }, [state.trades.length]);
 
   useEffect(() => {
-    api.candles(symbol, "H4", 150).then(setCandles).catch(() => setCandles([]));
-  }, [symbol, state.zones[symbol]]);
+    api.candles(symbol, tf, 150).then(setCandles).catch(() => setCandles([]));
+  }, [symbol, tf, state.zones[symbol]]);
 
   const zones = state.zones[symbol] ?? [];
 
@@ -59,7 +61,23 @@ export function Dashboard({ state }: { state: State }) {
       </div>
 
       <div style={{ background: "#161b22", borderRadius: 8, padding: 12, marginBottom: 16 }}>
-        <ChartPanel candles={candles} zones={zones} />
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
+                      marginBottom: 8 }}>
+          <div style={{ fontWeight: 600 }}>
+            {symbol} <span style={{ color: "#8b949e" }}>· {tf}</span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {TIMEFRAMES.map((f) => (
+              <button key={f} onClick={() => setTf(f)} style={{
+                padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                border: "1px solid #30363d", fontSize: 12,
+                background: f === tf ? "#1f6feb" : "#0e1117",
+                color: "#fff", fontWeight: f === tf ? 700 : 400,
+              }}>{f}</button>
+            ))}
+          </div>
+        </div>
+        <ChartPanel candles={candles} zones={zones} symbol={symbol} />
       </div>
 
       <ZoneTable zones={state.zones} />

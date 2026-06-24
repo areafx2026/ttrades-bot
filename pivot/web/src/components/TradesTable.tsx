@@ -5,7 +5,18 @@ const C = {
   muted: "#8b949e", border: "#21262d", panel: "#161b22",
 };
 
-const px = (n: any) => (n == null ? "—" : n);                       // prices: backend already rounded
+const CRYPTO = new Set(["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"]);
+
+/** Price display matched to the instrument: forex 4 dp, JPY pairs 3 dp,
+ *  crypto adaptive (BTC/ETH 2 dp, sub-€1 coins like DOGE/XRP 5 dp). */
+function px(symbol: string, n: any): string {
+  if (n == null) return "—";
+  const v = Number(n);
+  if (CRYPTO.has(symbol)) return Math.abs(v) >= 100 ? v.toFixed(2) : v.toFixed(5);
+  if (symbol.includes("JPY")) return v.toFixed(3);
+  return v.toFixed(4);
+}
+
 const eur = (n: any) => (n == null ? "—" : `€${Number(n).toFixed(2)}`);
 const pips = (n: any) => (n == null ? "—" : Number(n).toFixed(1));
 
@@ -60,11 +71,11 @@ export function TradesTable({ trades }: { trades: any[] }) {
               <td style={{ ...td, fontWeight: 600 }}>{t.symbol}</td>
               <td style={{ ...td, color: t.side === "BUY" ? C.win : C.loss }}>{t.side}</td>
               <td style={td}><StateCell t={t} /></td>
-              <td style={td}>{px(t.fill_price ?? t.entry)}</td>
-              <td style={td}>{px(t.sl)}</td>
-              <td style={td}>{px(t.tp)}</td>
-              <td style={td}>{px(t.close_price)}</td>
-              <td style={td}>{px(t.lots)}</td>
+              <td style={td}>{px(t.symbol, t.fill_price ?? t.entry)}</td>
+              <td style={td}>{px(t.symbol, t.sl)}</td>
+              <td style={td}>{px(t.symbol, t.tp)}</td>
+              <td style={td}>{px(t.symbol, t.close_price)}</td>
+              <td style={td}>{t.lots ?? "—"}</td>
               <td style={{ ...td, fontWeight: 600, color: (t.pnl_eur ?? 0) >= 0 ? C.win : C.loss }}>
                 {eur(t.pnl_eur)}
               </td>
