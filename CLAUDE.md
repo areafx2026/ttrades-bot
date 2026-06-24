@@ -1,309 +1,209 @@
 # CLAUDE.md — TTrades Bot Projektkontext
 
 > Diese Datei wird von Claude Code automatisch gelesen.
-> Sie enthält den vollständigen Kontext aus der Entwicklungshistorie.
 > **Immer aktuell halten nach größeren Änderungen.**
 
 ---
 
 ## Projekt-Übersicht
 
-**Name:** ttrades-bot (Branch: `v2-mt5`)
-**Stack:** TypeScript (Node.js), Python (Flask MT5-Bridge), SQLite, Express Dashboard (Port 3001)
-**Repo:** https://github.com/areafx2026/ttrades-bot (Branch: v2-mt5)
-**Broker:** Pepperstone UK Demo | Login: 62120008 | Start: €10.000
-**Modus:** `TRADING_ENABLED=true` (Orders aktiv)
+**Name:** ttrades-bot
+**Aktives System:** **Pivot v3.0** — S/R Area-of-Interest Bot (Branch: `v3-pivot`)
+**Stack:** Python 3.13, FastAPI + Uvicorn, `MetaTrader5` (in-process, **keine** HTTP-Bridge), SQLAlchemy/SQLite, React-Dashboard
+**Repo:** https://github.com/areafx2026/ttrades-bot
+**Broker:** Pepperstone UK Demo, Login 62120008 — **Attach-Modus** (hängt sich an ein laufendes, eingeloggtes MT5-Terminal; `.env` MT5_* leer lassen)
+**Modus:** Voll-automatisch, Orders aktiv (gated durch `Guard`)
+**Dashboard/API:** http://127.0.0.1:8000
+
+> **Hinweis zu „v2":** Der alte TypeScript/Node-Bot (`src/`, `mt5_server.py`, Flask-Bridge) ist **abgelöst**. Er bleibt im Repo liegen, wird aber nicht mehr weiterentwickelt oder betrieben. Alles Neue passiert im Verzeichnis `pivot/` auf Branch `v3-pivot`. Der frühere Branch `v2-mt5` wird nicht mehr genutzt.
 
 ---
 
 ## Architektur
 
+Alles liegt unter `pivot/`. Ein einziger Python-Prozess (FastAPI) hält Engine, Broker, DB und serviert das Dashboard.
+
 ```
-src/
-  index.ts           — Hauptschleife, Scan-Zyklus, syncClosedTrades, Startup-Reconciliation
-  fractalAnalyzer.ts — Strategie-Logik v2.4 (analyze / analyzeWeekend)
-  tradeManager.ts    — Resiliente Trade/DB-Mechanik (Write-Ahead) — NOCH NICHT VOLLSTÄNDIG DEPLOYED
-  mt5TradeExecutor.ts — MT5 Order-Execution, Lot-Berechnung
-  database.ts        — SQLite Schema inkl. asset_class, spreads-Tabelle
-  dashboard.ts       — Express Dashboard, Tabs: Trades/Equity/Win-Rate/Analyse/Symbole
-  srAnalyzer.ts      — S/R Zonen-Berechnung (portiert von PineScript)
-  marketHours.ts     — isMarketOpen(), isCrypto(), brokerToUtc(), utcToDisplay()
-  tradeLogger.ts     — SQLite only (trades.json entfernt)
-  reporter.ts        — Tagesbericht per Telegram (AI-Analyse deaktiviert)
-  logger.ts          — Kategorien: BOOT/SETUP/TRADE/RISK/ERROR/WARN → Konsole + File
-                       SYS/SCAN/SYNC/INFO → nur File
-  currencyStrength.ts — Currency Strength Berechnung
-  signalCache.ts     — 4h Signal-Cache
-  rulesEngine.ts     — rules.txt Parser
-  marketHours.ts     — Marktzeiten + brokerToUtc + isCrypto
-mt5_server.py        — Flask Bridge zu MT5, File-Logging in logs/mt5server-*.log
-```
+React SPA ──WS/REST──► FastAPI ──in-proc──► Engine ──► Strategy / Risk
+                          │                    │
+                          └── Broker (MT5 ABC) └── SQLAlchemy (SQLite→Postgres)
 
----
-
-## Aktuelle Strategie: v2.4
-
-**Backtestvalidiert:** 957% über 10 Jahre, 72% Win-Rate (YouTube-Backtest-Video)
-
-### Weekday (Mo-Fr, alle Forex-Symbole):
-- **D1 Trend:** n=2 Lookback, 2×HH+HL = LONG / 2×LH+LL = SHORT
-- **M15 Entry:** MSS (Market Structure Shift) — Close über letztem Swing High (LONG) / unter Swing Low (SHORT), n=6 Lookback
-- **Kein H4, kein H1, keine Order Blocks, keine Zonen**
-
-### Weekend (Sa-So, nur BTCUSD):
-- **H4 Trend:** n=2 Lookback, 2×HH+HL / 2×LH+LL
-- **M5 Entry:** MSS, n=6 Lookback
-
-### Gemeinsame Parameter:
-- **SL:** unter/über MSS-Kerze + Buffer (Forex: 2 Pips, BTC: 10 Pips)
-- **TP:** 1.3:1 R:R
-- **Risiko:** €100/Trade (dynamische Lot-Berechnung)
-- **Min-Stop:** 5 Pips (JPY: 8 Pips, BTC: 50 Pips)
-- **Max-Stop:** ATR14 × 0.75
-- **Max Trades gleichzeitig:** 3 (aus rules.txt)
-
----
-
-## Symbole
-
-### Forex (Mo-Fr):
-EURUSD, GBPUSD, USDJPY, USDCAD, AUDUSD, NZDUSD, EURGBP, EURJPY, EURAUD, EURCAD, GBPNZD, GBPJPY, AUDJPY, AUDNZD, AUDCAD, CADJPY, GBPCAD, GBPAUD
-
-### Crypto (24/7):
-BTCUSD (kein Cooldown, max 1 offene Position, Pip = $1)
-
----
-
-## Zeitzone-Konventionen (WICHTIG!)
-
-- **Pepperstone MT5:** UTC+3 während US DST (März-Nov), UTC+2 sonst
-- **Intern (DB):** IMMER UTC — `brokerToUtc(deal.time)` beim Einlesen von MT5-Zeiten verwenden
-- **Extern (Log/Dashboard):** `Europe/Berlin` (MEZ/MESZ = UTC+1/+2)
-- **NIEMALS** `deal.time + 'Z'` direkt verwenden — immer `brokerToUtc(deal.time)`
-- `brokerToUtc()` und `utcToDisplay()` sind in `marketHours.ts` exportiert
-
----
-
-## DB Schema (wichtigste Felder)
-
-```sql
-trades: id, symbol, type, phase, entry_zone_low, entry_zone_high, entry_price,
-        entry_distance_pips, stop_loss, stop_pips, target1, target2, risk_reward,
-        session, weekday, opened_at, closed_at, hold_duration_min,
-        daily_bias, h4_confirmation, h1_context, m15_setup,
-        close_price, close_reason, pnl_pips, pnl_eur, result,
-        mae_pips, mfe_pips, mae_price, mfe_price, mae_pct_of_sl, mfe_pct_of_tp,
-        strategy_version, asset_class ('forex'/'crypto'), notes
-
-spreads: symbol, recorded_at, bid, ask, spread_pips  -- alle 15 Min geloggt
-
-strategy_log: version, description, changed_at, win_rate_before/after, trades_before/after
-price_ticks: trade_id, recorded_at, price  -- für MAE/MFE Berechnung
-filter_rejections: symbol, reason, rejected_at
-```
-
-**KRITISCH:** `insertTrade` braucht ALLE diese Felder, sonst wirft better-sqlite3 "Missing named parameter":
-`zone_note`, `zone_status`, `exhaustion_detected`, `asset_class`, `strategy_version`, `entry_distance_pips`
-
----
-
-## Bekannte Bugs & Fixes
-
-### 1. insertTrade "Missing named parameter" (KRITISCH — immer wieder)
-**Problem:** `insertTrade` in `index.ts` übergibt nicht alle Felder die im SQL-Statement stehen.
-**Fix:** Folgende Felder müssen immer übergeben werden:
-```typescript
-zone_note: undefined,
-zone_status: undefined,
-exhaustion_detected: undefined,
-asset_class: symbol === 'BTCUSD' ? 'crypto' : 'forex',
-strategy_version: 'v2.4',
-entry_distance_pips: Math.round(entryDistPips * 10) / 10,
-```
-
-### 2. brokerToUtc / Invalid time value
-**Problem:** MT5 gibt Zeiten in Broker-Zeit (UTC+3/+2) zurück. Wenn wir `+ 'Z'` anhängen behandeln wir sie als UTC → falsche Zeiten in DB.
-**Fix:** IMMER `brokerToUtc(deal.time)` statt `new Date(deal.time + 'Z').toISOString()`
-
-### 3. Trades nicht im Dashboard
-**Ursache A:** insertTrade schlägt fehl (siehe Bug 1)
-**Ursache B:** syncClosedTrades erkennt Trade nicht weil nie in DB
-**Fix:** Live-Reconciliation in syncClosedTrades — prüft bei jedem Zyklus ob MT5-Positionen in DB fehlen
-
-### 4. History-Reconciliation "Invalid time value"
-**Problem:** deal.time von MT5 hat kein 'Z' aber wir fügen es doppelt hinzu wenn Z bereits vorhanden.
-**Fix:** `deal.time.endsWith('Z') ? deal.time : deal.time + 'Z'` — oder besser: `brokerToUtc(deal.time)`
-
----
-
-## Resiliente Trade-Mechanik (tradeManager.ts)
-
-**Status:** Implementiert aber noch nicht vollständig in index.ts integriert. Der alte Code läuft noch.
-
-**Write-Ahead Prinzip:**
-1. DB INSERT mit temp-id (`SYMBOL-YYYYMMDD-HHMMSS`)
-2. MT5 order_send
-3. MT5 positions_get → echte dealId + Fill-Preis → DB UPDATE
-4. Bei Fehler → DB DELETE (temp-id)
-
-**TLOG Logging:** Jeder DB-Schreibvorgang geloggt mit `[TLOG]` Prefix.
-
-**TODO:** tradeManager.ts vollständig in index.ts integrieren (openTradeResilient, closeTradeResilient, reconcile)
-
----
-
-## Startup-Reconciliation
-
-Beim Bot-Start:
-1. Temp-IDs in DB → MT5 positions_get → UPDATE mit echter dealId
-2. MT5-Positionen ohne DB-Eintrag → INSERT
-3. History der letzten 48h → TTFM Bot Trades die nicht in DB → INSERT + schließen falls zu
-
----
-
-## syncClosedTrades
-
-- Läuft bei jedem Scan-Zyklus (alle 2 Min für inaktive, 30s für aktive Symbole)
-- MT5 ist Single Source of Truth
-- History per `/history/position?ticket=X` (zuverlässiger als Zeitfenster)
-- Live-Reconciliation: prüft ob MT5-Positionen in DB fehlen
-- 20s Timeout damit der Scan nicht blockiert wird
-
----
-
-## S/R Analyzer (srAnalyzer.ts)
-
-**Parameter:** prd=5, loopback=250 D1-Kerzen, channelW=6%, minStrength=2, max 6 Zonen
-**Filter-Regeln:**
-- Preis IN Zone → Trade blockiert
-- LONG + Resistance innerhalb 15 Pips → blockiert
-- SHORT + Support innerhalb 15 Pips → blockiert
-- LONG nahe Support → erlaubt (bestärkt, geloggt)
-- SHORT nahe Resistance → erlaubt (bestärkt, geloggt)
-- BTCUSD → S/R ausgenommen
-- D1-Kerzen: 250 für Forex, 40 für BTCUSD
-
----
-
-## Dashboard
-
-- Port 3001
-- Tabs: TRADES / EQUITY / WIN-RATE / ⏱ ANALYSE / SYMBOLE
-- Asset-Filter: `?asset=forex` / `?asset=crypto`
-- Licht-Theme (hell)
-- S/R Zonen im Symbole-Tab (alle 60s aktualisiert)
-- Analyse-Tab: Ø Haltedauer WIN/LOSS, MFE/MAE Ratio
-- MT5-Status alle 10s gepollt
-- "Offline" Status → rot
-
----
-
-## MT5 Server (mt5_server.py)
-
-**Port:** 5000
-**Endpoints:**
-- `GET /health` — Balance, Login
-- `GET /candles?symbol=X&resolution=Y&count=N`
-- `GET /tick?symbol=X`
-- `GET /positions`
-- `POST /positions/open` — Order senden (comment: "TTFM Bot")
-- `DELETE /positions/<ticket>` — Position schließen (comment: "TTFM Close")
-- `GET /history?hours=N&all=1` — History (lokale Zeit verwenden!)
-- `GET /history/position?ticket=X` — History per Position-Ticket (zuverlässigster Endpoint)
-
-**Logging:** `logs/mt5server-DD-MM-YYYY.log` — Werkzeug + eigene Logs
-**Zeitzone:** `d.time` ist Broker-Zeit (UTC+3/+2) — beim Ausgeben `.isoformat()` + kein 'Z'
-
----
-
-## Spread Logger
-
-- Alle 15 Minuten: Bid/Ask/Spread für alle Forex-Symbole in `spreads` Tabelle
-- Query für Statistiken: `getSpreadStats(days)` aus database.ts
-- Ziel: Spread-Verhalten nach Tageszeit analysieren (London Open, NY Open, Nacht)
-
----
-
-## Lot-Berechnung
-
-```typescript
-// Ziel: ~€100 Risiko pro Trade
-// pip = 0.0001 (Forex), 0.01 (JPY), 1.0 (BTC)
-// quoteEurRate = 1 / EURQUOTE (z.B. für USDCAD: 1/EURCAD)
-// pipValuePer001Lot = pip × 1000 × quoteEurRate
-// lots = (100 / (stopPips × pipValuePer001Lot)) × 0.01
-// Min: 0.01, Max: 1.00 (Forex) / 0.10 (BTC)
+pivot/app/
+  main.py              — FastAPI-Entrypoint, Lifespan startet: scanner-Loop,
+                         file_logger, event_recorder, account_snapshots; WS /ws
+  config.py            — alle Parameter (pydantic-settings, .env)
+  api/
+    deps.py            — Singletons (broker/guard/scanner), in main.py gebunden
+    routes_account.py  — GET /api/account (Balance/Equity/Margin + Positionen)
+    routes_trades.py   — GET /api/trades (inkl. fill/close/pnl/MAE/MFE)
+    routes_zones.py    — GET /api/zones
+    routes_control.py  — POST /api/control/kill|resume|scan, GET /status
+  brokers/
+    base.py            — BrokerAdapter ABC (venue-agnostisch)
+    mt5_adapter.py     — MetaTrader5 direkt; order_send, positions, closed_position,
+                         candles, tick, account, symbol_spec; Reconnect zentral hier
+  db/
+    base.py            — Engine + SessionLocal + init_db + SQLite-Migration
+    models.py          — Zone, Trade, AccountSnapshot, Event
+  engine/
+    scanner.py         — Hauptschleife: D1-Zonen bauen, H4 monitoren, Reconcile
+    executor.py        — Order platzieren: Guard → Sizing → order_send → DB-INSERT
+    reconcile.py       — Reconciler: Close-Detection + Live-MAE/MFE (MT5 = Truth)
+    risk.py            — position_size() + Guard (Kill-Switch, Exposure-Limits)
+  services/
+    events.py          — In-Process Event-Bus (pub/sub, fan-out an WS + Logger + Recorder)
+    file_logger.py     — Event-Stream → logs/activity.log (greppbare Zeilen)
+    recorder.py        — Event-Stream → events-Tabelle; periodische account_snapshots
+  strategy/
+    pivots.py          — Fraktal-Pivots (strikte Extrema, left/right=3)
+    zones.py           — Pivots → Zonen clustern + Validitätsregel
+    deceleration.py    — H4 Approach + Deceleration (Range-Kontraktion)
+    signals.py         — Zone + Approach → Signal (Fade-the-move)
+    market_hours.py    — market_open(), is_crypto(), pip_size()
+  web/                 — React-Dashboard (gebaut nach web/dist, von FastAPI serviert)
 ```
 
 ---
 
-## Coding-Konventionen
+## Strategie (Pivot v3.0)
 
-### Logger-Kategorien:
-- `logger.boot()` — Startup (Konsole + File)
-- `logger.setup()` — Signal gefunden (Konsole + File)
-- `logger.trade()` — Trade geöffnet/geschlossen (Konsole + File)
-- `logger.risk()` — Lot-Berechnung, R:R (Konsole + File)
-- `logger.warn()` — Warnungen (Konsole + File)
-- `logger.error()` — Fehler (Konsole + File)
-- `logger.sys()` — System-Events (nur File)
-- `logger.scan()` — Scan-Ergebnisse (nur File)
-- `logger.sync()` — DB-Sync (nur File)
-- `logger.info()` — Sonstiges (nur File)
+Eine reine S/R-Area-of-Interest-Strategie — **kein** MSS/Trend-Modell mehr (das war v2).
 
-### Zeitzone-Regel:
-```typescript
-// FALSCH:
-new Date(deal.time + 'Z').toISOString()
+1. **Zonen (D1):** Fraktal-Pivots finden, nach Preis clustern. Eine Zone ist nur dann
+   ein gültiger *Area of Interest*, wenn sie **≥1× als Support** (Pivot-Low) **und
+   ≥1× als Resistance** (Pivot-High) getestet wurde, mit **≥`min_touches` (4) Bounces** gesamt.
+   Cluster-Bandbreite = `ATR(D1) × zone_tolerance_atr (0.5)`, am tiefsten Pivot verankert
+   (verhindert „durchkettende" Riesen-Zonen).
+2. **Approach (H4):** Kommt der Preis bis ~`approach_zones` (1) Zonenbreite heran, werden
+   die H4-Kerzen-Ranges geprüft. **Strikt schrumpfende Ranges = Deceleration** → Entry armen.
+   Richtung = `rising`/`falling` (Close vs. Close vor `lookback` Kerzen).
+3. **Entry:** Move faden, in die **Mitte der Zone** (`zone.mid`):
+   - Preis **steigt** in die Zone → **SELL**
+   - Preis **fällt** in die Zone → **BUY**
+   - Armt nur, wenn Preis **in** der Zone **und** decelerating ist.
+4. **Stop:** eine **Zonenbreite hinter der fernen Kante** (SELL: `edge_high + width`, BUY: `edge_low - width`).
+5. **Target:** R:R **1.3**.
+6. **Cooldown:** nach einem Entry-Versuch `entry_cooldown_min` (240 = 1 H4-Bar) warten.
 
-// RICHTIG:
-brokerToUtc(deal.time)  // aus './marketHours'
+Jeder Auto-Trade speichert den auslösenden H4-Deceleration-Snapshot in `trades.decel_snapshot` (Audit).
+
+---
+
+## Konfiguration (`app/config.py` / `.env`)
+
+| Parameter | Default | Bedeutung |
+|---|---|---|
+| `pivot_left` / `pivot_right` | 3 / 3 | Fraktal-Lookback |
+| `zone_tolerance_atr` | 0.5 | Cluster-Bandbreite = ATR(D1) × dies |
+| `min_touches` | 4 | Mindest-Bounces für gültige Zone |
+| `approach_zones` | 1.0 | Alert ab N Zonenbreiten Distanz |
+| `entry_cooldown_min` | 240 | Pause nach Entry-Versuch |
+| `rr` | 1.3 | Take-Profit Risk-Reward |
+| `d1_count` / `h4_count` | 300 / 120 | Kerzenanzahl |
+| `zone_rescan_hours` | 6 | wie oft D1-Zonen neu gebaut werden |
+| `risk_eur` | 100 | Risiko pro Trade |
+| `max_lots` | 1.0 | Lot-Cap (nur Forex; Crypto nutzt volume_max) |
+| `max_open_trades` | 3 | gleichzeitig offene Trades |
+| `scan_interval_s` | 60 | Loop-Intervall |
+| `snapshot_interval_s` | 300 | account_snapshots-Kadenz |
+
+### Symbole (12)
+**Forex (Mo–Fr):** EURUSD, GBPUSD, USDJPY, AUDUSD, EURGBP, EURJPY, USDCAD
+**Crypto (24/7, auch Wochenende):** BTCUSD, ETHUSD, SOLUSD, XRPUSD, DOGEUSD
+
+---
+
+## DB-Schema (`app/db/models.py`)
+
+```
+zones:             id, symbol, edge_low, edge_high, mid, width, touches,
+                   tests_support, tests_resist, pivots(JSON), state, last_touch_at, ...
+trades:            id, ticket(MT5-Position), zone_id, symbol, side, state(PENDING/OPEN/CLOSED/REJECTED),
+                   entry, sl, tp, lots, risk_eur, rr,
+                   fill_price, close_price, pnl_eur, pnl_pips, result(WIN/LOSS/BE),
+                   opened_at, closed_at, hold_duration_min,
+                   mae_price, mfe_price, mae_pips, mfe_pips, mae_pct_of_sl, mfe_pct_of_tp,
+                   decel_snapshot(JSON)
+account_snapshots: id, ts, balance, equity, margin, open_positions
+events:            id, ts, kind, symbol, payload(JSON)
 ```
 
-### insertTrade-Pflichtfelder:
-Immer alle Felder übergeben — bei undefined explizit `undefined` setzen, nicht weglassen.
+**Migration (SQLite):** `create_all()` legt fehlende Tabellen an, **ALTERt aber keine bestehenden**.
+Neue Spalten werden deshalb in `db/base.py::_migrate_sqlite()` idempotent per `ALTER TABLE … ADD COLUMN`
+nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: dort **und** im Model eintragen.
 
 ---
 
-## Versionshistorie
+## Engine
 
-| Version | Trades | WR | P&L | Zeitraum |
-|---------|--------|-----|-----|----------|
-| v1.5 | 1 | 100% | +€17.99 | — |
-| v2.0 | 7 | 0% | -€517.50 | — |
-| v2.1 | 10 | 50% | +€149.78 | — |
-| v2.2 | 1 | 0% | -€56.04 | — |
-| v2.3 | 4 | 25% | -€150.32 | — |
-| v2.4 | 13 | 31% | — | bis 18.05.2026 |
-| v2.5 | laufend | 75% (4 Trades) | +€136.58 | ab 20.05.2026 |
+### Scanner-Loop (`scanner.py`)
+- Pro Zyklus (`scan_interval_s`): für jedes Symbol Zonen bauen (alle `zone_rescan_hours`), dann H4 monitoren.
+- `market_open(symbol)` gated: Forex Mo–Fr (ca. So 21:00 → Fr 21:00 UTC), Crypto 24/7. Verhindert Reject-Spam.
+- Am Zyklusende: `reconciler.run()` + Heartbeat-Logzeile `[CYCLE]`.
 
-### v2.5 — TEST: Richtungs-Inversion
-- **Kernidee:** D1+M15 MSS-Strategie identisch zu v2.4 — aber LONG↔SHORT invertiert
-- **Hintergrund:** v2.4 zeigte nur 31% WR → Test ob Gegenteil profitabler ist
-- **SL/TP:** werden symmetrisch um den Entry gespiegelt (`fix(v2.5): mirror SL and TP around entry price on inversion`)
-- **TREND_TF:** konfigurierbar via Env-Variable, aktuell H4
-- **Log-Kennzeichnung:** `[TEST INVERSION v2.5]` im SETUP-Log
-- **Start:** Bot bootet mit `TTrades Bot v2.5 gestartet — [TEST: Richtungs-Inversion aktiv]`
-- **Commits:** `3b26028`, `1f98fc2`, `6133428`
+### Executor (`executor.py`)
+- `Guard.allow()` → `position_size()` → `broker.order_send()` → DB-INSERT als OPEN (oder REJECTED).
+- Schreibt **`fill_price`** = echter Ausführungspreis aus `order_send` (nicht der Zone-Mid-`entry`!).
 
----
+### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
+- Jeden Zyklus über alle OPEN-Trades:
+  - **Noch im Open-Book** → `_track`: aktuellen Preis sampeln, MAE/MFE-Extreme live aktualisieren
+    (Pips + %-Anteil von SL/TP werden laufend mitgerechnet, auch für offene Trades fürs Dashboard).
+  - **Weg aus dem Open-Book** → `_finalize`: `broker.closed_position(ticket)` holt close_price/realisierten P/L
+    (Summe profit+swap+commission aller Deal-Legs)/closed_at → Row auf CLOSED, result, hold_duration, finale MAE/MFE.
+    Publisht `closed`-Event (Sound + Recorder + `[CLOSE]`-Log).
+- MAE/MFE wird zur Scan-Kadenz gesampelt (nicht tick-genau) → kurze Intrabar-Spikes können fehlen (für Trade-Qualitäts-Stats ok).
 
-## Offene TODOs
-
-1. **tradeManager.ts vollständig integrieren** — openTradeResilient statt direktem insertTrade in index.ts
-2. **Spread-Analyse nach 2 Tagen** — `getSpreadStats(2)` auswerten, ggf. Nacht-Trading-Regel einbauen
-3. **S/R Cache im Dashboard** — `setSrCacheRef` und `/api/sr-zones` in dashboard.ts, srCache aus index.ts übergeben
-4. **D1 Kerzen für BTCUSD erhöhen** — aktuell 40, für bessere Swing-Erkennung auf 60-80 erhöhen
+### Risk / Guard (`risk.py`)
+- `position_size()`: broker-genau via `symbol_spec` (contract_size/volume_step/min/max), **kein** Pip-Math →
+  korrekt für Forex **und** Crypto. `risk_per_lot = stop_distance × contract × (quote→EUR)`.
+- `Guard.allow()`: Kill-Switch (`enabled=False`), `max_open_trades`, 1 Position/Symbol, Währungs-Exposure-Limit (≥2 blockt).
 
 ---
 
-## Fix-Scripts (Root-Verzeichnis)
+## Broker-Adapter (`mt5_adapter.py`)
 
-Für manuell nachzutragende Trades:
-```
-npx ts-node fix_eurjpy_13may.ts
-npx ts-node fix_usdcad_14may.ts
-npx ts-node fix_usdcad_15may.ts
+- **In-Process** `MetaTrader5`-Calls, kein HTTP. Reconnect zentral in `connect()`/`_ensure()`.
+- `closed_position(ticket)`: liest Closing-Deal aus History, summiert P/L über alle Legs.
+- `symbol_spec`, `candles` (D1/H4/H1), `tick`, `positions`, `account`.
+
+### Zeitzone-Konvention (WICHTIG)
+- MT5 liefert Server-Zeit (Pepperstone = UTC+2/+3, DST). **Nicht hardcoden.**
+- `mt5_adapter._broker_utc_offset_h()` leitet den Offset **live aus einem Tick** ab (Epoch ist TZ-frei →
+  Differenz Broker-Tick-Zeit zu echtem UTC = Offset). `closed_at` wird damit korrekt nach **UTC** umgerechnet.
+- `opened_at`/Recorder-Zeiten sind UTC (`datetime.utcnow()` / SQLite `func.now()`). Dashboard/Logfile zeigen lokal (Berlin).
+
+---
+
+## Services / Logging
+
+- **Event-Bus** (`events.py`): Producer = Engine; Consumer = WebSocket-Hub, file_logger, recorder.
+  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`.
+- **file_logger** → `logs/activity.log`: greppbare Zeilen (`[ZONES] [APPROACH] [FILL] [CLOSE] [REJECT] [SKIP] [ERROR] [CYCLE]`).
+- **recorder** → DB: persistiert sinnvolle Events in `events` (`approach`/`zones` werden als Rauschen übersprungen)
+  und schreibt alle `snapshot_interval_s` einen `account_snapshots`-Eintrag (Equity-Kurve).
+
+---
+
+## Steuerung (Windows, detached)
+
+Aus `pivot\` — laufen als eigenständige Hintergrundprozesse (nicht an eine Terminal-Session gebunden):
+
+| Script | Funktion |
+|---|---|
+| `start.cmd` / `start.ps1` | Engine hidden starten, PID → `run\server.pid`, Logs → `logs\server.*.log` |
+| `stop.cmd` / `stop.ps1` | Engine per PID stoppen |
+| `status.cmd` / `status.ps1` | RUNNING/STOPPED + Live-API/Account-Check |
+| `start_watcher.ps1` | Detachter Trade-Close-Watcher (`watch_close.py`) → `logs/close_verify.log`, kein Timeout |
+
+Dashboard: http://127.0.0.1:8000 · Kill-Switch: `POST /api/control/kill` (roter Button im Dashboard).
+
+---
+
+## Tests
+
+```bash
+cd pivot && pytest      # Strategie-IP: pivots, zone validity, signal geometry — kein MT5 nötig
 ```
 
 ---
@@ -311,18 +211,34 @@ npx ts-node fix_usdcad_15may.ts
 ## Wichtige Befehle
 
 ```bash
-# Bot starten
-npx ts-node src/index.ts
+# Engine starten/stoppen/status (aus pivot\)
+powershell -File start.ps1
+powershell -File stop.ps1
+powershell -File status.ps1
 
-# MT5 Server starten (separates Terminal)
-python mt5_server.py
+# Dev direkt
+cd pivot && uvicorn app.main:app --reload --port 8000
 
-# DB-Abfrage
-npx ts-node -e "import {getDb} from './src/database'; const db=getDb(); console.log(JSON.stringify(db.prepare('SELECT id,symbol,closed_at,result,pnl_eur FROM trades ORDER BY opened_at DESC LIMIT 5').all(),null,2));"
+# DB-Abfrage (letzte Trades)
+cd pivot && python -c "import sqlite3; c=sqlite3.connect('pivot.db'); [print(r) for r in c.execute('SELECT ticket,symbol,side,state,result,pnl_eur FROM trades ORDER BY id DESC LIMIT 5')]"
 
-# Spread-Statistiken
-npx ts-node -e "import {getSpreadStats} from './src/database'; console.log(JSON.stringify(getSpreadStats(2),null,2));"
-
-# Suchen im Log (Windows)
-findstr /C:"TRADE" /C:"ERROR" /C:"SETUP" logs\bot-16-05-2026.log
+# Live mitlesen
+Get-Content pivot\logs\activity.log -Wait        # PowerShell
 ```
+
+---
+
+## Aktueller Stand (Stand 2026-06-24)
+
+- **Close-Sync + MAE/MFE + Fill-Writeback + DB-Recorder** gebaut, committed (`a5a0968`) und mit einem echten
+  Trade durchgängig live verifiziert (GBPUSD SELL WIN, TP exakt getroffen, +€150.50; alle Pfade bestätigt:
+  Finalisierung → `closed`-Event → `[CLOSE]`-Log → Broker→UTC-Konversion).
+- Detachter Close-Watcher als Tooling committed (`64a03cf`).
+- PR #1 hat `v3-pivot` in `v2-mt5` gemergt; weiterentwickelt wird auf **`v3-pivot`**.
+
+## Offene TODOs
+
+1. **Dashboard** auf die neuen Trade-Felder (fill/close/pnl_pips/MAE/MFE/hold_duration) ausbauen.
+2. **Equity-Kurve** aus `account_snapshots` im Dashboard rendern.
+3. **`v2-mt5`-Branch** löschen, sobald sicher nicht mehr gebraucht (optional).
+4. **Backtest/Validierung** der Pivot-Strategie über längeren Zeitraum sammeln.
