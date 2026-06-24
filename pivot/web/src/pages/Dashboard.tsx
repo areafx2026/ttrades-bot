@@ -1,0 +1,57 @@
+import { useEffect, useState } from "react";
+import { api } from "../api";
+import { State } from "../App";
+import { AccountBar } from "../components/AccountBar";
+import { ChartPanel } from "../components/ChartPanel";
+import { ZoneTable } from "../components/ZoneTable";
+import { TradesTable } from "../components/TradesTable";
+
+const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD",
+                 "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"];
+
+export function Dashboard({ state }: { state: State }) {
+  const [symbol, setSymbol] = useState(SYMBOLS[0]);
+  const [candles, setCandles] = useState<any[]>([]);
+  const [account, setAccount] = useState<any>(null);
+
+  // Initial REST hydrate (zones/trades thereafter arrive live over WS).
+  useEffect(() => {
+    api.account().then(setAccount).catch(() => {});
+    const t = setInterval(() => api.account().then(setAccount).catch(() => {}), 10000);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    api.candles(symbol, "H4", 150).then(setCandles).catch(() => setCandles([]));
+  }, [symbol, state.zones[symbol]]);
+
+  const zones = state.zones[symbol] ?? [];
+
+  return (
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: 20 }}>
+      <h1 style={{ fontSize: 20, margin: "0 0 16px" }}>
+        Pivot <span style={{ color: "#8b949e" }}>v3.0</span> — S/R Areas of Interest
+      </h1>
+
+      <AccountBar account={account ?? state.account} autoEnabled={state.autoEnabled} />
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {SYMBOLS.map((s) => (
+          <button key={s} onClick={() => setSymbol(s)} style={{
+            padding: "6px 12px", borderRadius: 6, cursor: "pointer",
+            border: "1px solid #30363d",
+            background: s === symbol ? "#1f6feb" : "#161b22",
+            color: "#fff", fontWeight: s === symbol ? 700 : 400,
+          }}>{s}</button>
+        ))}
+      </div>
+
+      <div style={{ background: "#161b22", borderRadius: 8, padding: 12, marginBottom: 16 }}>
+        <ChartPanel candles={candles} zones={zones} />
+      </div>
+
+      <ZoneTable zones={state.zones} />
+      <TradesTable trades={state.trades} />
+    </div>
+  );
+}

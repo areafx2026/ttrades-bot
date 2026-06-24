@@ -47,7 +47,7 @@ function saveCache(cache: Map<string, CachedSignal>): void {
 
 // Load cache from disk on module init
 const cache = loadCache();
-logger.info(`Signal cache loaded: ${cache.size} active entries`);
+logger.sys(`Signal cache loaded: ${cache.size} active entries`);
 
 export function isDuplicate(symbol: string, type: string, phase: string): boolean {
   const key = `${symbol}_${type}_${phase}`;
@@ -67,6 +67,11 @@ export function cacheSignal(symbol: string, type: string, phase: string): void {
   const key = `${symbol}_${type}_${phase}`;
   cache.set(key, { symbol, type, phase, timestamp: Date.now() });
   saveCache(cache);
+}
+
+export function clearCacheEntry(symbol: string, type: string, phase: string): void {
+  const key = `${symbol}_${type}_${phase}`;
+  if (cache.delete(key)) saveCache(cache);
 }
 
 export function clearCache(): void {

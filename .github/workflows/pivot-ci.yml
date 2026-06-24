@@ -1,0 +1,23 @@
+name: pivot-ci
+
+on:
+  push:
+    branches: [v3-pivot]
+    paths: ["pivot/**"]
+  pull_request:
+    paths: ["pivot/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pivot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      # MetaTrader5 is Windows-only; install the rest and run the pure-logic tests.
+      - run: pip install fastapi sqlalchemy pydantic pydantic-settings pandas numpy pytest
+      - run: pytest -q

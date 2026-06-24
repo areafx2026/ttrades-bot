@@ -77,3 +77,37 @@ function lastSundayOf(year: number, month: number): Date {
   d.setUTCHours(1, 0, 0, 0); // 01:00 UTC = 02:00 MEZ (clocks change)
   return d;
 }
+
+// ─── Crypto ───────────────────────────────────────────────────────────────────
+export const CRYPTO_SYMBOLS = ['BTCUSD', 'ETHUSD', 'XRPUSD'];
+export function isCrypto(symbol: string): boolean { return CRYPTO_SYMBOLS.includes(symbol); }
+
+// ─── Broker/UTC Zeitkonvertierung ─────────────────────────────────────────────
+// Pepperstone MT5: UTC+3 während US DST (2. Sonntag März - 1. Sonntag Nov)
+//                 UTC+2 sonst
+
+function isUsDaylightSavingTime(date: Date): boolean {
+  const year = date.getUTCFullYear();
+  const marchSecondSunday = new Date(Date.UTC(year, 2, 1));
+  marchSecondSunday.setUTCDate(1 + (7 - marchSecondSunday.getUTCDay()) % 7 + 7);
+  marchSecondSunday.setUTCHours(7);
+  const novFirstSunday = new Date(Date.UTC(year, 10, 1));
+  novFirstSunday.setUTCDate(1 + (7 - novFirstSunday.getUTCDay()) % 7);
+  novFirstSunday.setUTCHours(6);
+  return date >= marchSecondSunday && date < novFirstSunday;
+}
+
+export function brokerToUtc(brokerTimeStr: string): string {
+  const naive = brokerTimeStr.endsWith('Z') ? brokerTimeStr.slice(0, -1) : brokerTimeStr;
+  const brokerDate = new Date(naive + 'Z');
+  const offsetHours = isUsDaylightSavingTime(brokerDate) ? 3 : 2;
+  return new Date(brokerDate.getTime() - offsetHours * 3600000).toISOString();
+}
+
+export function utcToDisplay(utcIso: string): string {
+  return new Date(utcIso).toLocaleString('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+}

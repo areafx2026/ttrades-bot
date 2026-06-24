@@ -94,7 +94,7 @@ function parseRule(raw: string): ParsedRule {
 export function loadRules(): void {
   const filePath = path.join(process.cwd(), 'rules.txt');
   if (!fs.existsSync(filePath)) {
-    logger.warn('rules.txt not found — no trading rules loaded.');
+    logger.sys('rules.txt not found — no trading rules loaded.');
     rules = [];
     return;
   }
@@ -110,14 +110,14 @@ export function loadRules(): void {
       const parsed = parseRule(ruleText);
       rules.push(parsed);
       if (parsed.type !== 'UNKNOWN') {
-        logger.info(`Rule loaded: [${parsed.type}] ${ruleText}`);
+        logger.sys(`Rule loaded: [${parsed.type}] ${ruleText}`);
       } else {
-        logger.warn(`Rule nicht erkannt: ${ruleText}`);
+        logger.sys(`Rule nicht erkannt: ${ruleText}`);
       }
     }
   }
 
-  logger.info(`${rules.length} rules loaded from rules.txt`);
+  logger.sys(`${rules.length} rules loaded from rules.txt`);
 }
 
 export function getMaxTrades(): number {

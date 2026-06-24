@@ -1,0 +1,16 @@
+# Note: MT5 requires the Windows terminal, so the bot itself runs on the host.
+# This compose is for the scalable prod data layer (Postgres) the ORM targets.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: pivot
+      POSTGRES_PASSWORD: pivot
+      POSTGRES_DB: pivot
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

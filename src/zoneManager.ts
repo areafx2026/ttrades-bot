@@ -29,7 +29,7 @@ export function loadZones(): Zone[] {
     const today = new Date().toISOString().slice(0, 10);
     return zones.filter(z => z.dateFrom <= today && z.dateTo >= today);
   } catch {
-    logger.warn('Could not load zones.json');
+    logger.sys('Could not load zones.json');
     return [];
   }
 }
@@ -43,7 +43,7 @@ export function saveZones(zones: Zone[]): void {
 export function initZones(): void {
   if (!fs.existsSync(ZONES_FILE)) {
     saveZones([]);
-    logger.info('zones.json created (empty)');
+    logger.sys('zones.json created (empty)');
     return;
   }
 
@@ -66,9 +66,9 @@ export function initZones(): void {
 
   const total = zones.length;
   if (total === 0) {
-    logger.info('Zones: none defined yet');
+    logger.sys('Zones: none defined yet');
   } else {
-    logger.info(`Zones loaded (${total} total): ${summary.join(' | ')}`);
+    logger.sys(`Zones loaded (${total} total): ${summary.join(' | ')}`);
   }
 }
 
