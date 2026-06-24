@@ -13,13 +13,25 @@ export function Dashboard({ state }: { state: State }) {
   const [symbol, setSymbol] = useState(SYMBOLS[0]);
   const [candles, setCandles] = useState<any[]>([]);
   const [account, setAccount] = useState<any>(null);
+  const [trades, setTrades] = useState<any[]>([]);
 
-  // Initial REST hydrate (zones/trades thereafter arrive live over WS).
+  // REST hydrate + poll. The DB (kept current by the reconciler) is the source
+  // of truth for the trades table — covers open, closed and historical rows.
   useEffect(() => {
-    api.account().then(setAccount).catch(() => {});
-    const t = setInterval(() => api.account().then(setAccount).catch(() => {}), 10000);
+    const load = () => {
+      api.account().then(setAccount).catch(() => {});
+      api.trades().then(setTrades).catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 8000);
     return () => clearInterval(t);
   }, []);
+
+  // A live fill arriving over WS triggers an immediate refetch (snappier than
+  // waiting for the next poll); closes show on the next 8s tick.
+  useEffect(() => {
+    if (state.trades.length) api.trades().then(setTrades).catch(() => {});
+  }, [state.trades.length]);
 
   useEffect(() => {
     api.candles(symbol, "H4", 150).then(setCandles).catch(() => setCandles([]));
@@ -51,7 +63,7 @@ export function Dashboard({ state }: { state: State }) {
       </div>
 
       <ZoneTable zones={state.zones} />
-      <TradesTable trades={state.trades} />
+      <TradesTable trades={trades} />
     </div>
   );
 }
