@@ -6,7 +6,8 @@ import { ChartPanel } from "../components/ChartPanel";
 import { ZoneTable } from "../components/ZoneTable";
 import { TradesTable } from "../components/TradesTable";
 
-const SYMBOLS = ["EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD",
+const SYMBOLS = ["EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD", "USDCAD",
+                 "EURGBP", "EURJPY",
                  "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"];
 const TIMEFRAMES = ["D1", "H4", "H1"];   // zones built on D1, entries armed on H4
 
@@ -65,7 +66,7 @@ export function Dashboard({ state }: { state: State }) {
 
       <AccountBar account={account ?? state.account} autoEnabled={state.autoEnabled} />
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         {SYMBOLS.map((s) => (
           <button key={s} onClick={() => setSymbol(s)} style={{
             padding: "6px 12px", borderRadius: 6, cursor: "pointer",
