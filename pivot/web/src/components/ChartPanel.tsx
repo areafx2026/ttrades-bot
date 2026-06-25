@@ -46,5 +46,7 @@ export function ChartPanel({ candles, zones, symbol }:
     return () => chart.remove();
   }, [candles, zones, symbol]);
 
-  return <div ref={ref} style={{ width: "100%" }} />;
+  // Reserve the chart height so a rebuild (symbol switch) can't collapse the
+  // container to 0 and bounce the page scroll.
+  return <div ref={ref} style={{ width: "100%", height: 460 }} />;
 }

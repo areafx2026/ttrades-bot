@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { State } from "../App";
 import { AccountBar } from "../components/AccountBar";
@@ -21,11 +21,21 @@ export function Dashboard({ state }: { state: State }) {
   // REST hydrate + poll. The engine is the source of truth — account/trades/zones
   // are pulled on load and refreshed, so nothing depends on having caught a live
   // WS event (zones are only pushed on the 6h rescan).
+  //
+  // Only push to state when the payload actually changed: an unconditional setState
+  // every 8s gives every consumer a fresh reference, which made ChartPanel tear down
+  // and rebuild the chart on each poll — collapsing its height and bouncing the page
+  // scroll to the top. Keeping references stable means an idle poll is a no-op render.
+  const lastJson = useRef<{ a?: string; t?: string; z?: string }>({});
   useEffect(() => {
+    const setChanged = <T,>(key: "a" | "t" | "z", set: (v: T) => void) => (v: T) => {
+      const j = JSON.stringify(v);
+      if (j !== lastJson.current[key]) { lastJson.current[key] = j; set(v); }
+    };
     const load = () => {
-      api.account().then(setAccount).catch(() => {});
-      api.trades().then(setTrades).catch(() => {});
-      api.zones().then(setRestZones).catch(() => {});
+      api.account().then(setChanged("a", setAccount)).catch(() => {});
+      api.trades().then(setChanged("t", setTrades)).catch(() => {});
+      api.zones().then(setChanged("z", setRestZones)).catch(() => {});
     };
     load();
     const t = setInterval(load, 8000);
