@@ -1,6 +1,17 @@
 type Zone = { low: number; high: number; mid: number; touches: number;
               support: number; resist: number };
 
+const CRYPTO = new Set(["BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"]);
+
+/** Price display matched to the instrument (same buckets as the chart axis). */
+function px(symbol: string, n: any): string {
+  if (n == null) return "—";
+  const v = Number(n);
+  if (CRYPTO.has(symbol)) return Math.abs(v) >= 100 ? v.toFixed(2) : v.toFixed(5);
+  if (symbol.includes("JPY")) return v.toFixed(3);
+  return v.toFixed(4);
+}
+
 export function ZoneTable({ zones }: { zones: Record<string, Zone[]> }) {
   const rows = Object.entries(zones).flatMap(([sym, zs]) =>
     zs.map((z) => ({ sym, ...z })));
@@ -19,7 +30,9 @@ export function ZoneTable({ zones }: { zones: Record<string, Zone[]> }) {
           {rows.map((r, i) => (
             <tr key={i} style={{ borderTop: "1px solid #21262d" }}>
               <td style={{ padding: "6px 0", fontWeight: 600 }}>{r.sym}</td>
-              <td>{r.low}</td><td style={{ color: "#d29922" }}>{r.mid}</td><td>{r.high}</td>
+              <td>{px(r.sym, r.low)}</td>
+              <td style={{ color: "#d29922" }}>{px(r.sym, r.mid)}</td>
+              <td>{px(r.sym, r.high)}</td>
               <td>{r.touches}</td>
               <td style={{ color: "#3fb950" }}>{r.support}</td>
               <td style={{ color: "#f85149" }}>{r.resist}</td>

@@ -16,18 +16,24 @@ export function Dashboard({ state }: { state: State }) {
   const [candles, setCandles] = useState<any[]>([]);
   const [account, setAccount] = useState<any>(null);
   const [trades, setTrades] = useState<any[]>([]);
+  const [restZones, setRestZones] = useState<Record<string, any[]>>({});
 
-  // REST hydrate + poll. The DB (kept current by the reconciler) is the source
-  // of truth for the trades table — covers open, closed and historical rows.
+  // REST hydrate + poll. The engine is the source of truth — account/trades/zones
+  // are pulled on load and refreshed, so nothing depends on having caught a live
+  // WS event (zones are only pushed on the 6h rescan).
   useEffect(() => {
     const load = () => {
       api.account().then(setAccount).catch(() => {});
       api.trades().then(setTrades).catch(() => {});
+      api.zones().then(setRestZones).catch(() => {});
     };
     load();
     const t = setInterval(load, 8000);
     return () => clearInterval(t);
   }, []);
+
+  // REST gives the full picture on load; live WS zone events (fresher) win per symbol.
+  const zonesAll: Record<string, any[]> = { ...restZones, ...state.zones };
 
   // A live fill arriving over WS triggers an immediate refetch (snappier than
   // waiting for the next poll); closes show on the next 8s tick.
@@ -37,9 +43,9 @@ export function Dashboard({ state }: { state: State }) {
 
   useEffect(() => {
     api.candles(symbol, tf, 150).then(setCandles).catch(() => setCandles([]));
-  }, [symbol, tf, state.zones[symbol]]);
+  }, [symbol, tf]);
 
-  const zones = state.zones[symbol] ?? [];
+  const zones = zonesAll[symbol] ?? [];
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 20 }}>
@@ -80,7 +86,7 @@ export function Dashboard({ state }: { state: State }) {
         <ChartPanel candles={candles} zones={zones} symbol={symbol} />
       </div>
 
-      <ZoneTable zones={state.zones} />
+      <ZoneTable zones={{ [symbol]: zonesAll[symbol] ?? [] }} />
       <TradesTable trades={trades} />
     </div>
   );
