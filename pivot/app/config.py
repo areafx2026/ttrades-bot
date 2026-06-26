@@ -9,9 +9,18 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./pivot.db"
 
     # ── instruments ───────────────────────────────────────────────────────────
-    # Forex (Mon–Fri) + the 5 most-traded cryptos (24/7, incl. weekends).
+    # Forex (Mon–Fri): majors + EUR crosses — but ONLY those for which the broker
+    # serves historical candles. On this Pepperstone demo, NZDUSD / EURCHF / EURAUD
+    # / EURCAD / EURNZD have live ticks but copy_rates returns nothing (no D1
+    # history feed), which the zone strategy can't use and which stalls the scanner
+    # ~4.5 min/symbol — so they are excluded until their history is available.
+    # Plus the 5 most-traded cryptos (24/7, incl. weekends).
     symbols: list[str] = [
-        "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "EURGBP", "EURJPY", "USDCAD",
+        # majors (with usable history)
+        "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD", "USDCAD",
+        # EUR crosses (with usable history)
+        "EURGBP", "EURJPY",
+        # crypto
         "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD",
     ]
 
