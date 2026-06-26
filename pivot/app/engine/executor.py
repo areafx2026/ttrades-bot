@@ -21,12 +21,29 @@ class Executor:
         lots = position_size(self.broker, sig.symbol, sig.entry, sig.sl, settings.risk_eur)
         r = self.broker.order_send(sig.symbol, sig.side, lots, sig.sl, sig.tp)
 
+        # The signal plans entry at the zone mid; the market order fills wherever
+        # price is inside the zone. Re-anchor the TP to the REAL fill so the
+        # risk-reward stays the configured `rr` (SL is structural — it stays one
+        # zone-width behind the far edge). If the fill drifted far from the mid
+        # (a fast move into the zone), this is where the TP gets corrected.
+        tp = sig.tp
+        fill = r.get("fill")
+        if r["ok"] and fill:
+            risk = (sig.sl - fill) if sig.side == "SELL" else (fill - sig.sl)
+            if risk > 0:
+                tp = (fill - risk * sig.rr) if sig.side == "SELL" else (fill + risk * sig.rr)
+                m = self.broker.modify_position(r["ticket"], sig.sl, tp)
+                if not m.get("ok"):
+                    bus.publish("error", {"symbol": sig.symbol,
+                                          "msg": f"TP re-anchor failed: {m.get('error')}"})
+                    tp = sig.tp   # broker still holds the original TP
+
         with self.db() as s:
             s.add(Trade(
                 ticket=r.get("ticket"), symbol=sig.symbol, side=Side(sig.side),
                 state=TradeState.OPEN if r["ok"] else TradeState.REJECTED,
-                entry=sig.entry, sl=sig.sl, tp=sig.tp, lots=lots,
-                fill_price=r.get("fill"),   # real MT5 execution price, not the zone-mid
+                entry=sig.entry, sl=sig.sl, tp=tp, lots=lots,
+                fill_price=fill,   # real MT5 execution price, not the zone-mid
                 risk_eur=settings.risk_eur, rr=sig.rr,
                 decel_snapshot=sig.decel, opened_at=datetime.utcnow(),
             ))
@@ -34,8 +51,8 @@ class Executor:
 
         if r["ok"]:
             bus.publish("fill", {"symbol": sig.symbol, "side": sig.side,
-                                 "entry": sig.entry, "fill": r.get("fill"),
-                                 "sl": sig.sl, "tp": sig.tp,
+                                 "entry": sig.entry, "fill": fill,
+                                 "sl": sig.sl, "tp": tp,
                                  "lots": lots, "ticket": r["ticket"], "sound": "open"})
         else:
             bus.publish("reject", {"symbol": sig.symbol, "error": r["error"]})

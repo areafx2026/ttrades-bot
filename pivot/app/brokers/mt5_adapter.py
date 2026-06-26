@@ -118,6 +118,23 @@ class MT5Adapter(BrokerAdapter):
         return {"close_price": float(last.price), "profit": float(pnl),
                 "closed_at": datetime.utcfromtimestamp(last.time - off * 3600)}
 
+    def modify_position(self, ticket, sl, tp):
+        """Adjust SL/TP of an open position (TRADE_ACTION_SLTP). Used to re-anchor
+        the TP to the real fill so the risk-reward matches the configured target."""
+        self._ensure()
+        pos = mt5.positions_get(ticket=int(ticket))
+        if not pos:
+            return {"ok": False, "error": "position not found"}
+        p = pos[0]
+        digits = mt5.symbol_info(p.symbol).digits
+        r = mt5.order_send({
+            "action": mt5.TRADE_ACTION_SLTP, "symbol": p.symbol, "position": p.ticket,
+            "sl": round(float(sl), digits), "tp": round(float(tp), digits),
+            "magic": 30000,
+        })
+        ok = r.retcode == mt5.TRADE_RETCODE_DONE
+        return {"ok": ok, "error": None if ok else r.comment, "retcode": r.retcode}
+
     def account(self):
         self._ensure()
         a = mt5.account_info()

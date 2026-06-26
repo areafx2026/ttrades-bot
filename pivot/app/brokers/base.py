@@ -35,6 +35,11 @@ class BrokerAdapter(ABC):
         ...
 
     @abstractmethod
+    def modify_position(self, ticket: str, sl: float, tp: float) -> dict:
+        """Change an open position's SL/TP. Return {'ok', 'error', 'retcode'}."""
+        ...
+
+    @abstractmethod
     def closed_position(self, ticket: str) -> dict | None:
         """Closing details for a now-closed position, or None if not yet closed.
         Return {'close_price', 'profit', 'closed_at'} with closed_at in UTC."""

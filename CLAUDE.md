@@ -142,8 +142,13 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 - Am Zyklusende: `reconciler.run()` + Heartbeat-Logzeile `[CYCLE]`.
 
 ### Executor (`executor.py`)
-- `Guard.allow()` → `position_size()` → `broker.order_send()` → DB-INSERT als OPEN (oder REJECTED).
+- `Guard.allow()` → `position_size()` → `broker.order_send()` → **TP nachziehen** → DB-INSERT als OPEN (oder REJECTED).
 - Schreibt **`fill_price`** = echter Ausführungspreis aus `order_send` (nicht der Zone-Mid-`entry`!).
+- **TP-Re-Anchoring:** Das Signal plant den Entry in der Zonen-Mitte; die Market-Order füllt aber irgendwo
+  im Zonenband. Nach dem Fill wird der TP per `broker.modify_position()` so neu gesetzt, dass das **RR
+  relativ zum echten Fill** wieder `rr` (1.3) ist. Der **SL bleibt strukturell** (eine Zonenbreite hinter der
+  fernen Kante). Ohne das driftet das realisierte RR (z. B. 0.84 statt 1.3, wenn der Preis schnell in die Zone lief).
+  Der nachgezogene TP wird in `trades.tp` gespeichert; schlägt das Modify fehl, bleibt der ursprüngliche TP.
 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
