@@ -1,6 +1,8 @@
 """Orchestration loop:
-  - D1 scan rebuilds areas-of-interest (every `zone_rescan_hours`)
-  - H4 monitor checks approach + deceleration each cycle and arms entries
+  - zone-timeframe scan rebuilds areas-of-interest (every `zone_rescan_hours`)
+  - entry-timeframe monitor checks approach + deceleration each cycle and arms entries
+  (timeframes are configurable via settings.zone_timeframe/entry_timeframe — v3 runs
+  D1/H4 by default, a parallel instance like v4 can run e.g. H4/M15 via its own .env)
 """
 import asyncio
 import time
@@ -29,14 +31,14 @@ class Scanner:
         last = self._last_attempt.get(symbol, 0.0)
         return time.time() - last < settings.entry_cooldown_min * 60
 
-    # ── D1: rebuild zones ────────────────────────────────────────────────────
+    # ── zone timeframe: rebuild areas-of-interest ───────────────────────────
     def scan_zones(self, symbol: str) -> None:
-        d1 = self.broker.candles(symbol, "D1", settings.d1_count)
+        d1 = self.broker.candles(symbol, settings.zone_timeframe, settings.zone_count)
         atr = (d1["high"] - d1["low"]).rolling(14).mean().iloc[-1]
         tol = float(atr) * settings.zone_tolerance_atr
         zs = zmod.build_zones(
             pivots.find_pivots(d1, settings.pivot_left, settings.pivot_right),
-            tol, settings.min_touches,
+            tol, settings.min_touches, settings.require_both_sides,
         )
         self._zones[symbol] = zs
         bus.publish("zones", {"symbol": symbol, "zones": [
@@ -45,7 +47,7 @@ class Scanner:
              "support": z.tests_support, "resist": z.tests_resist}
             for z in zs]})
 
-    # ── H4: monitor + arm ────────────────────────────────────────────────────
+    # ── entry timeframe: monitor + arm ──────────────────────────────────────
     async def monitor(self, symbol: str) -> None:
         zs = self._zones.get(symbol, [])
         if not zs:
@@ -53,7 +55,7 @@ class Scanner:
         # Don't arm entries when the market is closed (avoids rejected-order spam).
         if not market_open(symbol):
             return
-        h4 = self.broker.candles(symbol, "H4", settings.h4_count)
+        h4 = self.broker.candles(symbol, settings.entry_timeframe, settings.entry_count)
         for z in zs:
             ap = deceleration.approach(h4, z)
             if ap["dist_norm"] <= settings.approach_zones:

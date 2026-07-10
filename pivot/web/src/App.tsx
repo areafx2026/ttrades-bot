@@ -1,6 +1,7 @@
 import { useEffect, useReducer } from "react";
 import { connectWS, Evt } from "./ws";
 import { Dashboard } from "./pages/Dashboard";
+import { ComparePage } from "./pages/ComparePage";
 
 const SOUNDS: Record<string, string> = {
   open: "/sounds/notify.wav",
@@ -31,15 +32,19 @@ function reducer(s: State, e: Evt): State {
   }
 }
 
+const isComparePage = window.location.pathname.startsWith("/compare");
+
 export default function App() {
   const [state, dispatch] = useReducer(reducer, initial);
 
   useEffect(() => {
+    if (isComparePage) return;   // compare view is a cross-instance snapshot, no live feed needed
     connectWS((e) => {
       dispatch(e);
       if (e.sound && SOUNDS[e.sound]) new Audio(SOUNDS[e.sound]).play().catch(() => {});
     });
   }, []);
 
+  if (isComparePage) return <ComparePage />;
   return <Dashboard state={state} />;
 }

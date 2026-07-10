@@ -28,6 +28,16 @@ def test_rejected_when_only_one_side():
     assert zones == []
 
 
+def test_one_side_allowed_when_require_both_sides_false():
+    # Same one-sided pivots as above, but with the rule relaxed (v4-style
+    # config) — touches alone must be enough.
+    pivots = [_p(1.1000, "high"), _p(1.1001, "high"),
+              _p(1.1002, "high"), _p(1.0999, "high")]
+    zones = build_zones(pivots, tolerance=0.0010, min_touches=4, require_both_sides=False)
+    assert len(zones) == 1
+    assert zones[0].tests_support == 0 and zones[0].tests_resist == 4
+
+
 def test_rejected_when_too_few_touches():
     pivots = [_p(1.1000, "high"), _p(1.0999, "low")]
     assert build_zones(pivots, tolerance=0.0010, min_touches=4) == []

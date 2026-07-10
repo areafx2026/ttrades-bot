@@ -5,6 +5,8 @@ import asyncio
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
@@ -42,7 +44,20 @@ async def lifespan(app: FastAPI):
     snap_task.cancel()
 
 
-app = FastAPI(title="Pivot v3.0", version="3.0.0", lifespan=lifespan)
+app = FastAPI(title=settings.bot_name, version="3.0.0", lifespan=lifespan)
+
+# Allows the /compare page (served by either this instance or a parallel one,
+# e.g. v3 on :8000 and v4 on :8001) to fetch both backends' REST APIs.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:8000", "http://127.0.0.1:8001",
+        "http://localhost:8000", "http://localhost:8001",
+    ],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 app.include_router(routes_account.router, prefix="/api")
 app.include_router(routes_zones.router, prefix="/api")
 app.include_router(routes_trades.router, prefix="/api")
@@ -66,4 +81,11 @@ async def ws(socket: WebSocket):
 # Serve the built React app if present (web/dist). Safe no-op in dev before build.
 _dist = os.path.join(os.path.dirname(__file__), "..", "web", "dist")
 if os.path.isdir(_dist):
+    # StaticFiles(html=True) only serves index.html for "/" and real directory
+    # hits, not arbitrary SPA routes — an explicit route makes /compare work on
+    # direct navigation and page refresh, not just in-app links.
+    @app.get("/compare")
+    async def compare_page():
+        return FileResponse(os.path.join(_dist, "index.html"))
+
     app.mount("/", StaticFiles(directory=_dist, html=True), name="web")

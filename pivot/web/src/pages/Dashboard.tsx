@@ -18,6 +18,11 @@ export function Dashboard({ state }: { state: State }) {
   const [account, setAccount] = useState<any>(null);
   const [trades, setTrades] = useState<any[]>([]);
   const [restZones, setRestZones] = useState<Record<string, any[]>>({});
+  const [botName, setBotName] = useState("Pivot");
+
+  useEffect(() => {
+    api.status().then((s: any) => s?.bot_name && setBotName(s.bot_name)).catch(() => {});
+  }, []);
 
   // REST hydrate + poll. The engine is the source of truth — account/trades/zones
   // are pulled on load and refreshed, so nothing depends on having caught a live
@@ -60,9 +65,15 @@ export function Dashboard({ state }: { state: State }) {
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 20 }}>
-      <h1 style={{ fontSize: 20, margin: "0 0 16px" }}>
-        Pivot <span style={{ color: "#8b949e" }}>v3.0</span> — S/R Areas of Interest
-      </h1>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between",
+                    marginBottom: 16 }}>
+        <h1 style={{ fontSize: 20, margin: 0 }}>
+          {botName} <span style={{ color: "#8b949e" }}>— S/R Areas of Interest</span>
+        </h1>
+        <a href="/compare" style={{ color: "#58a6ff", fontSize: 13, textDecoration: "none" }}>
+          Vergleich v3 / v4 →
+        </a>
+      </div>
 
       <AccountBar account={account ?? state.account} autoEnabled={state.autoEnabled} />
 
