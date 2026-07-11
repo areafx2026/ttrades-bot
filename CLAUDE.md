@@ -121,6 +121,7 @@ zones:             id, symbol, edge_low, edge_high, mid, width, touches,
 trades:            id, ticket(MT5-Position), zone_id, symbol, side, state(PENDING/OPEN/CLOSED/REJECTED),
                    entry, sl, tp, lots, risk_eur, rr,
                    fill_price, close_price, pnl_eur, pnl_pips, result(WIN/LOSS/BE),
+                   close_reason(null|"stale_timeout"),
                    opened_at, closed_at, hold_duration_min,
                    mae_price, mfe_price, mae_pips, mfe_pips, mae_pct_of_sl, mfe_pct_of_tp,
                    decel_snapshot(JSON)

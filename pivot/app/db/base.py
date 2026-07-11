@@ -18,6 +18,7 @@ _TRADE_ADD_COLUMNS = {
     "mae_price": "FLOAT", "mfe_price": "FLOAT",
     "mae_pips": "FLOAT", "mfe_pips": "FLOAT",
     "mae_pct_of_sl": "FLOAT", "mfe_pct_of_tp": "FLOAT",
+    "close_reason": "VARCHAR",
 }
 
 

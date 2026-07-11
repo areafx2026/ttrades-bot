@@ -122,6 +122,9 @@ class Reconciler:
             return
         r = self.broker.close(t.ticket)
         if r.get("ok"):
+            # Recorded now, on the still-OPEN row: _finalize() picks up the
+            # actual close next cycle and must not overwrite this.
+            t.close_reason = "stale_timeout"
             bus.publish("stale_close", {"symbol": t.symbol, "ticket": t.ticket,
                                         "hold_min": round(elapsed),
                                         "mfe_pct": t.mfe_pct_of_tp})
