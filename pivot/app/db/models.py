@@ -65,6 +65,7 @@ class Trade(Base):
     pnl_eur = Column(Float)
     pnl_pips = Column(Float)
     result = Column(String)                            # WIN / LOSS / BE
+    close_reason = Column(String)                       # e.g. "stale_timeout"; null = broker SL/TP/manual
     opened_at = Column(DateTime)
     closed_at = Column(DateTime)
     hold_duration_min = Column(Integer)                # minutes the position was open

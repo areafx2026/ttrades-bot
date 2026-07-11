@@ -11,9 +11,9 @@
 **Aktives System:** **Pivot v3.0** — S/R Area-of-Interest Bot (Branch: `v3-pivot`)
 **Stack:** Python 3.13, FastAPI + Uvicorn, `MetaTrader5` (in-process, **keine** HTTP-Bridge), SQLAlchemy/SQLite, React-Dashboard
 **Repo:** https://github.com/areafx2026/ttrades-bot
-**Broker:** Pepperstone UK Demo, Login 62120008 — **Attach-Modus** (hängt sich an ein laufendes, eingeloggtes MT5-Terminal; `.env` MT5_* leer lassen)
+**Broker:** Pepperstone UK Demo, Login 62129554 — **Attach-Modus** (hängt sich an ein laufendes, eingeloggtes MT5-Terminal; `.env` MT5_* leer lassen)
 **Modus:** Voll-automatisch, Orders aktiv (gated durch `Guard`)
-**Dashboard/API:** http://127.0.0.1:8000
+**Dashboard/API:** http://127.0.0.1:8000 (v3) · http://127.0.0.1:8001 (v4, paralleles Modell — siehe unten)
 
 > **Hinweis zu „v2":** Der alte TypeScript/Node-Bot (`src/`, `mt5_server.py`, Flask-Bridge) ist **abgelöst**. Er bleibt im Repo liegen, wird aber nicht mehr weiterentwickelt oder betrieben. Alles Neue passiert im Verzeichnis `pivot/` auf Branch `v3-pivot`. Der frühere Branch `v2-mt5` wird nicht mehr genutzt.
 
@@ -121,6 +121,7 @@ zones:             id, symbol, edge_low, edge_high, mid, width, touches,
 trades:            id, ticket(MT5-Position), zone_id, symbol, side, state(PENDING/OPEN/CLOSED/REJECTED),
                    entry, sl, tp, lots, risk_eur, rr,
                    fill_price, close_price, pnl_eur, pnl_pips, result(WIN/LOSS/BE),
+                   close_reason(null|"stale_timeout"),
                    opened_at, closed_at, hold_duration_min,
                    mae_price, mfe_price, mae_pips, mfe_pips, mae_pct_of_sl, mfe_pct_of_tp,
                    decel_snapshot(JSON)
@@ -153,11 +154,28 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
   - **Noch im Open-Book** → `_track`: aktuellen Preis sampeln, MAE/MFE-Extreme live aktualisieren
-    (Pips + %-Anteil von SL/TP werden laufend mitgerechnet, auch für offene Trades fürs Dashboard).
+    (Pips + %-Anteil von SL/TP werden laufend mitgerechnet, auch für offene Trades fürs Dashboard),
+    dann die beiden aktiven Risk-Management-Checks (siehe unten).
   - **Weg aus dem Open-Book** → `_finalize`: `broker.closed_position(ticket)` holt close_price/realisierten P/L
     (Summe profit+swap+commission aller Deal-Legs)/closed_at → Row auf CLOSED, result, hold_duration, finale MAE/MFE.
     Publisht `closed`-Event (Sound + Recorder + `[CLOSE]`-Log).
 - MAE/MFE wird zur Scan-Kadenz gesampelt (nicht tick-genau) → kurze Intrabar-Spikes können fehlen (für Trade-Qualitäts-Stats ok).
+
+**Aktives Risk-Management auf offene Trades** (beide Checks laufen in `_track`, jeden Zyklus):
+- **Breakeven-Trail** (`_maybe_trail_to_breakeven`): sobald `mfe_pct_of_tp >= breakeven_trigger_pct`
+  (Default 0.6 = 60% des Weges zum TP erreicht), wird der SL per `broker.modify_position()` auf
+  Entry ± aktuellen Spread nachgezogen (BUY: `ref + spread`, SELL: `ref − spread`) — ein Reversal kann
+  den Trade danach nicht mehr ins Minus drehen. Nur einmal pro erreichtem Level (idempotent: zieht nur
+  nach, wenn der neue SL eine echte Verbesserung wäre). Event `trail` → `[TRAIL]`-Log.
+- **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
+  (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
+  Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND hat dabei noch nicht
+  `stale_mfe_pct` (Default 0.4) des TP erreicht, wird per `broker.close()` geschlossen — die
+  Deceleration/Fade-These hat sich nicht bestätigt. `_finalize()` verbucht den Close im nächsten Zyklus
+  ganz normal (wie ein SL/TP-Hit). Event `stale_close` → `[STALE]`-Log.
+- **Defaults sind an die jeweilige Entry-Timeframe gekoppelt**, nicht an eine feste Kalenderzeit: v3
+  (H4-Entry) `MAX_HOLD_MIN=4800` (~20 H4-Bars ≈ 3,3 Tage), v4 (M15-Entry) `MAX_HOLD_MIN=330`
+  (~22 M15-Bars ≈ 5,5 Std.) — in `.env`/`.env.v4` gesetzt.
 
 ### Risk / Guard (`risk.py`)
 - `position_size()`: broker-genau via `symbol_spec` (contract_size/volume_step/min/max), **kein** Pip-Math →
@@ -183,8 +201,9 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ## Services / Logging
 
 - **Event-Bus** (`events.py`): Producer = Engine; Consumer = WebSocket-Hub, file_logger, recorder.
-  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`.
-- **file_logger** → `logs/activity.log`: greppbare Zeilen (`[ZONES] [APPROACH] [FILL] [CLOSE] [REJECT] [SKIP] [ERROR] [CYCLE]`).
+  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`, `trail`, `stale_close`.
+- **file_logger** → `logs/<settings.log_file>` (Default `activity.log`, v4: `activity_v4.log`): greppbare
+  Zeilen (`[ZONES] [APPROACH] [FILL] [CLOSE] [REJECT] [SKIP] [ERROR] [CYCLE]`).
 - **recorder** → DB: persistiert sinnvolle Events in `events` (`approach`/`zones` werden als Rauschen übersprungen)
   und schreibt alle `snapshot_interval_s` einen `account_snapshots`-Eintrag (Equity-Kurve).
 
@@ -205,6 +224,47 @@ Dashboard: http://127.0.0.1:8000 · Kill-Switch: `POST /api/control/kill` (roter
 
 ---
 
+## Pivot v4.0 — paralleles Modell
+
+Zweite Instanz **derselben Codebasis** (`pivot/app` unverändert geforkt — kein Code-Duplikat), gestartet
+mit einer zweiten `.env`-Datei. Ziel: Trade-Frequenz von ~1-3/Woche (v3, D1-Zonen/H4-Entry) auf ~1-3/Tag
+heben, indem v4 eine Timeframe-Stufe tiefer arbeitet: **H4-Zonen / M15-Entry**, gelockerte Zonen-Validität.
+
+| | v3 (aktiv, Standard) | v4 (parallel) |
+|---|---|---|
+| Port | 8000 | 8001 |
+| `.env`-Datei | `.env` | `.env.v4` |
+| DB | `pivot.db` | `pivot_v4.db` |
+| `ZONE_TIMEFRAME` / `ENTRY_TIMEFRAME` | D1 / H4 | H4 / M15 |
+| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 2 / false |
+| `MAGIC_NUMBER` / `ORDER_COMMENT` | 30000 / "Pivot v3" | 40000 / "Pivot v4" |
+| `LOG_FILE` | `activity.log` | `activity_v4.log` |
+| Start/Stop/Status | `start.ps1` / `stop.ps1` / `status.ps1` | `start_v4.ps1` / `stop_v4.ps1` / `status_v4.ps1` |
+
+**Konfigurierbar gemacht, Default = exaktes v3-Verhalten:** `config.py` liest `.env` künftig über die
+`PIVOT_ENV_FILE`-Umgebungsvariable (Default `.env`) — `start_v4.ps1` setzt sie auf `.env.v4`, bevor es den
+Prozess startet. Timeframes/Zonen-Regel/Magic-Number/Log-Datei sind dadurch pro Instanz frei wählbar, ohne
+den Code zu forken.
+
+**Gleiches MT5-Konto, zwei Prozesse — das ist sicher, weil `Guard.allow()` (`risk.py`) den echten, geteilten
+Broker-Positionsstand liest statt eines prozesslokalen Zählers:**
+- "1 Position pro Symbol" und das Währungs-Exposure-Limit gelten **kontoweit** (bewusst geteilt — v4 kann
+  kein Symbol öffnen, das v3 schon hält, und umgekehrt; live beobachtet: `[SKIP] BTCUSD: position already
+  open`, `[SKIP] XRPUSD: currency exposure limit`, ausgelöst durch die jeweils andere Instanz).
+- `max_open_trades` wird gegen dieselbe geteilte Zahl geprüft → das kontoweite Maximum ist effektiv
+  `max(v3.max_open_trades, v4.max_open_trades)`, **nicht** die Summe.
+- **Kill-Switch-Flatten ist pro Bot scharf gestellt:** `POST /control/kill?flatten=true` schließt nur noch
+  Positionen mit dem eigenen `magic_number` (`routes_control.py`) — sonst hätte ein Klick auf v3s Kill-Switch
+  auch v4s offene Trades mitgeschlossen.
+
+**Vergleichsansicht:** `/compare` (neue Seite in der bestehenden SPA, `web/src/pages/ComparePage.tsx`,
+über den Link oben rechts im Dashboard erreichbar) holt `GET /api/trades` + `GET /api/control/status` von
+**beiden** Ports per Cross-Origin-Fetch (`CORSMiddleware` in `main.py` erlaubt `127.0.0.1:8000`/`8001`) und
+zeigt Win-Rate/Trades-pro-Tag/Gesamt-P/L/Ø-R nebeneinander plus eine kumulierte-P/L-Kurve
+(**nicht** Account-Equity — die wäre kontoweit geteilt und würde v3/v4 nicht trennbar machen).
+
+---
+
 ## Tests
 
 ```bash
@@ -221,6 +281,11 @@ powershell -File start.ps1
 powershell -File stop.ps1
 powershell -File status.ps1
 
+# v4 (paralleles Modell, Port 8001) — analog
+powershell -File start_v4.ps1
+powershell -File stop_v4.ps1
+powershell -File status_v4.ps1
+
 # Dev direkt
 cd pivot && uvicorn app.main:app --reload --port 8000
 
@@ -233,13 +298,18 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
 
 ---
 
-## Aktueller Stand (Stand 2026-06-24)
+## Aktueller Stand (Stand 2026-07-10)
 
 - **Close-Sync + MAE/MFE + Fill-Writeback + DB-Recorder** gebaut, committed (`a5a0968`) und mit einem echten
   Trade durchgängig live verifiziert (GBPUSD SELL WIN, TP exakt getroffen, +€150.50; alle Pfade bestätigt:
   Finalisierung → `closed`-Event → `[CLOSE]`-Log → Broker→UTC-Konversion).
 - Detachter Close-Watcher als Tooling committed (`64a03cf`).
 - PR #1 hat `v3-pivot` in `v2-mt5` gemergt; weiterentwickelt wird auf **`v3-pivot`**.
+- **Pivot v4.0** (paralleles H4/M15-Modell, Port 8001) gebaut und live verifiziert: beide Instanzen laufen
+  gleichzeitig gegen dasselbe MT5-Terminal, geteilte Guard-Checks (Symbol/Exposure/max_open_trades) live
+  bestätigt, getrennte Logs (`activity.log`/`activity_v4.log`), `/compare`-Seite lädt beide Backends per
+  CORS. v4 hat in den ersten Minuten bereits ein Signal armiert (vs. v3s ~1-3/Woche) — Frequenz-Ziel damit
+  strukturell erreichbar, Signalqualität (Win-Rate) noch nicht über echte Trades verifiziert.
 
 ## Offene TODOs
 
@@ -247,3 +317,6 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
 2. **Equity-Kurve** aus `account_snapshots` im Dashboard rendern.
 3. **`v2-mt5`-Branch** löschen, sobald sicher nicht mehr gebraucht (optional).
 4. **Backtest/Validierung** der Pivot-Strategie über längeren Zeitraum sammeln.
+5. **v4-Signalqualität beobachten:** `/compare` regelmäßig prüfen (Win-Rate, Ø-R) — die gelockerten
+   Kriterien (`MIN_TOUCHES=2`, `REQUIRE_BOTH_SIDES=false`) sind eine unvalidierte Annahme aus der
+   Frequenz-Diskussion, nicht getestet gegen historische Daten.

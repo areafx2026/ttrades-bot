@@ -34,10 +34,22 @@ function exc(p: any, pct: any): string {
   return pct != null ? `${pips(p)} (${Math.round(pct * 100)}%)` : pips(p);
 }
 
+const CLOSE_REASON_LABEL: Record<string, string> = {
+  stale_timeout: "Zeit-Stop: MFE-Schwelle nicht erreicht",
+};
+
 function StateCell({ t }: { t: any }) {
   if (t.state === "CLOSED") {
     const c = t.result === "WIN" ? C.win : t.result === "LOSS" ? C.loss : C.muted;
-    return <span style={{ color: c, fontWeight: 700 }}>{t.result ?? "CLOSED"}</span>;
+    const reasonTitle = t.close_reason ? CLOSE_REASON_LABEL[t.close_reason] ?? t.close_reason : undefined;
+    return (
+      <span style={{ color: c, fontWeight: 700 }} title={reasonTitle}>
+        {t.result ?? "CLOSED"}
+        {t.close_reason === "stale_timeout" && (
+          <span style={{ color: C.muted, fontWeight: 400 }}> ⏱</span>
+        )}
+      </span>
+    );
   }
   if (t.state === "OPEN") return <span style={{ color: C.open, fontWeight: 600 }}>OPEN</span>;
   return <span style={{ color: C.muted }}>{t.state}</span>;

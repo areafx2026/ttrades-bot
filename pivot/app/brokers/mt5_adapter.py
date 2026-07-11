@@ -5,10 +5,12 @@ from datetime import datetime
 
 import pandas as pd
 from app.brokers.base import BrokerAdapter
+from app.config import settings
 
 try:
     import MetaTrader5 as mt5
-    _TF = {"D1": mt5.TIMEFRAME_D1, "H4": mt5.TIMEFRAME_H4, "H1": mt5.TIMEFRAME_H1}
+    _TF = {"D1": mt5.TIMEFRAME_D1, "H4": mt5.TIMEFRAME_H4, "H1": mt5.TIMEFRAME_H1,
+           "M15": mt5.TIMEFRAME_M15}
 except Exception:  # allows import on machines without MT5 (e.g. CI) — see MockBroker
     mt5 = None
     _TF = {}
@@ -53,10 +55,11 @@ class MT5Adapter(BrokerAdapter):
         self._ensure()
         return [{"ticket": str(p.ticket), "symbol": p.symbol,
                  "side": "BUY" if p.type == 0 else "SELL", "lots": p.volume,
-                 "sl": p.sl, "tp": p.tp, "price_open": p.price_open, "profit": p.profit}
+                 "sl": p.sl, "tp": p.tp, "price_open": p.price_open, "profit": p.profit,
+                 "magic": p.magic}
                 for p in (mt5.positions_get() or [])]
 
-    def order_send(self, symbol, side, lots, sl, tp, comment="Pivot v3"):
+    def order_send(self, symbol, side, lots, sl, tp, comment=None):
         self._ensure()
         info = mt5.symbol_info_tick(symbol)
         digits = mt5.symbol_info(symbol).digits     # round to symbol precision
@@ -66,7 +69,8 @@ class MT5Adapter(BrokerAdapter):
         r = mt5.order_send({
             "action": mt5.TRADE_ACTION_DEAL, "symbol": symbol, "volume": float(lots),
             "type": otype, "price": price, "sl": sl, "tp": tp,
-            "deviation": 20, "magic": 30000, "comment": comment,
+            "deviation": 20, "magic": settings.magic_number,
+            "comment": comment or settings.order_comment,
             "type_time": mt5.ORDER_TIME_GTC, "type_filling": mt5.ORDER_FILLING_IOC,
         })
         ok = r.retcode == mt5.TRADE_RETCODE_DONE
@@ -86,7 +90,7 @@ class MT5Adapter(BrokerAdapter):
         r = mt5.order_send({
             "action": mt5.TRADE_ACTION_DEAL, "symbol": p.symbol, "volume": p.volume,
             "type": otype, "position": p.ticket, "price": price, "deviation": 20,
-            "magic": 30000, "comment": "Pivot close",
+            "magic": settings.magic_number, "comment": f"{settings.order_comment} close",
             "type_time": mt5.ORDER_TIME_GTC, "type_filling": mt5.ORDER_FILLING_IOC,
         })
         return {"ok": r.retcode == mt5.TRADE_RETCODE_DONE, "error": r.comment}
@@ -130,7 +134,7 @@ class MT5Adapter(BrokerAdapter):
         r = mt5.order_send({
             "action": mt5.TRADE_ACTION_SLTP, "symbol": p.symbol, "position": p.ticket,
             "sl": round(float(sl), digits), "tp": round(float(tp), digits),
-            "magic": 30000,
+            "magic": settings.magic_number,
         })
         ok = r.retcode == mt5.TRADE_RETCODE_DONE
         return {"ok": ok, "error": None if ok else r.comment, "retcode": r.retcode}

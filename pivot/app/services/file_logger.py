@@ -12,13 +12,18 @@ import logging
 import os
 from logging.handlers import RotatingFileHandler
 
+from app.config import settings
 from app.services.events import bus
 
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
 
 def get_activity_logger() -> logging.Logger:
-    """Singleton logger writing readable one-liners to logs/activity.log."""
+    """Singleton logger writing readable one-liners to logs/<settings.log_file>.
+
+    log_file defaults to activity.log (v3); a parallel instance (e.g. v4)
+    points it at its own file via .env so the two bots' activity never
+    interleaves in one log."""
     log = logging.getLogger("pivot.activity")
     if log.handlers:                       # already configured
         return log
@@ -26,7 +31,7 @@ def get_activity_logger() -> logging.Logger:
     log.propagate = False
     os.makedirs(_LOG_DIR, exist_ok=True)
     handler = RotatingFileHandler(
-        os.path.join(_LOG_DIR, "activity.log"),
+        os.path.join(_LOG_DIR, settings.log_file),
         maxBytes=5_000_000, backupCount=5, encoding="utf-8",
     )
     handler.setFormatter(logging.Formatter("%(asctime)s %(message)s", "%Y-%m-%d %H:%M:%S"))
@@ -54,6 +59,12 @@ def format_event(msg: dict) -> str:
                 f"ticket={msg.get('ticket')}")
     if kind == "reject":
         return f"[REJECT]   {sym}: {msg.get('error')}"
+    if kind == "trail":
+        return (f"[TRAIL]    {sym}: SL -> breakeven+spread @ {msg.get('sl')} "
+                f"(MFE={msg.get('mfe_pct'):.0%})")
+    if kind == "stale_close":
+        return (f"[STALE]    {sym}: closed after {msg.get('hold_min')}min market time "
+                f"(MFE={msg.get('mfe_pct'):.0%} < threshold)")
     if kind == "skip":
         return f"[SKIP]     {sym}: {msg.get('reason')}"
     if kind == "error":

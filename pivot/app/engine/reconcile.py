@@ -12,9 +12,10 @@ this watches every OPEN trade each cycle and:
 MAE/MFE are sampled at the scan cadence, not tick-by-tick, so brief intrabar
 spikes between samples can be missed — accurate enough for trade-quality stats.
 """
+from app.config import settings
 from app.db.models import Trade, TradeState
 from app.services.events import bus
-from app.strategy.market_hours import pip_size
+from app.strategy.market_hours import market_elapsed_minutes, pip_size
 
 
 class Reconciler:
@@ -58,6 +59,8 @@ class Reconciler:
             return
         self._update_extremes(t, (tk["bid"] + tk["ask"]) / 2)
         self._compute_stats(t)   # keep pips/% live so the dashboard shows them now
+        self._maybe_trail_to_breakeven(t, tk)
+        self._maybe_close_stale(t)
 
     def _finalize(self, t: Trade) -> None:
         info = self.broker.closed_position(t.ticket) if t.ticket else None
@@ -78,6 +81,53 @@ class Reconciler:
             "close": t.close_price,
             "sound": "win" if t.result == "WIN" else "loss",
         })
+
+    def _maybe_trail_to_breakeven(self, t: Trade, tick: dict) -> None:
+        """Once a trade has captured >= breakeven_trigger_pct of its TP distance,
+        move the SL to breakeven + the current spread (covers the cost of
+        exiting) so a reversal can no longer turn a winner into a loser."""
+        if not t.ticket or t.mfe_pct_of_tp is None:
+            return
+        if t.mfe_pct_of_tp < settings.breakeven_trigger_pct:
+            return
+        ref = self._ref(t)
+        spread = abs(tick["ask"] - tick["bid"])
+        if t.side.value == "BUY":
+            be_sl = ref + spread
+            if t.sl is not None and t.sl >= be_sl:
+                return   # already trailed at or beyond this level
+        else:
+            be_sl = ref - spread
+            if t.sl is not None and t.sl <= be_sl:
+                return
+        r = self.broker.modify_position(t.ticket, be_sl, t.tp)
+        if r.get("ok"):
+            t.sl = be_sl
+            bus.publish("trail", {"symbol": t.symbol, "ticket": t.ticket,
+                                  "sl": round(be_sl, 6), "mfe_pct": t.mfe_pct_of_tp})
+
+    def _maybe_close_stale(self, t: Trade) -> None:
+        """Time-stop: if a trade has run for longer than max_hold_min of actual
+        MARKET time (forex weekends don't count — see market_hours) without
+        reaching stale_mfe_pct of its target, the deceleration/fade thesis
+        likely isn't playing out. Close it rather than keep tying up a Guard
+        slot on a dead idea; _finalize() picks up the resulting close next
+        cycle exactly like a broker-side SL/TP hit."""
+        if not t.ticket or not t.opened_at:
+            return
+        elapsed = market_elapsed_minutes(t.symbol, t.opened_at)
+        if elapsed < settings.max_hold_min:
+            return
+        if (t.mfe_pct_of_tp or 0) >= settings.stale_mfe_pct:
+            return
+        r = self.broker.close(t.ticket)
+        if r.get("ok"):
+            # Recorded now, on the still-OPEN row: _finalize() picks up the
+            # actual close next cycle and must not overwrite this.
+            t.close_reason = "stale_timeout"
+            bus.publish("stale_close", {"symbol": t.symbol, "ticket": t.ticket,
+                                        "hold_min": round(elapsed),
+                                        "mfe_pct": t.mfe_pct_of_tp})
 
     def _compute_stats(self, t: Trade) -> None:
         ref, pip = self._ref(t), pip_size(t.symbol)
