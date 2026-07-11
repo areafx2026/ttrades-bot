@@ -105,28 +105,32 @@ export function ComparePage() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all(
-      BACKENDS.map(async (b) => {
-        try {
-          const [status, trades] = await Promise.all([
-            fetch(`${b.base}/api/control/status`).then(j),
-            fetch(`${b.base}/api/trades?limit=500`).then(j),
-          ]);
-          return [b.key, {
-            label: status.bot_name ?? b.key,
-            zoneTf: status.zone_timeframe ?? "?",
-            entryTf: status.entry_timeframe ?? "?",
-            trades, error: null,
-          }] as const;
-        } catch (e) {
-          return [b.key, {
-            label: b.key, zoneTf: "?", entryTf: "?", trades: [],
-            error: `nicht erreichbar auf ${b.base} (läuft die Instanz?)`,
-          }] as const;
-        }
-      })
-    ).then((entries) => { if (!cancelled) setData(Object.fromEntries(entries)); });
-    return () => { cancelled = true; };
+    const load = () => {
+      Promise.all(
+        BACKENDS.map(async (b) => {
+          try {
+            const [status, trades] = await Promise.all([
+              fetch(`${b.base}/api/control/status`, { cache: "no-store" }).then(j),
+              fetch(`${b.base}/api/trades?limit=500`, { cache: "no-store" }).then(j),
+            ]);
+            return [b.key, {
+              label: status.bot_name ?? b.key,
+              zoneTf: status.zone_timeframe ?? "?",
+              entryTf: status.entry_timeframe ?? "?",
+              trades, error: null,
+            }] as const;
+          } catch (e) {
+            return [b.key, {
+              label: b.key, zoneTf: "?", entryTf: "?", trades: [],
+              error: `nicht erreichbar auf ${b.base} (läuft die Instanz?)`,
+            }] as const;
+          }
+        })
+      ).then((entries) => { if (!cancelled) setData(Object.fromEntries(entries)); });
+    };
+    load();
+    const t = setInterval(load, 8000);   // same cadence as the main Dashboard's poll
+    return () => { cancelled = true; clearInterval(t); };
   }, []);
 
   const rows = BACKENDS.map((b) => ({ b, d: data[b.key] }));
