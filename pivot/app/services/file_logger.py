@@ -59,6 +59,12 @@ def format_event(msg: dict) -> str:
                 f"ticket={msg.get('ticket')}")
     if kind == "reject":
         return f"[REJECT]   {sym}: {msg.get('error')}"
+    if kind == "trail":
+        return (f"[TRAIL]    {sym}: SL -> breakeven+spread @ {msg.get('sl')} "
+                f"(MFE={msg.get('mfe_pct'):.0%})")
+    if kind == "stale_close":
+        return (f"[STALE]    {sym}: closed after {msg.get('hold_min')}min market time "
+                f"(MFE={msg.get('mfe_pct'):.0%} < threshold)")
     if kind == "skip":
         return f"[SKIP]     {sym}: {msg.get('reason')}"
     if kind == "error":

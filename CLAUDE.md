@@ -153,11 +153,28 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
   - **Noch im Open-Book** → `_track`: aktuellen Preis sampeln, MAE/MFE-Extreme live aktualisieren
-    (Pips + %-Anteil von SL/TP werden laufend mitgerechnet, auch für offene Trades fürs Dashboard).
+    (Pips + %-Anteil von SL/TP werden laufend mitgerechnet, auch für offene Trades fürs Dashboard),
+    dann die beiden aktiven Risk-Management-Checks (siehe unten).
   - **Weg aus dem Open-Book** → `_finalize`: `broker.closed_position(ticket)` holt close_price/realisierten P/L
     (Summe profit+swap+commission aller Deal-Legs)/closed_at → Row auf CLOSED, result, hold_duration, finale MAE/MFE.
     Publisht `closed`-Event (Sound + Recorder + `[CLOSE]`-Log).
 - MAE/MFE wird zur Scan-Kadenz gesampelt (nicht tick-genau) → kurze Intrabar-Spikes können fehlen (für Trade-Qualitäts-Stats ok).
+
+**Aktives Risk-Management auf offene Trades** (beide Checks laufen in `_track`, jeden Zyklus):
+- **Breakeven-Trail** (`_maybe_trail_to_breakeven`): sobald `mfe_pct_of_tp >= breakeven_trigger_pct`
+  (Default 0.6 = 60% des Weges zum TP erreicht), wird der SL per `broker.modify_position()` auf
+  Entry ± aktuellen Spread nachgezogen (BUY: `ref + spread`, SELL: `ref − spread`) — ein Reversal kann
+  den Trade danach nicht mehr ins Minus drehen. Nur einmal pro erreichtem Level (idempotent: zieht nur
+  nach, wenn der neue SL eine echte Verbesserung wäre). Event `trail` → `[TRAIL]`-Log.
+- **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
+  (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
+  Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND hat dabei noch nicht
+  `stale_mfe_pct` (Default 0.4) des TP erreicht, wird per `broker.close()` geschlossen — die
+  Deceleration/Fade-These hat sich nicht bestätigt. `_finalize()` verbucht den Close im nächsten Zyklus
+  ganz normal (wie ein SL/TP-Hit). Event `stale_close` → `[STALE]`-Log.
+- **Defaults sind an die jeweilige Entry-Timeframe gekoppelt**, nicht an eine feste Kalenderzeit: v3
+  (H4-Entry) `MAX_HOLD_MIN=4800` (~20 H4-Bars ≈ 3,3 Tage), v4 (M15-Entry) `MAX_HOLD_MIN=330`
+  (~22 M15-Bars ≈ 5,5 Std.) — in `.env`/`.env.v4` gesetzt.
 
 ### Risk / Guard (`risk.py`)
 - `position_size()`: broker-genau via `symbol_spec` (contract_size/volume_step/min/max), **kein** Pip-Math →
@@ -183,7 +200,7 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ## Services / Logging
 
 - **Event-Bus** (`events.py`): Producer = Engine; Consumer = WebSocket-Hub, file_logger, recorder.
-  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`.
+  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`, `trail`, `stale_close`.
 - **file_logger** → `logs/<settings.log_file>` (Default `activity.log`, v4: `activity_v4.log`): greppbare
   Zeilen (`[ZONES] [APPROACH] [FILL] [CLOSE] [REJECT] [SKIP] [ERROR] [CYCLE]`).
 - **recorder** → DB: persistiert sinnvolle Events in `events` (`approach`/`zones` werden als Rauschen übersprungen)

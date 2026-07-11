@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # the spread at fill). Require the stop distance to clear the spread by
     # this multiple before even attempting the order.
     min_stop_spread_mult: float = 3.0
+    # Active risk management on open trades (checked every reconcile cycle):
+    breakeven_trigger_pct: float = 0.6   # MFE % of TP -> trail SL to breakeven+spread
+    max_hold_min: int = 4800             # time-stop, in MARKET minutes (see market_hours)
+    stale_mfe_pct: float = 0.4           # below this MFE %, max_hold_min triggers a close
     scan_interval_s: int = 60
     snapshot_interval_s: int = 300   # account_snapshots cadence (equity curve)
 
