@@ -18,6 +18,22 @@ class Executor:
             bus.publish("skip", {"symbol": sig.symbol, "reason": reason})
             return
 
+        # A zone narrower than a few spreads produces SL/TP the broker will
+        # reject as "invalid stops" (or that are already inside the current
+        # bid/ask at fill) — catch it before wasting an order attempt. Mainly
+        # bites relaxed-validity configs (e.g. v4) on wide-spread crypto pairs.
+        try:
+            tick = self.broker.tick(sig.symbol)
+            spread = abs(tick["ask"] - tick["bid"])
+        except Exception:
+            spread = 0.0
+        risk_dist = abs(sig.entry - sig.sl)
+        if spread and risk_dist < spread * settings.min_stop_spread_mult:
+            bus.publish("skip", {"symbol": sig.symbol,
+                                 "reason": f"stop distance {risk_dist:.6g} too tight "
+                                           f"vs spread {spread:.6g}"})
+            return
+
         lots = position_size(self.broker, sig.symbol, sig.entry, sig.sl, settings.risk_eur)
         r = self.broker.order_send(sig.symbol, sig.side, lots, sig.sl, sig.tp)
 

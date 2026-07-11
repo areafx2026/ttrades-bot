@@ -54,6 +54,11 @@ class Settings(BaseSettings):
     risk_eur: float = 300.0
     max_lots: float = 10.0
     max_open_trades: int = 3
+    # A zone geometry that's too tight relative to the live spread produces
+    # SL/TP the broker rejects as "invalid stops" (or that are already inside
+    # the spread at fill). Require the stop distance to clear the spread by
+    # this multiple before even attempting the order.
+    min_stop_spread_mult: float = 3.0
     scan_interval_s: int = 60
     snapshot_interval_s: int = 300   # account_snapshots cadence (equity curve)
 
