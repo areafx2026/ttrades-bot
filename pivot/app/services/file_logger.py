@@ -63,8 +63,10 @@ def format_event(msg: dict) -> str:
         return (f"[TRAIL]    {sym}: SL -> breakeven+spread @ {msg.get('sl')} "
                 f"(MFE={msg.get('mfe_pct'):.0%})")
     if kind == "stale_close":
+        lp = msg.get("live_pct")
         return (f"[STALE]    {sym}: closed after {msg.get('hold_min')}min market time "
-                f"(MFE={msg.get('mfe_pct'):.0%} < threshold)")
+                f"(live progress={lp:.0%} < threshold)" if lp is not None else
+                f"[STALE]    {sym}: closed after {msg.get('hold_min')}min market time")
     if kind == "skip":
         return f"[SKIP]     {sym}: {msg.get('reason')}"
     if kind == "error":

@@ -57,10 +57,11 @@ class Reconciler:
             tk = self.broker.tick(t.symbol)
         except Exception:
             return
-        self._update_extremes(t, (tk["bid"] + tk["ask"]) / 2)
+        price = (tk["bid"] + tk["ask"]) / 2
+        self._update_extremes(t, price)
         self._compute_stats(t)   # keep pips/% live so the dashboard shows them now
         self._maybe_trail_to_breakeven(t, tk)
-        self._maybe_close_stale(t)
+        self._maybe_close_stale(t, price)
 
     def _finalize(self, t: Trade) -> None:
         info = self.broker.closed_position(t.ticket) if t.ticket else None
@@ -106,19 +107,41 @@ class Reconciler:
             bus.publish("trail", {"symbol": t.symbol, "ticket": t.ticket,
                                   "sl": round(be_sl, 6), "mfe_pct": t.mfe_pct_of_tp})
 
-    def _maybe_close_stale(self, t: Trade) -> None:
+    @staticmethod
+    def _live_pct_of_tp(t: Trade, price: float) -> float | None:
+        """Where the CURRENT price sits between entry and TP, signed (negative
+        if price is currently on the adverse side of entry). Deliberately NOT
+        the same thing as mfe_pct_of_tp: MFE is a running high-water mark that
+        never resets, so a trade that spiked to 40% and drifted back to 5%
+        would look identical to one sitting at a genuine 40% right now. The
+        time-stop needs to know where price IS, not where it's EVER BEEN."""
+        ref = t.fill_price or t.entry
+        if not t.tp or ref is None:
+            return None
+        tp_dist = (t.tp - ref) if t.side.value == "BUY" else (ref - t.tp)
+        if not tp_dist:
+            return None
+        progress = (price - ref) if t.side.value == "BUY" else (ref - price)
+        return progress / tp_dist
+
+    def _maybe_close_stale(self, t: Trade, price: float) -> None:
         """Time-stop: if a trade has run for longer than max_hold_min of actual
-        MARKET time (forex weekends don't count — see market_hours) without
-        reaching stale_mfe_pct of its target, the deceleration/fade thesis
-        likely isn't playing out. Close it rather than keep tying up a Guard
-        slot on a dead idea; _finalize() picks up the resulting close next
-        cycle exactly like a broker-side SL/TP hit."""
+        MARKET time (forex weekends don't count — see market_hours) and the
+        CURRENT price hasn't reached stale_mfe_pct of the way to target, the
+        deceleration/fade thesis likely isn't playing out. Close it rather
+        than keep tying up a Guard slot on a dead idea; _finalize() picks up
+        the resulting close next cycle exactly like a broker-side SL/TP hit.
+
+        Uses live progress, not the mfe_pct_of_tp high-water mark, so a trade
+        that once spiked past the threshold and fell back stays eligible —
+        touching 40% once isn't evidence the idea is still working now."""
         if not t.ticket or not t.opened_at:
             return
         elapsed = market_elapsed_minutes(t.symbol, t.opened_at)
         if elapsed < settings.max_hold_min:
             return
-        if (t.mfe_pct_of_tp or 0) >= settings.stale_mfe_pct:
+        live_pct = self._live_pct_of_tp(t, price)
+        if live_pct is not None and live_pct >= settings.stale_mfe_pct:
             return
         r = self.broker.close(t.ticket)
         if r.get("ok"):
@@ -127,7 +150,7 @@ class Reconciler:
             t.close_reason = "stale_timeout"
             bus.publish("stale_close", {"symbol": t.symbol, "ticket": t.ticket,
                                         "hold_min": round(elapsed),
-                                        "mfe_pct": t.mfe_pct_of_tp})
+                                        "live_pct": live_pct})
 
     def _compute_stats(self, t: Trade) -> None:
         ref, pip = self._ref(t), pip_size(t.symbol)

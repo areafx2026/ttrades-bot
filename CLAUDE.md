@@ -169,10 +169,14 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   nach, wenn der neue SL eine echte Verbesserung wäre). Event `trail` → `[TRAIL]`-Log.
 - **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
   (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
-  Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND hat dabei noch nicht
-  `stale_mfe_pct` (Default 0.4) des TP erreicht, wird per `broker.close()` geschlossen — die
-  Deceleration/Fade-These hat sich nicht bestätigt. `_finalize()` verbucht den Close im nächsten Zyklus
-  ganz normal (wie ein SL/TP-Hit). Event `stale_close` → `[STALE]`-Log.
+  Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND der **aktuelle**
+  Kurs hat noch nicht `stale_mfe_pct` (Default 0.4) des Weges zum TP zurückgelegt, wird per
+  `broker.close()` geschlossen — die Deceleration/Fade-These hat sich nicht bestätigt. Bewusst **nicht**
+  `mfe_pct_of_tp` (das laufende Maximum) für diesen Check: ein Trade, der einmal auf 40%+ gespiked ist
+  und seitdem wieder zurückgefallen ist, wäre sonst für immer von der Zeit-Stop-Prüfung ausgenommen,
+  obwohl er faktisch genauso feststeckt. `_live_pct_of_tp()` misst stattdessen live gegen Fill/TP.
+  `_finalize()` verbucht den Close im nächsten Zyklus ganz normal (wie ein SL/TP-Hit). Event
+  `stale_close` → `[STALE]`-Log.
 - **Defaults sind an die jeweilige Entry-Timeframe gekoppelt**, nicht an eine feste Kalenderzeit: v3
   (H4-Entry) `MAX_HOLD_MIN=4800` (~20 H4-Bars ≈ 3,3 Tage), v4 (M15-Entry) `MAX_HOLD_MIN=330`
   (~22 M15-Bars ≈ 5,5 Std.) — in `.env`/`.env.v4` gesetzt.
