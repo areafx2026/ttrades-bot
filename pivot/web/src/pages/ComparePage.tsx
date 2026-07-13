@@ -46,20 +46,21 @@ function stats(d: BotData) {
   };
 }
 
+/** Cumulative P&L by TRADE NUMBER, not calendar date — v3 and v4 started
+ * trading at different real dates, so an absolute-time x-axis would leave
+ * the later starter's curve squashed against the right edge instead of
+ * both beginning together on the left. `time` here is a 1-based trade
+ * index encoded as a lightweight-charts UTCTimestamp (any ascending integer
+ * works); EquityChart's tickMarkFormatter relabels it as "Trade N". */
 function equityCurve(d: BotData): { time: number; value: number }[] {
   const closed = d.trades
     .filter((t) => t.state === "CLOSED" && t.closed_at && t.pnl_eur != null)
     .sort((a, b) => new Date(a.closed_at!).getTime() - new Date(b.closed_at!).getTime());
-  let cum = 0, lastTime = 0;
-  const pts: { time: number; value: number }[] = [];
-  for (const t of closed) {
+  let cum = 0;
+  return closed.map((t, i) => {
     cum += t.pnl_eur as number;
-    let time = Math.floor(new Date(t.closed_at!).getTime() / 1000);
-    if (time <= lastTime) time = lastTime + 1;   // lightweight-charts needs strictly ascending times
-    lastTime = time;
-    pts.push({ time, value: Math.round(cum * 100) / 100 });
-  }
-  return pts;
+    return { time: i + 1, value: Math.round(cum * 100) / 100 };
+  });
 }
 
 function EquityChart({ series }: { series: { data: { time: number; value: number }[]; color: string; label: string }[] }) {
@@ -73,7 +74,16 @@ function EquityChart({ series }: { series: { data: { time: number; value: number
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: "#0e1117" }, textColor: "#c9d1d9" },
       grid: { vertLines: { color: "#1b1f27" }, horzLines: { color: "#1b1f27" } },
-      timeScale: { timeVisible: true },
+      // x-axis is a trade index (see equityCurve), not a real date — relabel
+      // the lightweight-charts time axis accordingly instead of showing
+      // "Jan 1 1970"-style dates for small integers.
+      timeScale: {
+        timeVisible: false,
+        tickMarkFormatter: (time: number) => `#${time}`,
+      },
+      localization: {
+        timeFormatter: (time: number) => `Trade #${time}`,
+      },
     });
     chartRef.current = chart;
     series.forEach((s) => {
@@ -146,7 +156,10 @@ export function ComparePage() {
       </div>
 
       <div style={{ background: "#161b22", borderRadius: 8, padding: 12, marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Kumulierter P/L (realisiert)</div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+          Kumulierter P/L (realisiert)
+          <span style={{ color: "#8b949e", fontWeight: 400 }}> — nach Trade-Nummer, nicht Kalenderdatum</span>
+        </div>
         {chartSeries.some((s) => s.data.length) ? (
           <EquityChart series={chartSeries} />
         ) : (
