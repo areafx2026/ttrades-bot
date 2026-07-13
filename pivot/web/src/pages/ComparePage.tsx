@@ -63,6 +63,12 @@ function equityCurve(d: BotData): { time: number; value: number }[] {
   });
 }
 
+// Fixed number of trade-slots the chart always reserves, regardless of how
+// many trades actually exist yet — this is what keeps spacing constant (see
+// the comment on setVisibleLogicalRange below) instead of proportional to
+// the current trade count.
+const EQUITY_CHART_WINDOW = 30;
+
 function EquityChart({ series }: { series: { data: { time: number; value: number }[]; color: string; label: string }[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi>();
@@ -91,6 +97,13 @@ function EquityChart({ series }: { series: { data: { time: number; value: number
       const line = chart.addLineSeries({ color: s.color, lineWidth: 2, title: s.label });
       line.setData(s.data as any);
     });
+    // Deliberately NOT fitContent(): that rescales bar spacing to fill the
+    // full width with whatever data currently exists, so every new trade
+    // re-compresses all the earlier ones. A fixed logical window instead
+    // pins trade #1 to the left edge with constant, unchanging spacing per
+    // trade — the curve simply extends into already-reserved blank space on
+    // the right as more trades land, never redrawing the existing history.
+    chart.timeScale().setVisibleLogicalRange({ from: -0.5, to: EQUITY_CHART_WINDOW - 0.5 });
     return () => chart.remove();
   }, [series]);
 
