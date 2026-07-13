@@ -24,6 +24,7 @@ class Scanner:
         self._zones: dict[str, list] = {}
         self._last_zone_scan = 0.0
         self._last_attempt: dict[str, float] = {}   # symbol → ts of last entry attempt
+        self._traded_zones: dict[str, set] = {}     # symbol → zone keys already attempted this rescan
         self.running = True
         self.log = get_activity_logger()
 
@@ -41,6 +42,7 @@ class Scanner:
             tol, settings.min_touches, settings.require_both_sides,
         )
         self._zones[symbol] = zs
+        self._traded_zones[symbol] = set()   # fresh pivots -> forget what already fired
         bus.publish("zones", {"symbol": symbol, "zones": [
             {"low": z.edge_low, "high": z.edge_high, "mid": z.mid,
              "width": z.width, "touches": z.touches,
@@ -56,13 +58,23 @@ class Scanner:
         if not market_open(symbol):
             return
         h4 = self.broker.candles(symbol, settings.entry_timeframe, settings.entry_count)
+        traded = self._traded_zones.setdefault(symbol, set())
         for z in zs:
             ap = deceleration.approach(h4, z)
             if ap["dist_norm"] <= settings.approach_zones:
                 bus.publish("approach", {"symbol": symbol, "mid": z.mid, **ap})
             sig = signals.build_signal(symbol, z, ap, settings.rr)
-            if sig and not self._cooling(symbol):
+            zone_key = (round(z.edge_low, 6), round(z.edge_high, 6))
+            # A zone that already produced an entry attempt this rescan cycle
+            # doesn't get a second one — a sharp reversal straight back through
+            # a level you just faded is evidence against the thesis, not a
+            # fresh independent setup. Separate from (and stricter than) the
+            # per-symbol cooldown, which alone let this happen live: EURJPY
+            # WIN at 08:15, then the same zone re-armed and hit SL at 09:32,
+            # 76min later — past cooldown but the very same, un-rescanned zone.
+            if sig and not self._cooling(symbol) and zone_key not in traded:
                 self._last_attempt[symbol] = time.time()   # one attempt per cooldown
+                traded.add(zone_key)
                 await self.exec.execute(sig)
 
     def _due_zone_scan(self) -> bool:

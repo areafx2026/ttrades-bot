@@ -140,6 +140,13 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ### Scanner-Loop (`scanner.py`)
 - Pro Zyklus (`scan_interval_s`): für jedes Symbol Zonen bauen (alle `zone_rescan_hours`), dann H4 monitoren.
 - `market_open(symbol)` gated: Forex Mo–Fr (ca. So 21:00 → Fr 21:00 UTC), Crypto 24/7. Verhindert Reject-Spam.
+- **Zonen-Re-Entry-Sperre** (`_traded_zones`): eine Zone, die bereits einen Entry-Versuch ausgelöst hat,
+  wird bis zum nächsten Rescan nicht erneut gehandelt — unabhängig vom (kürzeren) `entry_cooldown_min`
+  pro Symbol. Behebt einen live beobachteten Fall: v4 faded EURJPY an einer Zone (WIN), der Kurs lief
+  scharf zurück durch dieselbe, noch nicht neu gescannte Zone, und **dieselbe Zone** feuerte 76 Min
+  später (nach Ablauf des 60-Min-Cooldowns, aber vor dem nächsten 2h-Rescan) erneut ein identisches
+  Signal — das ging auf SL. Ein scharfer Reversal exakt durch eine gerade gehandelte Zone ist eher ein
+  Signal gegen die These als eine neue unabhängige Gelegenheit.
 - Am Zyklusende: `reconciler.run()` + Heartbeat-Logzeile `[CYCLE]`.
 
 ### Executor (`executor.py`)
