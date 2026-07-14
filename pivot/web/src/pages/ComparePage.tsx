@@ -28,6 +28,7 @@ function stats(d: BotData) {
   const closed = d.trades.filter((t) => t.state === "CLOSED");
   const wins = closed.filter((t) => t.result === "WIN").length;
   const losses = closed.filter((t) => t.result === "LOSS").length;
+  const bes = closed.filter((t) => t.result === "BE").length;
   const decided = wins + losses;
   const totalPnl = closed.reduce((s, t) => s + (t.pnl_eur ?? 0), 0);
   const rSamples = closed
@@ -41,6 +42,7 @@ function stats(d: BotData) {
   const open = d.trades.filter((t) => t.state === "OPEN").length;
   return {
     total: d.trades.length, closedN: closed.length, open,
+    wins, losses, bes,
     winRate: decided ? wins / decided : null,
     totalPnl, avgR, tradesPerDay: recentOpens / 7,
   };
@@ -118,7 +120,7 @@ type Stats = ReturnType<typeof stats>;
 const STAT_ROWS: { label: string; fmt: (s: Stats) => string }[] = [
   { label: "Trades gesamt (offen/geschlossen)", fmt: (s) => `${s.total} (${s.open} offen)` },
   { label: "Trades/Tag (letzte 7 Tage)", fmt: (s) => num(s.tradesPerDay, 1) },
-  { label: "Win-Rate", fmt: (s) => pct(s.winRate) },
+  { label: "Win-Rate", fmt: (s) => `${pct(s.winRate)} (${s.wins}W, ${s.bes}BE, ${s.losses}L)` },
   { label: "Gesamt-P/L (realisiert)", fmt: (s) => eur(s.totalPnl) },
   { label: "Ø realisiertes R", fmt: (s) => num(s.avgR, 2) },
 ];
