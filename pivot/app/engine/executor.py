@@ -18,23 +18,33 @@ class Executor:
             bus.publish("skip", {"symbol": sig.symbol, "reason": reason})
             return
 
+        # Size off a LIVE tick, not the static zone-mid sig.entry: the market
+        # order fills at ~this same price a moment later, so it's a far
+        # closer proxy to the real fill than the planned entry — which can
+        # already be several pips off by execution time, silently blowing
+        # the risk_eur budget (observed live: a 2-5 pip planned-vs-fill gap
+        # turned a €300-target loss into €400+, since lots were sized for a
+        # smaller SL distance than what actually applied at the real fill).
+        try:
+            tick = self.broker.tick(sig.symbol)
+            spread = abs(tick["ask"] - tick["bid"])
+            sizing_price = tick["ask"] if sig.side == "BUY" else tick["bid"]
+        except Exception:
+            spread = 0.0
+            sizing_price = sig.entry
+
         # A zone narrower than a few spreads produces SL/TP the broker will
         # reject as "invalid stops" (or that are already inside the current
         # bid/ask at fill) — catch it before wasting an order attempt. Mainly
         # bites relaxed-validity configs (e.g. v4) on wide-spread crypto pairs.
-        try:
-            tick = self.broker.tick(sig.symbol)
-            spread = abs(tick["ask"] - tick["bid"])
-        except Exception:
-            spread = 0.0
-        risk_dist = abs(sig.entry - sig.sl)
+        risk_dist = abs(sizing_price - sig.sl)
         if spread and risk_dist < spread * settings.min_stop_spread_mult:
             bus.publish("skip", {"symbol": sig.symbol,
                                  "reason": f"stop distance {risk_dist:.6g} too tight "
                                            f"vs spread {spread:.6g}"})
             return
 
-        lots = position_size(self.broker, sig.symbol, sig.entry, sig.sl, settings.risk_eur)
+        lots = position_size(self.broker, sig.symbol, sizing_price, sig.sl, settings.risk_eur)
         r = self.broker.order_send(sig.symbol, sig.side, lots, sig.sl, sig.tp)
 
         # The signal plans entry at the zone mid; the market order fills wherever

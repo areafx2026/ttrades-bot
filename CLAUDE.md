@@ -152,6 +152,12 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ### Executor (`executor.py`)
 - `Guard.allow()` → `position_size()` → `broker.order_send()` → **TP nachziehen** → DB-INSERT als OPEN (oder REJECTED).
 - Schreibt **`fill_price`** = echter Ausführungspreis aus `order_send` (nicht der Zone-Mid-`entry`!).
+- **Lot-Sizing nutzt einen Live-Tick, nicht `sig.entry`:** Das Signal plant den Entry in der Zonen-Mitte,
+  gefüllt wird aber zum Preis beim Order-Versand — bei Abweichung dazwischen sizt `position_size()` sonst
+  auf Basis eines falschen SL-Abstands. Live beobachtet: USDCHF/EURJPY realisierten 25–40% mehr Verlust
+  als das konfigurierte `risk_eur`, weil die Lot-Größe auf den (kleineren) geplanten Abstand statt den
+  tatsächlichen Fill-Abstand ausgelegt war. Fix: unmittelbar vor dem Order-Versand `broker.tick()` holen und
+  mit `ask` (BUY) bzw. `bid` (SELL) sizen — das ist der Preis, zu dem `order_send()` intern ohnehin füllt.
 - **TP-Re-Anchoring:** Das Signal plant den Entry in der Zonen-Mitte; die Market-Order füllt aber irgendwo
   im Zonenband. Nach dem Fill wird der TP per `broker.modify_position()` so neu gesetzt, dass das **RR
   relativ zum echten Fill** wieder `rr` (1.3) ist. Der **SL bleibt strukturell** (eine Zonenbreite hinter der
