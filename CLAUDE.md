@@ -140,11 +140,24 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ### Scanner-Loop (`scanner.py`)
 - Pro Zyklus (`scan_interval_s`): für jedes Symbol Zonen bauen (alle `zone_rescan_hours`), dann H4 monitoren.
 - `market_open(symbol)` gated: Forex Mo–Fr (ca. So 21:00 → Fr 21:00 UTC), Crypto 24/7. Verhindert Reject-Spam.
+- **Zonen-Re-Entry-Sperre** (`_traded_zones`): eine Zone, die bereits einen Entry-Versuch ausgelöst hat,
+  wird bis zum nächsten Rescan nicht erneut gehandelt — unabhängig vom (kürzeren) `entry_cooldown_min`
+  pro Symbol. Behebt einen live beobachteten Fall: v4 faded EURJPY an einer Zone (WIN), der Kurs lief
+  scharf zurück durch dieselbe, noch nicht neu gescannte Zone, und **dieselbe Zone** feuerte 76 Min
+  später (nach Ablauf des 60-Min-Cooldowns, aber vor dem nächsten 2h-Rescan) erneut ein identisches
+  Signal — das ging auf SL. Ein scharfer Reversal exakt durch eine gerade gehandelte Zone ist eher ein
+  Signal gegen die These als eine neue unabhängige Gelegenheit.
 - Am Zyklusende: `reconciler.run()` + Heartbeat-Logzeile `[CYCLE]`.
 
 ### Executor (`executor.py`)
 - `Guard.allow()` → `position_size()` → `broker.order_send()` → **TP nachziehen** → DB-INSERT als OPEN (oder REJECTED).
 - Schreibt **`fill_price`** = echter Ausführungspreis aus `order_send` (nicht der Zone-Mid-`entry`!).
+- **Lot-Sizing nutzt einen Live-Tick, nicht `sig.entry`:** Das Signal plant den Entry in der Zonen-Mitte,
+  gefüllt wird aber zum Preis beim Order-Versand — bei Abweichung dazwischen sizt `position_size()` sonst
+  auf Basis eines falschen SL-Abstands. Live beobachtet: USDCHF/EURJPY realisierten 25–40% mehr Verlust
+  als das konfigurierte `risk_eur`, weil die Lot-Größe auf den (kleineren) geplanten Abstand statt den
+  tatsächlichen Fill-Abstand ausgelegt war. Fix: unmittelbar vor dem Order-Versand `broker.tick()` holen und
+  mit `ask` (BUY) bzw. `bid` (SELL) sizen — das ist der Preis, zu dem `order_send()` intern ohnehin füllt.
 - **TP-Re-Anchoring:** Das Signal plant den Entry in der Zonen-Mitte; die Market-Order füllt aber irgendwo
   im Zonenband. Nach dem Fill wird der TP per `broker.modify_position()` so neu gesetzt, dass das **RR
   relativ zum echten Fill** wieder `rr` (1.3) ist. Der **SL bleibt strukturell** (eine Zonenbreite hinter der
@@ -169,10 +182,14 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   nach, wenn der neue SL eine echte Verbesserung wäre). Event `trail` → `[TRAIL]`-Log.
 - **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
   (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
-  Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND hat dabei noch nicht
-  `stale_mfe_pct` (Default 0.4) des TP erreicht, wird per `broker.close()` geschlossen — die
-  Deceleration/Fade-These hat sich nicht bestätigt. `_finalize()` verbucht den Close im nächsten Zyklus
-  ganz normal (wie ein SL/TP-Hit). Event `stale_close` → `[STALE]`-Log.
+  Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND der **aktuelle**
+  Kurs hat noch nicht `stale_mfe_pct` (Default 0.4) des Weges zum TP zurückgelegt, wird per
+  `broker.close()` geschlossen — die Deceleration/Fade-These hat sich nicht bestätigt. Bewusst **nicht**
+  `mfe_pct_of_tp` (das laufende Maximum) für diesen Check: ein Trade, der einmal auf 40%+ gespiked ist
+  und seitdem wieder zurückgefallen ist, wäre sonst für immer von der Zeit-Stop-Prüfung ausgenommen,
+  obwohl er faktisch genauso feststeckt. `_live_pct_of_tp()` misst stattdessen live gegen Fill/TP.
+  `_finalize()` verbucht den Close im nächsten Zyklus ganz normal (wie ein SL/TP-Hit). Event
+  `stale_close` → `[STALE]`-Log.
 - **Defaults sind an die jeweilige Entry-Timeframe gekoppelt**, nicht an eine feste Kalenderzeit: v3
   (H4-Entry) `MAX_HOLD_MIN=4800` (~20 H4-Bars ≈ 3,3 Tage), v4 (M15-Entry) `MAX_HOLD_MIN=330`
   (~22 M15-Bars ≈ 5,5 Std.) — in `.env`/`.env.v4` gesetzt.
@@ -236,7 +253,7 @@ heben, indem v4 eine Timeframe-Stufe tiefer arbeitet: **H4-Zonen / M15-Entry**, 
 | `.env`-Datei | `.env` | `.env.v4` |
 | DB | `pivot.db` | `pivot_v4.db` |
 | `ZONE_TIMEFRAME` / `ENTRY_TIMEFRAME` | D1 / H4 | H4 / M15 |
-| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 2 / false |
+| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 3 / false |
 | `MAGIC_NUMBER` / `ORDER_COMMENT` | 30000 / "Pivot v3" | 40000 / "Pivot v4" |
 | `LOG_FILE` | `activity.log` | `activity_v4.log` |
 | Start/Stop/Status | `start.ps1` / `stop.ps1` / `status.ps1` | `start_v4.ps1` / `stop_v4.ps1` / `status_v4.ps1` |
@@ -317,6 +334,7 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
 2. **Equity-Kurve** aus `account_snapshots` im Dashboard rendern.
 3. **`v2-mt5`-Branch** löschen, sobald sicher nicht mehr gebraucht (optional).
 4. **Backtest/Validierung** der Pivot-Strategie über längeren Zeitraum sammeln.
-5. **v4-Signalqualität beobachten:** `/compare` regelmäßig prüfen (Win-Rate, Ø-R) — die gelockerten
-   Kriterien (`MIN_TOUCHES=2`, `REQUIRE_BOTH_SIDES=false`) sind eine unvalidierte Annahme aus der
-   Frequenz-Diskussion, nicht getestet gegen historische Daten.
+5. **v4-Signalqualität beobachten:** `/compare` regelmäßig prüfen (Win-Rate, Ø-R). `MIN_TOUCHES` wurde
+   am 2026-07-15 von 2 auf 3 angehoben (3 von 23 Trades gingen mit `mae_pct_of_sl=100%` sofort auf SL —
+   Zeichen strukturell schwacher Zonen). `REQUIRE_BOTH_SIDES=false` bleibt vorerst unverändert; weiter
+   gegen echte Trades beobachten, ob das reicht oder weiter nachjustiert werden muss.

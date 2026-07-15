@@ -28,6 +28,7 @@ function stats(d: BotData) {
   const closed = d.trades.filter((t) => t.state === "CLOSED");
   const wins = closed.filter((t) => t.result === "WIN").length;
   const losses = closed.filter((t) => t.result === "LOSS").length;
+  const bes = closed.filter((t) => t.result === "BE").length;
   const decided = wins + losses;
   const totalPnl = closed.reduce((s, t) => s + (t.pnl_eur ?? 0), 0);
   const rSamples = closed
@@ -41,26 +42,34 @@ function stats(d: BotData) {
   const open = d.trades.filter((t) => t.state === "OPEN").length;
   return {
     total: d.trades.length, closedN: closed.length, open,
+    wins, losses, bes,
     winRate: decided ? wins / decided : null,
     totalPnl, avgR, tradesPerDay: recentOpens / 7,
   };
 }
 
+/** Cumulative P&L by TRADE NUMBER, not calendar date — v3 and v4 started
+ * trading at different real dates, so an absolute-time x-axis would leave
+ * the later starter's curve squashed against the right edge instead of
+ * both beginning together on the left. `time` here is a 1-based trade
+ * index encoded as a lightweight-charts UTCTimestamp (any ascending integer
+ * works); EquityChart's tickMarkFormatter relabels it as "Trade N". */
 function equityCurve(d: BotData): { time: number; value: number }[] {
   const closed = d.trades
     .filter((t) => t.state === "CLOSED" && t.closed_at && t.pnl_eur != null)
     .sort((a, b) => new Date(a.closed_at!).getTime() - new Date(b.closed_at!).getTime());
-  let cum = 0, lastTime = 0;
-  const pts: { time: number; value: number }[] = [];
-  for (const t of closed) {
+  let cum = 0;
+  return closed.map((t, i) => {
     cum += t.pnl_eur as number;
-    let time = Math.floor(new Date(t.closed_at!).getTime() / 1000);
-    if (time <= lastTime) time = lastTime + 1;   // lightweight-charts needs strictly ascending times
-    lastTime = time;
-    pts.push({ time, value: Math.round(cum * 100) / 100 });
-  }
-  return pts;
+    return { time: i + 1, value: Math.round(cum * 100) / 100 };
+  });
 }
+
+// Fixed number of trade-slots the chart always reserves, regardless of how
+// many trades actually exist yet — this is what keeps spacing constant (see
+// the comment on setVisibleLogicalRange below) instead of proportional to
+// the current trade count.
+const EQUITY_CHART_WINDOW = 30;
 
 function EquityChart({ series }: { series: { data: { time: number; value: number }[]; color: string; label: string }[] }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -73,7 +82,16 @@ function EquityChart({ series }: { series: { data: { time: number; value: number
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: "#0e1117" }, textColor: "#c9d1d9" },
       grid: { vertLines: { color: "#1b1f27" }, horzLines: { color: "#1b1f27" } },
-      timeScale: { timeVisible: true },
+      // x-axis is a trade index (see equityCurve), not a real date — relabel
+      // the lightweight-charts time axis accordingly instead of showing
+      // "Jan 1 1970"-style dates for small integers.
+      timeScale: {
+        timeVisible: false,
+        tickMarkFormatter: (time: number) => `#${time}`,
+      },
+      localization: {
+        timeFormatter: (time: number) => `Trade #${time}`,
+      },
     });
     chartRef.current = chart;
     series.forEach((s) => {
@@ -81,6 +99,13 @@ function EquityChart({ series }: { series: { data: { time: number; value: number
       const line = chart.addLineSeries({ color: s.color, lineWidth: 2, title: s.label });
       line.setData(s.data as any);
     });
+    // Deliberately NOT fitContent(): that rescales bar spacing to fill the
+    // full width with whatever data currently exists, so every new trade
+    // re-compresses all the earlier ones. A fixed logical window instead
+    // pins trade #1 to the left edge with constant, unchanging spacing per
+    // trade — the curve simply extends into already-reserved blank space on
+    // the right as more trades land, never redrawing the existing history.
+    chart.timeScale().setVisibleLogicalRange({ from: -0.5, to: EQUITY_CHART_WINDOW - 0.5 });
     return () => chart.remove();
   }, [series]);
 
@@ -95,7 +120,7 @@ type Stats = ReturnType<typeof stats>;
 const STAT_ROWS: { label: string; fmt: (s: Stats) => string }[] = [
   { label: "Trades gesamt (offen/geschlossen)", fmt: (s) => `${s.total} (${s.open} offen)` },
   { label: "Trades/Tag (letzte 7 Tage)", fmt: (s) => num(s.tradesPerDay, 1) },
-  { label: "Win-Rate", fmt: (s) => pct(s.winRate) },
+  { label: "Win-Rate", fmt: (s) => `${pct(s.winRate)} (${s.wins}W, ${s.bes}BE, ${s.losses}L)` },
   { label: "Gesamt-P/L (realisiert)", fmt: (s) => eur(s.totalPnl) },
   { label: "Ø realisiertes R", fmt: (s) => num(s.avgR, 2) },
 ];
@@ -146,7 +171,10 @@ export function ComparePage() {
       </div>
 
       <div style={{ background: "#161b22", borderRadius: 8, padding: 12, marginBottom: 16 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>Kumulierter P/L (realisiert)</div>
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>
+          Kumulierter P/L (realisiert)
+          <span style={{ color: "#8b949e", fontWeight: 400 }}> — nach Trade-Nummer, nicht Kalenderdatum</span>
+        </div>
         {chartSeries.some((s) => s.data.length) ? (
           <EquityChart series={chartSeries} />
         ) : (
