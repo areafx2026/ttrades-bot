@@ -19,14 +19,16 @@ class Settings(BaseSettings):
     # / EURCAD / EURNZD have live ticks but copy_rates returns nothing (no D1
     # history feed), which the zone strategy can't use and which stalls the scanner
     # ~4.5 min/symbol — so they are excluded until their history is available.
-    # Plus the 5 most-traded cryptos (24/7, incl. weekends).
+    # Plus the most-traded cryptos (24/7, incl. weekends). XRPUSD excluded
+    # (2026-07-15): spread runs ~1.5 cents on this broker, too wide for the
+    # position sizing/stop-distance math to work with.
     symbols: list[str] = [
         # majors (with usable history)
         "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD", "USDCAD",
         # EUR crosses (with usable history)
         "EURGBP", "EURJPY",
         # crypto
-        "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD",
+        "BTCUSD", "ETHUSD", "SOLUSD", "DOGEUSD",
     ]
 
     # ── strategy ──────────────────────────────────────────────────────────────
