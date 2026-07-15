@@ -87,6 +87,8 @@ class Reconciler:
         """Once a trade has captured >= breakeven_trigger_pct of its TP distance,
         move the SL to breakeven + the current spread (covers the cost of
         exiting) so a reversal can no longer turn a winner into a loser."""
+        if not settings.breakeven_trail_enabled:
+            return
         if not t.ticket or t.mfe_pct_of_tp is None:
             return
         if t.mfe_pct_of_tp < settings.breakeven_trigger_pct:
