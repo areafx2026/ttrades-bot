@@ -253,7 +253,7 @@ heben, indem v4 eine Timeframe-Stufe tiefer arbeitet: **H4-Zonen / M15-Entry**, 
 | `.env`-Datei | `.env` | `.env.v4` |
 | DB | `pivot.db` | `pivot_v4.db` |
 | `ZONE_TIMEFRAME` / `ENTRY_TIMEFRAME` | D1 / H4 | H4 / M15 |
-| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 2 / false |
+| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 3 / false |
 | `MAGIC_NUMBER` / `ORDER_COMMENT` | 30000 / "Pivot v3" | 40000 / "Pivot v4" |
 | `LOG_FILE` | `activity.log` | `activity_v4.log` |
 | Start/Stop/Status | `start.ps1` / `stop.ps1` / `status.ps1` | `start_v4.ps1` / `stop_v4.ps1` / `status_v4.ps1` |
@@ -334,6 +334,7 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
 2. **Equity-Kurve** aus `account_snapshots` im Dashboard rendern.
 3. **`v2-mt5`-Branch** löschen, sobald sicher nicht mehr gebraucht (optional).
 4. **Backtest/Validierung** der Pivot-Strategie über längeren Zeitraum sammeln.
-5. **v4-Signalqualität beobachten:** `/compare` regelmäßig prüfen (Win-Rate, Ø-R) — die gelockerten
-   Kriterien (`MIN_TOUCHES=2`, `REQUIRE_BOTH_SIDES=false`) sind eine unvalidierte Annahme aus der
-   Frequenz-Diskussion, nicht getestet gegen historische Daten.
+5. **v4-Signalqualität beobachten:** `/compare` regelmäßig prüfen (Win-Rate, Ø-R). `MIN_TOUCHES` wurde
+   am 2026-07-15 von 2 auf 3 angehoben (3 von 23 Trades gingen mit `mae_pct_of_sl=100%` sofort auf SL —
+   Zeichen strukturell schwacher Zonen). `REQUIRE_BOTH_SIDES=false` bleibt vorerst unverändert; weiter
+   gegen echte Trades beobachten, ob das reicht oder weiter nachjustiert werden muss.
