@@ -175,11 +175,14 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 - MAE/MFE wird zur Scan-Kadenz gesampelt (nicht tick-genau) → kurze Intrabar-Spikes können fehlen (für Trade-Qualitäts-Stats ok).
 
 **Aktives Risk-Management auf offene Trades** (beide Checks laufen in `_track`, jeden Zyklus):
-- **Breakeven-Trail** (`_maybe_trail_to_breakeven`): sobald `mfe_pct_of_tp >= breakeven_trigger_pct`
-  (Default 0.6 = 60% des Weges zum TP erreicht), wird der SL per `broker.modify_position()` auf
-  Entry ± aktuellen Spread nachgezogen (BUY: `ref + spread`, SELL: `ref − spread`) — ein Reversal kann
-  den Trade danach nicht mehr ins Minus drehen. Nur einmal pro erreichtem Level (idempotent: zieht nur
-  nach, wenn der neue SL eine echte Verbesserung wäre). Event `trail` → `[TRAIL]`-Log.
+- **Breakeven-Trail** (`_maybe_trail_to_breakeven`, per `breakeven_trail_enabled` an/aus schaltbar):
+  sobald `mfe_pct_of_tp >= breakeven_trigger_pct` (Default 0.6 = 60% des Weges zum TP erreicht), wird
+  der SL per `broker.modify_position()` auf Entry ± aktuellen Spread nachgezogen (BUY: `ref + spread`,
+  SELL: `ref − spread`) — ein Reversal kann den Trade danach nicht mehr ins Minus drehen. Nur einmal pro
+  erreichtem Level (idempotent: zieht nur nach, wenn der neue SL eine echte Verbesserung wäre). Event
+  `trail` → `[TRAIL]`-Log. **Bei v4 seit 2026-07-15 pausiert** (`.env.v4: BREAKEVEN_TRAIL_ENABLED=false`),
+  um den Effekt getrennt von der gleichzeitigen `MIN_TOUCHES`-Änderung beobachten zu können — v3 hat den
+  Trail unverändert aktiv (Default `true`).
 - **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
   (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
   Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND der **aktuelle**

@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     # this multiple before even attempting the order.
     min_stop_spread_mult: float = 3.0
     # Active risk management on open trades (checked every reconcile cycle):
+    breakeven_trail_enabled: bool = True  # kill switch for the breakeven trail below
     breakeven_trigger_pct: float = 0.6   # MFE % of TP -> trail SL to breakeven+spread
     max_hold_min: int = 4800             # time-stop, in MARKET minutes (see market_hours)
     stale_mfe_pct: float = 0.4           # below this MFE %, max_hold_min triggers a close

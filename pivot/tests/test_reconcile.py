@@ -1,4 +1,7 @@
+from unittest.mock import Mock
+
 import pytest
+from app.config import settings
 from app.db.models import Trade, Side
 from app.engine.reconcile import Reconciler
 
@@ -29,3 +32,28 @@ def test_live_pct_ignores_the_historical_mfe_high_water_mark():
     t = _t("BUY", 100.0, 110.0)
     t.mfe_pct_of_tp = 0.4
     assert Reconciler._live_pct_of_tp(t, 100.5) == pytest.approx(0.05)
+
+
+def _tradeable_t():
+    t = _t("BUY", 100.0, 110.0)
+    t.ticket = "1"
+    t.mfe_pct_of_tp = 0.9   # well past the 60% default trigger
+    t.sl = 90.0
+    return t
+
+
+def test_breakeven_trail_disabled_by_flag(monkeypatch):
+    monkeypatch.setattr(settings, "breakeven_trail_enabled", False)
+    broker = Mock()
+    reconciler = Reconciler(broker, None)
+    reconciler._maybe_trail_to_breakeven(_tradeable_t(), {"bid": 104.99, "ask": 105.01})
+    broker.modify_position.assert_not_called()
+
+
+def test_breakeven_trail_fires_when_enabled(monkeypatch):
+    monkeypatch.setattr(settings, "breakeven_trail_enabled", True)
+    broker = Mock()
+    broker.modify_position.return_value = {"ok": True}
+    reconciler = Reconciler(broker, None)
+    reconciler._maybe_trail_to_breakeven(_tradeable_t(), {"bid": 104.99, "ask": 105.01})
+    broker.modify_position.assert_called_once()
