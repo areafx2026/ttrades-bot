@@ -21,14 +21,16 @@ class Settings(BaseSettings):
     # ~4.5 min/symbol — so they are excluded until their history is available.
     # Plus the most-traded cryptos (24/7, incl. weekends). XRPUSD excluded
     # (2026-07-15): spread runs ~1.5 cents on this broker, too wide for the
-    # position sizing/stop-distance math to work with.
+    # position sizing/stop-distance math to work with. SOLUSD excluded
+    # (2026-07-16): spread runs ~$0.40, 20-25% of a typical TP distance —
+    # eats most of the edge before the trade even has a chance.
     symbols: list[str] = [
         # majors (with usable history)
         "EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD", "USDCAD",
         # EUR crosses (with usable history)
         "EURGBP", "EURJPY",
         # crypto
-        "BTCUSD", "ETHUSD", "SOLUSD", "DOGEUSD",
+        "BTCUSD", "ETHUSD", "DOGEUSD",
     ]
 
     # ── strategy ──────────────────────────────────────────────────────────────

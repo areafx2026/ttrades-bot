@@ -107,12 +107,14 @@ Jeder Auto-Trade speichert den auslösenden H4-Deceleration-Snapshot in `trades.
 | `scan_interval_s` | 60 | Loop-Intervall |
 | `snapshot_interval_s` | 300 | account_snapshots-Kadenz |
 
-### Symbole (12)
+### Symbole (11)
 **Forex (Mo–Fr):** EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, EURGBP, EURJPY, USDCAD
-**Crypto (24/7, auch Wochenende):** BTCUSD, ETHUSD, SOLUSD, DOGEUSD
+**Crypto (24/7, auch Wochenende):** BTCUSD, ETHUSD, DOGEUSD
 
 > XRPUSD am 2026-07-15 rausgenommen — Spread lag bei ~1,5 Cent, zu weit für
-> die Sizing-/Stop-Distance-Logik.
+> die Sizing-/Stop-Distance-Logik. SOLUSD am 2026-07-16 rausgenommen — Spread
+> lag bei ~0,40$, 20-25% einer typischen TP-Distanz, fraß den Großteil des
+> Edge schon vor dem Trade.
 
 ---
 
