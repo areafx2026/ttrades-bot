@@ -106,6 +106,10 @@ Jeder Auto-Trade speichert den auslösenden H4-Deceleration-Snapshot in `trades.
 | `max_open_trades` | 3 | gleichzeitig offene Trades |
 | `scan_interval_s` | 60 | Loop-Intervall |
 | `snapshot_interval_s` | 300 | account_snapshots-Kadenz |
+| `spread_sample_interval_s` | 300 | Spread-Monitor: Sampling-Kadenz (bid/ask/spread je Symbol) |
+| `spread_retention_days` | 30 | Spread-Samples älter als N Tage werden geprunt |
+| `stale_spread_guard_mult` | 3.0 | Zeit-Stop-Close wird verschoben, wenn Live-Spread > N× 24h-Median |
+| `stale_close_max_defer_min` | 120 | Obergrenze fürs Verschieben — danach wird trotzdem geschlossen |
 
 ### Symbole (11)
 **Forex (Mo–Fr):** EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, EURGBP, EURJPY, USDCAD
@@ -132,6 +136,7 @@ trades:            id, ticket(MT5-Position), zone_id, symbol, side, state(PENDIN
                    decel_snapshot(JSON)
 account_snapshots: id, ts, balance, equity, margin, open_positions
 events:            id, ts, kind, symbol, payload(JSON)
+spread_samples:    id, ts, symbol, bid, ask, spread   (Spread-Monitor, siehe recorder.py)
 ```
 
 **Migration (SQLite):** `create_all()` legt fehlende Tabellen an, **ALTERt aber keine bestehenden**.
@@ -188,6 +193,14 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   `trail` → `[TRAIL]`-Log. **Bei v4 seit 2026-07-15 pausiert** (`.env.v4: BREAKEVEN_TRAIL_ENABLED=false`),
   um den Effekt getrennt von der gleichzeitigen `MIN_TOUCHES`-Änderung beobachten zu können — v3 hat den
   Trail unverändert aktiv (Default `true`).
+- **Rollover-/Spread-Guard auf dem Zeit-Stop:** Der Zeit-Stop schließt zum Market-Preis und zahlt
+  dabei den **aktuellen** Spread. Live beobachtet (USDJPY, 2026-07-16): der Close fiel exakt auf
+  Mitternacht Serverzeit (Rollover), der Spread war aufgerissen — −€85,61 bei nur 0,3 Pips echter
+  Kursbewegung. Deshalb: ist der Live-Spread > `stale_spread_guard_mult` (3.0) × dem 24h-Median aus
+  `spread_samples`, wird der Close verschoben (Event `stale_defer` → `[STALE?]`-Log, einmal pro Trade)
+  und im nächsten Zyklus erneut geprüft — gedeckelt durch `stale_close_max_defer_min` (120), damit ein
+  dauerhaft weiter Markt einen toten Trade nicht ewig parkt. Ohne Baseline (< 12 Samples in 24h, z. B.
+  frisch nach Deploy) steht der Guard still und der Close läuft wie bisher.
 - **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
   (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
   Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND der **aktuelle**
@@ -226,7 +239,12 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 ## Services / Logging
 
 - **Event-Bus** (`events.py`): Producer = Engine; Consumer = WebSocket-Hub, file_logger, recorder.
-  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`, `trail`, `stale_close`.
+  Event-Kinds: `zones`, `approach`, `fill`, `closed`, `reject`, `skip`, `error`, `trail`, `stale_close`,
+  `stale_defer`.
+- **Spread-Monitor** (`recorder.run_spread_monitor`): sampelt alle `spread_sample_interval_s` (300)
+  bid/ask/spread jedes Symbols mit offenem Markt in die `spread_samples`-Tabelle (Retention:
+  `spread_retention_days`). Zweck: (a) Beleg für Spread-Anomalien (Rollover/News), (b) Baseline für
+  den Rollover-Guard des Zeit-Stops (24h-Median je Symbol).
 - **file_logger** → `logs/<settings.log_file>` (Default `activity.log`, v4: `activity_v4.log`): greppbare
   Zeilen (`[ZONES] [APPROACH] [FILL] [CLOSE] [REJECT] [SKIP] [ERROR] [CYCLE]`).
 - **recorder** → DB: persistiert sinnvolle Events in `events` (`approach`/`zones` werden als Rauschen übersprungen)
@@ -346,3 +364,12 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
    am 2026-07-15 von 2 auf 3 angehoben (3 von 23 Trades gingen mit `mae_pct_of_sl=100%` sofort auf SL —
    Zeichen strukturell schwacher Zonen). `REQUIRE_BOTH_SIDES=false` bleibt vorerst unverändert; weiter
    gegen echte Trades beobachten, ob das reicht oder weiter nachjustiert werden muss.
+6. **Zonen-Sperre nach SL-Verlust (Entscheidung offen):** Live beobachtet (v4 USDCHF, 2026-07-16):
+   dieselbe Zone feuerte 7 Min nach einem SL-Hit erneut dasselbe SELL-Signal (identischer Entry/SL)
+   — zweiter Trade ging ebenfalls auf SL (−€314/−€327). Ursache: die Zonen-Re-Entry-Sperre
+   (`_traded_zones`) wird bei jedem Rescan (v4: alle 2h) geleert, der Rescan baut dieselbe H4-Zone
+   identisch wieder auf, und **kein** Mechanismus schaut auf das Ergebnis des vorherigen Trades.
+   Gleiche Signatur schon am 14./15.07. (Trades #21/#24, identischer Entry/SL über einen Rescan
+   hinweg). Fix-Optionen (nicht umgesetzt, Strategie-Entscheidung): Zone nach LOSS sperren, bis der
+   Preis die Zone signifikant verlassen hat, oder Loss-Cooldown pro Symbol+Richtung deutlich über
+   `zone_rescan_hours`.
