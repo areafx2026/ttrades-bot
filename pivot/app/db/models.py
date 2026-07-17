@@ -66,6 +66,12 @@ class Trade(Base):
     pnl_pips = Column(Float)
     result = Column(String)                            # WIN / LOSS / BE
     close_reason = Column(String)                       # e.g. "stale_timeout"; null = broker SL/TP/manual
+    # Edges of the zone that produced this trade. Zones live in scanner memory
+    # and are rebuilt each rescan (the zones table isn't wired up), so the band
+    # is snapshotted here — the scanner's loss-zone block reads it back to keep
+    # a zone locked after a LOSS until price has properly left it.
+    zone_low = Column(Float)
+    zone_high = Column(Float)
     opened_at = Column(DateTime)
     closed_at = Column(DateTime)
     hold_duration_min = Column(Integer)                # minutes the position was open

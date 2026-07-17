@@ -130,7 +130,7 @@ zones:             id, symbol, edge_low, edge_high, mid, width, touches,
 trades:            id, ticket(MT5-Position), zone_id, symbol, side, state(PENDING/OPEN/CLOSED/REJECTED),
                    entry, sl, tp, lots, risk_eur, rr,
                    fill_price, close_price, pnl_eur, pnl_pips, result(WIN/LOSS/BE),
-                   close_reason(null|"stale_timeout"),
+                   close_reason(null|"stale_timeout"), zone_low, zone_high,
                    opened_at, closed_at, hold_duration_min,
                    mae_price, mfe_price, mae_pips, mfe_pips, mae_pct_of_sl, mfe_pct_of_tp,
                    decel_snapshot(JSON)
@@ -157,6 +157,15 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   später (nach Ablauf des 60-Min-Cooldowns, aber vor dem nächsten 2h-Rescan) erneut ein identisches
   Signal — das ging auf SL. Ein scharfer Reversal exakt durch eine gerade gehandelte Zone ist eher ein
   Signal gegen die These als eine neue unabhängige Gelegenheit.
+- **Loss-Zonen-Sperre** (`_loss_zones`, überlebt Rescans — anders als `_traded_zones`): schließt ein
+  Trade als **LOSS**, wird sein Zonenband (am Trade persistiert: `trades.zone_low/zone_high`) gesperrt,
+  bis der Preis **mindestens eine Zonenbreite** von der Zone entfernt ist (Entry-TF-Close) — erst ein
+  echtes Verlassen der Area setzt die These zurück, Zeit allein nicht. Match per Overlap (nicht exakte
+  Kanten), damit eine beim Rescan leicht verschoben neu gebaute Zone nicht durchrutscht; geblockte
+  Signale loggen einmal pro Rescan `[SKIP] … blocked after a LOSS`. Beim Start werden LOSS-Trades der
+  letzten 7 Tage geladen (Restart-fest). Live-Anlass (v4 USDCHF 2026-07-16): SL-Hit 15:04, **dieselbe
+  Zone** feuerte 15:11 ein identisches SELL (Rescan hatte `_traded_zones` geleert, niemand schaute aufs
+  Ergebnis des Vortrades) — beide Trades je ~−€320. Gleiche Signatur schon am 14./15.07.
 - Am Zyklusende: `reconciler.run()` + Heartbeat-Logzeile `[CYCLE]`.
 
 ### Executor (`executor.py`)
@@ -364,12 +373,7 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
    am 2026-07-15 von 2 auf 3 angehoben (3 von 23 Trades gingen mit `mae_pct_of_sl=100%` sofort auf SL —
    Zeichen strukturell schwacher Zonen). `REQUIRE_BOTH_SIDES=false` bleibt vorerst unverändert; weiter
    gegen echte Trades beobachten, ob das reicht oder weiter nachjustiert werden muss.
-6. **Zonen-Sperre nach SL-Verlust (Entscheidung offen):** Live beobachtet (v4 USDCHF, 2026-07-16):
-   dieselbe Zone feuerte 7 Min nach einem SL-Hit erneut dasselbe SELL-Signal (identischer Entry/SL)
-   — zweiter Trade ging ebenfalls auf SL (−€314/−€327). Ursache: die Zonen-Re-Entry-Sperre
-   (`_traded_zones`) wird bei jedem Rescan (v4: alle 2h) geleert, der Rescan baut dieselbe H4-Zone
-   identisch wieder auf, und **kein** Mechanismus schaut auf das Ergebnis des vorherigen Trades.
-   Gleiche Signatur schon am 14./15.07. (Trades #21/#24, identischer Entry/SL über einen Rescan
-   hinweg). Fix-Optionen (nicht umgesetzt, Strategie-Entscheidung): Zone nach LOSS sperren, bis der
-   Preis die Zone signifikant verlassen hat, oder Loss-Cooldown pro Symbol+Richtung deutlich über
-   `zone_rescan_hours`.
+6. ~~Zonen-Sperre nach SL-Verlust~~ — **umgesetzt 2026-07-17** als Loss-Zonen-Sperre (siehe
+   Scanner-Abschnitt): Zone bleibt nach LOSS gesperrt, bis der Preis ≥1 Zonenbreite entfernt ist.
+   Hinweis: greift nur für Trades mit gespeichertem Zonenband (`zone_low/zone_high`), also ab
+   Deploy — Alt-Trades ohne Band können nicht blocken.

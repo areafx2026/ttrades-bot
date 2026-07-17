@@ -71,6 +71,8 @@ class Executor:
                 entry=sig.entry, sl=sig.sl, tp=tp, lots=lots,
                 fill_price=fill,   # real MT5 execution price, not the zone-mid
                 risk_eur=settings.risk_eur, rr=sig.rr,
+                zone_low=sig.zone.edge_low if sig.zone else None,
+                zone_high=sig.zone.edge_high if sig.zone else None,
                 decel_snapshot=sig.decel, opened_at=datetime.utcnow(),
             ))
             s.commit()
