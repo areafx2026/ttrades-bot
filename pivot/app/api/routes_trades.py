@@ -25,6 +25,9 @@ def trades(state: str | None = Query(None), limit: int = 100):
             "mae_pips": t.mae_pips, "mfe_pips": t.mfe_pips,
             "mae_pct_of_sl": t.mae_pct_of_sl, "mfe_pct_of_tp": t.mfe_pct_of_tp,
             "hold_duration_min": t.hold_duration_min,
-            "opened_at": t.opened_at.isoformat() if t.opened_at else None,
-            "closed_at": t.closed_at.isoformat() if t.closed_at else None,
+            # Stored naive-UTC; the explicit Z suffix makes new Date() in the
+            # browser convert to the viewer's local time instead of silently
+            # misreading the string AS local time.
+            "opened_at": t.opened_at.isoformat() + "Z" if t.opened_at else None,
+            "closed_at": t.closed_at.isoformat() + "Z" if t.closed_at else None,
         } for t in rows]

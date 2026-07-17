@@ -28,6 +28,16 @@ function hold(min: any): string {
   return parts.length ? parts.join(" ") : "0m";
 }
 
+/** ISO timestamp (UTC, Z-suffixed by the API) → local "16.07. 15:11" */
+function ts(iso: any): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("de-DE", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+  }).replace(",", "");
+}
+
 /** excursion pips + (% of SL/TP) */
 function exc(p: any, pct: any): string {
   if (p == null) return "—";
@@ -71,6 +81,7 @@ export function TradesTable({ trades }: { trades: any[] }) {
         <thead>
           <tr style={{ color: C.muted, textAlign: "left" }}>
             <th style={th}>Symbol</th><th style={th}>Side</th><th style={th}>State</th>
+            <th style={th}>Opened</th><th style={th}>Closed</th>
             <th style={th}>Fill</th><th style={th}>SL</th><th style={th}>TP</th>
             <th style={th}>Close</th><th style={th}>Lots</th>
             <th style={th}>P&amp;L</th><th style={th}>Pips</th>
@@ -83,6 +94,8 @@ export function TradesTable({ trades }: { trades: any[] }) {
               <td style={{ ...td, fontWeight: 600 }}>{t.symbol}</td>
               <td style={{ ...td, color: t.side === "BUY" ? C.win : C.loss }}>{t.side}</td>
               <td style={td}><StateCell t={t} /></td>
+              <td style={{ ...td, color: C.muted }}>{ts(t.opened_at)}</td>
+              <td style={{ ...td, color: C.muted }}>{ts(t.closed_at)}</td>
               <td style={td}>{px(t.symbol, t.fill_price ?? t.entry)}</td>
               <td style={td}>{px(t.symbol, t.sl)}</td>
               <td style={td}>{px(t.symbol, t.tp)}</td>
@@ -98,7 +111,7 @@ export function TradesTable({ trades }: { trades: any[] }) {
             </tr>
           ))}
           {trades.length === 0 && (
-            <tr><td colSpan={13} style={{ padding: 12, color: C.muted }}>No trades yet.</td></tr>
+            <tr><td colSpan={15} style={{ padding: 12, color: C.muted }}>No trades yet.</td></tr>
           )}
         </tbody>
       </table>
