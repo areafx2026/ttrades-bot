@@ -12,16 +12,25 @@ this watches every OPEN trade each cycle and:
 MAE/MFE are sampled at the scan cadence, not tick-by-tick, so brief intrabar
 spikes between samples can be missed — accurate enough for trade-quality stats.
 """
+import statistics
+from datetime import datetime, timedelta
+
 from app.config import settings
-from app.db.models import Trade, TradeState
+from app.db.models import Trade, TradeState, SpreadSample
 from app.services.events import bus
 from app.strategy.market_hours import market_elapsed_minutes, pip_size
+
+# Below this many recent samples the spread baseline is statistically
+# meaningless (e.g. right after first deploy) — the guard then stands down
+# rather than defer closes on a bad estimate.
+_MIN_BASELINE_SAMPLES = 12
 
 
 class Reconciler:
     def __init__(self, broker, session_factory):
         self.broker = broker
         self.db = session_factory
+        self._defer_announced: set[str] = set()   # tickets whose defer was logged
 
     def run(self) -> None:
         open_tickets = {p["ticket"] for p in self.broker.positions()}
@@ -61,7 +70,7 @@ class Reconciler:
         self._update_extremes(t, price)
         self._compute_stats(t)   # keep pips/% live so the dashboard shows them now
         self._maybe_trail_to_breakeven(t, tk)
-        self._maybe_close_stale(t, price)
+        self._maybe_close_stale(t, price, tk)
 
     def _finalize(self, t: Trade) -> None:
         info = self.broker.closed_position(t.ticket) if t.ticket else None
@@ -126,7 +135,20 @@ class Reconciler:
         progress = (price - ref) if t.side.value == "BUY" else (ref - price)
         return progress / tp_dist
 
-    def _maybe_close_stale(self, t: Trade, price: float) -> None:
+    def _spread_baseline(self, symbol: str) -> float | None:
+        """Median spread of the last 24h of spread_samples for this symbol —
+        the 'normal' the live spread is judged against. None while there is
+        not enough history to call anything normal."""
+        since = datetime.utcnow() - timedelta(hours=24)
+        with self.db() as s:
+            rows = [r[0] for r in s.query(SpreadSample.spread)
+                    .filter(SpreadSample.symbol == symbol,
+                            SpreadSample.ts >= since).all()]
+        if len(rows) < _MIN_BASELINE_SAMPLES:
+            return None
+        return statistics.median(rows)
+
+    def _maybe_close_stale(self, t: Trade, price: float, tick: dict) -> None:
         """Time-stop: if a trade has run for longer than max_hold_min of actual
         MARKET time (forex weekends don't count — see market_hours) and the
         CURRENT price hasn't reached stale_mfe_pct of the way to target, the
@@ -145,11 +167,28 @@ class Reconciler:
         live_pct = self._live_pct_of_tp(t, price)
         if live_pct is not None and live_pct >= settings.stale_mfe_pct:
             return
+        # Rollover/news guard: a market close pays the CURRENT spread. If it
+        # is blown out vs. this symbol's recent baseline (server-midnight
+        # rollover, news spike), wait a few cycles — the trade is stale either
+        # way, exiting 30min later at a normal spread is strictly cheaper.
+        # Capped so a structurally wide market can't defer the exit forever.
+        spread = abs(tick["ask"] - tick["bid"])
+        baseline = self._spread_baseline(t.symbol)
+        if (baseline and spread > baseline * settings.stale_spread_guard_mult
+                and elapsed < settings.max_hold_min + settings.stale_close_max_defer_min):
+            if t.ticket not in self._defer_announced:   # log once, not every cycle
+                self._defer_announced.add(t.ticket)
+                bus.publish("stale_defer", {
+                    "symbol": t.symbol, "ticket": t.ticket,
+                    "spread": round(spread, 6), "baseline": round(baseline, 6),
+                    "mult": settings.stale_spread_guard_mult})
+            return
         r = self.broker.close(t.ticket)
         if r.get("ok"):
             # Recorded now, on the still-OPEN row: _finalize() picks up the
             # actual close next cycle and must not overwrite this.
             t.close_reason = "stale_timeout"
+            self._defer_announced.discard(t.ticket)
             bus.publish("stale_close", {"symbol": t.symbol, "ticket": t.ticket,
                                         "hold_min": round(elapsed),
                                         "live_pct": live_pct})

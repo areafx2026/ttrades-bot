@@ -16,7 +16,8 @@ from app.engine.risk import Guard
 from app.engine.scanner import Scanner
 from app.services.events import bus
 from app.services.file_logger import run_file_logger
-from app.services.recorder import run_event_recorder, run_account_snapshots
+from app.services.recorder import (run_event_recorder, run_account_snapshots,
+                                   run_spread_monitor)
 from app.api import deps, routes_account, routes_zones, routes_trades, routes_control
 
 broker = MT5Adapter(settings.mt5_login, settings.mt5_password, settings.mt5_server)
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
     log_task = asyncio.create_task(run_file_logger())
     rec_task = asyncio.create_task(run_event_recorder())
     snap_task = asyncio.create_task(run_account_snapshots(broker))
+    spread_task = asyncio.create_task(run_spread_monitor(broker))
     task = asyncio.create_task(scanner.run_forever())
     yield
     scanner.running = False
@@ -42,6 +44,7 @@ async def lifespan(app: FastAPI):
     log_task.cancel()
     rec_task.cancel()
     snap_task.cancel()
+    spread_task.cancel()
 
 
 app = FastAPI(title=settings.bot_name, version="3.0.0", lifespan=lifespan)

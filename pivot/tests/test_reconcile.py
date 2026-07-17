@@ -1,8 +1,13 @@
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 from unittest.mock import Mock
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 from app.config import settings
-from app.db.models import Trade, Side
+from app.db.models import Base, Trade, Side, SpreadSample
 from app.engine.reconcile import Reconciler
 
 
@@ -57,3 +62,103 @@ def test_breakeven_trail_fires_when_enabled(monkeypatch):
     reconciler = Reconciler(broker, None)
     reconciler._maybe_trail_to_breakeven(_tradeable_t(), {"bid": 104.99, "ask": 105.01})
     broker.modify_position.assert_called_once()
+
+
+# ── stale-close spread guard (rollover/news protection) ──────────────────────
+# Crypto symbol on purpose: market_elapsed_minutes counts raw minutes there,
+# so the tests don't depend on what weekday they run on.
+
+def _stale_t(minutes_open: int) -> Trade:
+    t = _t("BUY", 100.0, 110.0)
+    t.symbol = "BTCUSD"
+    t.ticket = "1"
+    t.sl = 90.0
+    t.opened_at = datetime.utcnow() - timedelta(minutes=minutes_open)
+    return t
+
+
+def _stale_settings(monkeypatch):
+    monkeypatch.setattr(settings, "max_hold_min", 330)
+    monkeypatch.setattr(settings, "stale_mfe_pct", 0.4)
+    monkeypatch.setattr(settings, "stale_spread_guard_mult", 3.0)
+    monkeypatch.setattr(settings, "stale_close_max_defer_min", 120)
+
+
+def test_stale_close_fires_at_normal_spread(monkeypatch):
+    _stale_settings(monkeypatch)
+    broker = Mock()
+    broker.close.return_value = {"ok": True}
+    r = Reconciler(broker, None)
+    r._spread_baseline = lambda sym: 0.02
+    r._maybe_close_stale(_stale_t(400), 100.5, {"bid": 100.49, "ask": 100.51})
+    broker.close.assert_called_once()
+
+
+def test_stale_close_deferred_while_spread_is_blown_out(monkeypatch):
+    _stale_settings(monkeypatch)
+    broker = Mock()
+    r = Reconciler(broker, None)
+    r._spread_baseline = lambda sym: 0.02   # live spread 0.5 = 25x baseline
+    r._maybe_close_stale(_stale_t(400), 100.5, {"bid": 100.25, "ask": 100.75})
+    broker.close.assert_not_called()
+
+
+def test_defer_cap_closes_even_at_a_wide_spread(monkeypatch):
+    # 500min open > max_hold(330) + max_defer(120): a permanently wide market
+    # must not park a dead trade forever.
+    _stale_settings(monkeypatch)
+    broker = Mock()
+    broker.close.return_value = {"ok": True}
+    r = Reconciler(broker, None)
+    r._spread_baseline = lambda sym: 0.02
+    r._maybe_close_stale(_stale_t(500), 100.5, {"bid": 100.25, "ask": 100.75})
+    broker.close.assert_called_once()
+
+
+def test_stale_close_proceeds_without_a_baseline(monkeypatch):
+    # Fresh deploy, no spread history yet — the guard stands down rather than
+    # defer on a guess.
+    _stale_settings(monkeypatch)
+    broker = Mock()
+    broker.close.return_value = {"ok": True}
+    r = Reconciler(broker, None)
+    r._spread_baseline = lambda sym: None
+    r._maybe_close_stale(_stale_t(400), 100.5, {"bid": 100.25, "ask": 100.75})
+    broker.close.assert_called_once()
+
+
+def _mem_session_factory():
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
+
+    @contextmanager
+    def factory():
+        s = Session()
+        try:
+            yield s
+        finally:
+            s.close()
+    return factory
+
+
+def test_spread_baseline_is_the_median_of_recent_samples():
+    db = _mem_session_factory()
+    with db() as s:
+        for spread in [0.01] * 6 + [0.02] * 6 + [5.0]:   # one rollover outlier
+            s.add(SpreadSample(symbol="BTCUSD", bid=100.0, ask=100.0 + spread,
+                               spread=spread, ts=datetime.utcnow()))
+        s.commit()
+    r = Reconciler(Mock(), db)
+    assert r._spread_baseline("BTCUSD") == pytest.approx(0.02)
+
+
+def test_spread_baseline_none_below_minimum_samples():
+    db = _mem_session_factory()
+    with db() as s:
+        for _ in range(3):
+            s.add(SpreadSample(symbol="BTCUSD", bid=100.0, ask=100.02,
+                               spread=0.02, ts=datetime.utcnow()))
+        s.commit()
+    r = Reconciler(Mock(), db)
+    assert r._spread_baseline("BTCUSD") is None

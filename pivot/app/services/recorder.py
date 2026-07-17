@@ -12,10 +12,12 @@ is intentionally NOT persisted — it would bloat the table and is already
 captured in activity.log / the zones table.
 """
 import asyncio
+from datetime import datetime, timedelta
 
 from app.db.base import SessionLocal
-from app.db.models import Event, AccountSnapshot
+from app.db.models import Event, AccountSnapshot, SpreadSample
 from app.services.events import bus
+from app.strategy.market_hours import market_open
 from app.config import settings
 
 _SKIP_KINDS = {"approach", "zones"}
@@ -64,3 +66,31 @@ async def run_account_snapshots(broker) -> None:
         except Exception as e:
             bus.publish("error", {"symbol": "ACCOUNT", "msg": f"snapshot failed: {e}"})
         await asyncio.sleep(settings.snapshot_interval_s)
+
+
+async def run_spread_monitor(broker) -> None:
+    """Sample bid/ask/spread for every open-market symbol into spread_samples,
+    every `spread_sample_interval_s`.
+
+    Two consumers: (a) evidence when a close/fill happened at an abnormal
+    spread (rollover, news), (b) the per-symbol baseline the reconciler's
+    stale-close spread guard compares the live spread against. Old samples
+    are pruned past `spread_retention_days` to keep the table bounded."""
+    while True:
+        try:
+            with SessionLocal() as s:
+                for sym in settings.symbols:
+                    if not market_open(sym):
+                        continue   # closed market = stale tick, not a real spread
+                    try:
+                        tk = broker.tick(sym)
+                    except Exception:
+                        continue
+                    s.add(SpreadSample(symbol=sym, bid=tk["bid"], ask=tk["ask"],
+                                       spread=abs(tk["ask"] - tk["bid"])))
+                cutoff = datetime.utcnow() - timedelta(days=settings.spread_retention_days)
+                s.query(SpreadSample).filter(SpreadSample.ts < cutoff).delete()
+                s.commit()
+        except Exception as e:
+            bus.publish("error", {"symbol": "SPREAD", "msg": f"spread sample failed: {e}"})
+        await asyncio.sleep(settings.spread_sample_interval_s)

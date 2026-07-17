@@ -68,8 +68,23 @@ class Settings(BaseSettings):
     breakeven_trigger_pct: float = 0.6   # MFE % of TP -> trail SL to breakeven+spread
     max_hold_min: int = 4800             # time-stop, in MARKET minutes (see market_hours)
     stale_mfe_pct: float = 0.4           # below this MFE %, max_hold_min triggers a close
+    # The time-stop closes at market — if it fires into a rollover/news spread
+    # blowout it pays several pips extra for nothing (seen live: USDJPY stale
+    # close at 21:01 UTC = midnight server time, -€85 on 0.3 pips of price).
+    # Defer the close while the live spread exceeds this multiple of the
+    # symbol's recent baseline (median of spread_samples, last 24h) …
+    stale_spread_guard_mult: float = 3.0
+    # … but never for longer than this, so a genuinely wide market can't
+    # park a dead trade forever.
+    stale_close_max_defer_min: int = 120
     scan_interval_s: int = 60
     snapshot_interval_s: int = 300   # account_snapshots cadence (equity curve)
+    # ── spread monitor ────────────────────────────────────────────────────────
+    # Periodic bid/ask/spread sampling into the spread_samples table — evidence
+    # for spread anomalies (rollover, news) and the baseline the stale-close
+    # spread guard compares against.
+    spread_sample_interval_s: int = 300
+    spread_retention_days: int = 30
 
     # ── broker (MT5) ──────────────────────────────────────────────────────────
     mt5_login: int | None = None

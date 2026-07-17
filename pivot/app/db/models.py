@@ -90,6 +90,21 @@ class AccountSnapshot(Base):
     open_positions = Column(Integer)
 
 
+class SpreadSample(Base):
+    """Periodic bid/ask snapshot per symbol (see recorder.run_spread_monitor).
+
+    Doubles as the baseline the reconciler's stale-close spread guard uses to
+    recognise an abnormally wide (rollover/news) spread before closing at
+    market."""
+    __tablename__ = "spread_samples"
+    id = Column(Integer, primary_key=True)
+    ts = Column(DateTime, server_default=func.now(), index=True)
+    symbol = Column(String, index=True, nullable=False)
+    bid = Column(Float, nullable=False)
+    ask = Column(Float, nullable=False)
+    spread = Column(Float, nullable=False)
+
+
 class Event(Base):
     __tablename__ = "events"
     id = Column(Integer, primary_key=True)
