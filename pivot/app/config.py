@@ -77,6 +77,12 @@ class Settings(BaseSettings):
     # … but never for longer than this, so a genuinely wide market can't
     # park a dead trade forever.
     stale_close_max_defer_min: int = 120
+    # Blunt, baseline-free backstop for the same rollover spread blowout —
+    # no new entries and no time-stop closes at all in this broker-local
+    # window (default 22:00-01:00, wraps midnight). See market_hours.in_rollover_blackout.
+    rollover_blackout_enabled: bool = True
+    rollover_blackout_start_h: int = 22
+    rollover_blackout_end_h: int = 1
     scan_interval_s: int = 60
     snapshot_interval_s: int = 300   # account_snapshots cadence (equity curve)
     # ── spread monitor ────────────────────────────────────────────────────────

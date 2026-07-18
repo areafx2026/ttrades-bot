@@ -4,6 +4,7 @@ from app.db.models import Trade, TradeState, Side
 from app.services.events import bus
 from app.engine.risk import position_size
 from app.config import settings
+from app.strategy.market_hours import in_rollover_blackout
 
 
 class Executor:
@@ -30,8 +31,17 @@ class Executor:
             spread = abs(tick["ask"] - tick["bid"])
             sizing_price = tick["ask"] if sig.side == "BUY" else tick["bid"]
         except Exception:
+            tick = None
             spread = 0.0
             sizing_price = sig.entry
+
+        # No new entries in the daily rollover blackout — this broker's spread
+        # reliably blows out right around its server-midnight rollover (~70pt
+        # vs ~1pt normal on USDJPY, live-observed 2026-07-16), which would
+        # blow the risk_eur budget on entry just like it did on the exit side.
+        if settings.rollover_blackout_enabled and tick and in_rollover_blackout(tick.get("time", 0)):
+            bus.publish("skip", {"symbol": sig.symbol, "reason": "rollover blackout window"})
+            return
 
         # A zone narrower than a few spreads produces SL/TP the broker will
         # reject as "invalid stops" (or that are already inside the current

@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from app.config import settings
 from app.db.models import Trade, TradeState, SpreadSample
 from app.services.events import bus
-from app.strategy.market_hours import market_elapsed_minutes, pip_size
+from app.strategy.market_hours import in_rollover_blackout, market_elapsed_minutes, pip_size
 
 # Below this many recent samples the spread baseline is statistically
 # meaningless (e.g. right after first deploy) — the guard then stands down
@@ -174,13 +174,20 @@ class Reconciler:
         # Capped so a structurally wide market can't defer the exit forever.
         spread = abs(tick["ask"] - tick["bid"])
         baseline = self._spread_baseline(t.symbol)
-        if (baseline and spread > baseline * settings.stale_spread_guard_mult
+        spread_blown = bool(baseline and spread > baseline * settings.stale_spread_guard_mult)
+        # Same rationale, but a hard clock window with no baseline dependency
+        # — catches the case the baseline guard can't yet (< 12 samples/24h,
+        # e.g. right after deploy) and matches the user's own observed window.
+        in_blackout = settings.rollover_blackout_enabled and in_rollover_blackout(tick.get("time", 0))
+        if ((spread_blown or in_blackout)
                 and elapsed < settings.max_hold_min + settings.stale_close_max_defer_min):
             if t.ticket not in self._defer_announced:   # log once, not every cycle
                 self._defer_announced.add(t.ticket)
                 bus.publish("stale_defer", {
                     "symbol": t.symbol, "ticket": t.ticket,
-                    "spread": round(spread, 6), "baseline": round(baseline, 6),
+                    "reason": "rollover blackout window" if in_blackout else "spread blown out",
+                    "spread": round(spread, 6),
+                    "baseline": round(baseline, 6) if baseline else None,
                     "mult": settings.stale_spread_guard_mult})
             return
         r = self.broker.close(t.ticket)

@@ -1,7 +1,17 @@
 from datetime import datetime, timezone
-from app.strategy.market_hours import market_elapsed_minutes
+
+import app.strategy.market_hours as mh
+from app.strategy.market_hours import in_rollover_blackout, market_elapsed_minutes
 
 UTC = timezone.utc
+
+
+def _tick_time(now: datetime, offset_h: int, monkeypatch) -> float:
+    """Fake a broker tick's raw epoch: `offset_h` hours ahead/behind real UTC
+    `now`, with `_time.time()` pinned to `now` so in_rollover_blackout's
+    internal offset math is deterministic."""
+    monkeypatch.setattr(mh._time, "time", lambda: now.timestamp())
+    return now.timestamp() + offset_h * 3600
 
 
 def test_no_weekend_span_counts_raw_time():
@@ -41,3 +51,33 @@ def test_naive_datetimes_are_treated_as_utc():
     opened = datetime(2026, 7, 6, 10, 0)   # naive, Monday
     now = datetime(2026, 7, 6, 14, 0)      # naive
     assert market_elapsed_minutes("EURUSD", opened, now) == 240
+
+
+def test_rollover_blackout_inside_window(monkeypatch):
+    now = datetime(2026, 7, 16, 20, 30, tzinfo=UTC)   # broker (+3h) = 23:30
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_rollover_blackout(tt, now) is True
+
+
+def test_rollover_blackout_outside_window(monkeypatch):
+    now = datetime(2026, 7, 16, 18, 0, tzinfo=UTC)    # broker (+3h) = 21:00
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_rollover_blackout(tt, now) is False
+
+
+def test_rollover_blackout_wraps_past_midnight(monkeypatch):
+    now = datetime(2026, 7, 16, 21, 30, tzinfo=UTC)   # broker (+3h) = 00:30
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_rollover_blackout(tt, now) is True
+
+
+def test_rollover_blackout_ends_at_boundary(monkeypatch):
+    now = datetime(2026, 7, 16, 22, 5, tzinfo=UTC)    # broker (+3h) = 01:05
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_rollover_blackout(tt, now) is False
+
+
+def test_rollover_blackout_fails_open_on_implausible_offset(monkeypatch):
+    now = datetime(2026, 7, 16, 21, 30, tzinfo=UTC)   # would be "inside" at +3h
+    monkeypatch.setattr(mh._time, "time", lambda: now.timestamp())
+    assert in_rollover_blackout(0.0, now) is False   # dummy epoch -> offset absurd -> fail open

@@ -1,11 +1,12 @@
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import app.strategy.market_hours as mh
 from app.config import settings
 from app.db.models import Base, Trade, Side, SpreadSample
 from app.engine.reconcile import Reconciler
@@ -124,6 +125,51 @@ def test_stale_close_proceeds_without_a_baseline(monkeypatch):
     r = Reconciler(broker, None)
     r._spread_baseline = lambda sym: None
     r._maybe_close_stale(_stale_t(400), 100.5, {"bid": 100.25, "ask": 100.75})
+    broker.close.assert_called_once()
+
+
+def _freeze_now(monkeypatch, now: datetime) -> None:
+    """in_rollover_blackout() defaults `now` to datetime.now(timezone.utc) when
+    the caller (reconcile.py) doesn't pass one -- freeze both that AND
+    time.time() (used for the tick-time offset calc) so the test controls
+    what the function sees as "now" end to end."""
+    monkeypatch.setattr(mh._time, "time", lambda: now.timestamp())
+
+    class _FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now if tz else now.replace(tzinfo=None)
+    monkeypatch.setattr(mh, "datetime", _FixedDatetime)
+
+
+def test_stale_close_deferred_during_rollover_blackout(monkeypatch):
+    # No spread baseline at all (None) -- the clock-based blackout is the
+    # ONLY thing deferring here, proving it doesn't depend on spread_samples.
+    _stale_settings(monkeypatch)
+    now = datetime(2026, 7, 16, 21, 30, tzinfo=timezone.utc)   # broker (+3h) = 00:30
+    _freeze_now(monkeypatch, now)
+    blackout_tick_time = now.timestamp() + 3 * 3600
+    t = _stale_t(400)
+    t.opened_at = now.replace(tzinfo=None) - timedelta(minutes=400)  # relative to frozen "now"
+    broker = Mock()
+    r = Reconciler(broker, None)
+    r._spread_baseline = lambda sym: None
+    r._maybe_close_stale(t, 100.5, {"bid": 100.49, "ask": 100.51, "time": blackout_tick_time})
+    broker.close.assert_not_called()
+
+
+def test_stale_close_not_deferred_outside_blackout(monkeypatch):
+    _stale_settings(monkeypatch)
+    now = datetime(2026, 7, 16, 18, 0, tzinfo=timezone.utc)    # broker (+3h) = 21:00
+    _freeze_now(monkeypatch, now)
+    normal_tick_time = now.timestamp() + 3 * 3600
+    t = _stale_t(400)
+    t.opened_at = now.replace(tzinfo=None) - timedelta(minutes=400)  # relative to frozen "now"
+    broker = Mock()
+    broker.close.return_value = {"ok": True}
+    r = Reconciler(broker, None)
+    r._spread_baseline = lambda sym: None
+    r._maybe_close_stale(t, 100.5, {"bid": 100.49, "ask": 100.51, "time": normal_tick_time})
     broker.close.assert_called_once()
 
 

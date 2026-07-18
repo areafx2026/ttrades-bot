@@ -68,6 +68,9 @@ def format_event(msg: dict) -> str:
                 f"(live progress={lp:.0%} < threshold)" if lp is not None else
                 f"[STALE]    {sym}: closed after {msg.get('hold_min')}min market time")
     if kind == "stale_defer":
+        reason = msg.get("reason")
+        if reason == "rollover blackout window":
+            return f"[STALE?]   {sym}: close deferred — rollover blackout window (spread {msg.get('spread')})"
         return (f"[STALE?]   {sym}: close deferred — spread {msg.get('spread')} > "
                 f"{msg.get('mult')}x baseline {msg.get('baseline')} (rollover/news?)")
     if kind == "skip":

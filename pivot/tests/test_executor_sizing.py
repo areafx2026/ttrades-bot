@@ -5,10 +5,12 @@ risk_eur (e.g. USDCHF -415.82€ against a 300€ target). Executor must size of
 a live tick (a close proxy for the actual fill) instead."""
 import asyncio
 from contextlib import contextmanager
+from datetime import datetime, timezone
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+import app.strategy.market_hours as mh
 from app.config import settings
 from app.db.models import Base, Trade, TradeState
 from app.engine.executor import Executor
@@ -73,3 +75,37 @@ def test_position_size_uses_live_tick_not_the_stale_planned_entry():
 
     assert trade.lots == correct_lots
     assert trade.lots != stale_entry_lots
+
+
+def _freeze_now(monkeypatch, now: datetime) -> None:
+    """in_rollover_blackout() defaults `now` to datetime.now(timezone.utc) when
+    the caller (executor.py) doesn't pass one -- freeze both that AND
+    time.time() (used for the tick-time offset calc) so the test controls
+    what the function sees as "now" end to end."""
+    monkeypatch.setattr(mh._time, "time", lambda: now.timestamp())
+
+    class _FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now if tz else now.replace(tzinfo=None)
+    monkeypatch.setattr(mh, "datetime", _FixedDatetime)
+
+
+def test_execute_blocks_new_entries_during_rollover_blackout(monkeypatch):
+    now = datetime(2026, 7, 16, 21, 30, tzinfo=timezone.utc)   # broker (+3h) = 00:30
+    _freeze_now(monkeypatch, now)
+    blackout_tick_time = now.timestamp() + 3 * 3600
+
+    class BlackoutBroker(FakeBroker):
+        def tick(self, symbol):
+            return {"bid": self.bid, "ask": self.ask, "time": blackout_tick_time}
+
+    broker = BlackoutBroker(bid=1.1050, ask=1.1052)
+    executor = Executor(broker, _session_factory(), Guard())
+    sig = Signal(symbol="EURUSD", side="BUY", entry=1.1000, sl=1.0980,
+                 tp=1.1026, zone=None, rr=1.3, decel={})
+
+    asyncio.run(executor.execute(sig))
+
+    with executor.db() as s:
+        assert s.query(Trade).count() == 0   # no order attempted, nothing persisted

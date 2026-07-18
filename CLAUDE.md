@@ -110,6 +110,7 @@ Jeder Auto-Trade speichert den auslösenden H4-Deceleration-Snapshot in `trades.
 | `spread_retention_days` | 30 | Spread-Samples älter als N Tage werden geprunt |
 | `stale_spread_guard_mult` | 3.0 | Zeit-Stop-Close wird verschoben, wenn Live-Spread > N× 24h-Median |
 | `stale_close_max_defer_min` | 120 | Obergrenze fürs Verschieben — danach wird trotzdem geschlossen |
+| `rollover_blackout_start_h`/`_end_h` | 22 / 1 | Broker-Zeit-Fenster: keine neuen Entries, kein Zeit-Stop-Close |
 
 ### Symbole (11)
 **Forex (Mo–Fr):** EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, EURGBP, EURJPY, USDCAD
@@ -210,6 +211,15 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   und im nächsten Zyklus erneut geprüft — gedeckelt durch `stale_close_max_defer_min` (120), damit ein
   dauerhaft weiter Markt einen toten Trade nicht ewig parkt. Ohne Baseline (< 12 Samples in 24h, z. B.
   frisch nach Deploy) steht der Guard still und der Close läuft wie bisher.
+- **Rollover-Blackout (fester Broker-Zeit-Block, `market_hours.in_rollover_blackout`):** zusätzlich zum
+  Baseline-Guard oben ein baseline-freier, harter Block zwischen `rollover_blackout_start_h`/`_end_h`
+  (Default 22:00–01:00 Broker-Zeit, überbrückt Mitternacht). Greift an **zwei** Stellen: `executor.py`
+  lehnt neue Entries in dem Fenster ab (`[SKIP] rollover blackout window`), `reconcile.py`s Zeit-Stop
+  verschiebt Closes genauso wie beim Spread-Guard. Grund für den zusätzlichen, simpleren Block: der
+  Baseline-Guard braucht erst 12 Samples/24h und deckt nur den Zeit-Stop-Exit ab, nicht neue Orders.
+  Broker-Offset wird live aus einem Tick abgeleitet (`tick["time"]` minus echte Zeit), exakt wie
+  `mt5_adapter._broker_utc_offset_h()` — bei unplausiblem Offset (z. B. Dummy-Tick in Tests) fällt die
+  Prüfung offen (kein Block) statt falsch zu blocken.
 - **Zeit-Stop** (`_maybe_close_stale`): läuft ein Trade länger als `max_hold_min` **Markt-Minuten**
   (`market_hours.market_elapsed_minutes()` — bei Forex zählt das Wochenende **nicht** mit, ein
   Freitagabend-Trade tickt über Sa/So nicht weiter; Crypto zählt roh, da 24/7) UND der **aktuelle**

@@ -1,5 +1,6 @@
 """Forex session gating. Crypto trades 24/7; forex is closed on weekends, so the
 engine must not fire (and rack up rejected orders) when the market is shut."""
+import time as _time
 from datetime import datetime, timedelta, timezone
 
 CRYPTO = {"BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"}
@@ -34,6 +35,31 @@ def is_forex_open(now: datetime | None = None) -> bool:
 
 def market_open(symbol: str, now: datetime | None = None) -> bool:
     return True if is_crypto(symbol) else is_forex_open(now)
+
+
+def in_rollover_blackout(tick_time: float, now: datetime | None = None,
+                          start_hour: int = 22, end_hour: int = 1) -> bool:
+    """True if the BROKER's local clock is within the daily rollover blackout
+    window (default 22:00-01:00, wraps midnight). Observed live (USDJPY,
+    2026-07-16): spread went from ~1 point normal to ~70 points right at
+    broker midnight, well outside the symbol's usual range — the exact
+    mechanism `stale_spread_guard_mult` polices for the time-stop, but that
+    guard needs 24h of baseline samples first and only covers that one exit
+    path. This is a blunter, always-on backstop with no baseline dependency:
+    no new entries, no time-stop closes, during the known-bad window.
+
+    `tick_time` is any fresh MT5 tick's raw epoch seconds — same broker-local-
+    encoded convention `mt5_adapter.closed_position()` corrects for. The gap
+    to real UTC now gives the live offset (handles DST automatically, same
+    as the existing `_broker_utc_offset_h()`)."""
+    now = now or datetime.now(timezone.utc)
+    off = round((tick_time - _time.time()) / 3600)
+    if not -12 <= off <= 14:      # implausible (e.g. dummy tick in tests) -> fail open
+        return False
+    broker_hour = (now + timedelta(hours=off)).hour
+    if start_hour <= end_hour:
+        return start_hour <= broker_hour < end_hour
+    return broker_hour >= start_hour or broker_hour < end_hour
 
 
 def _weekend_closure_minutes(start: datetime, end: datetime) -> float:
