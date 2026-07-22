@@ -65,20 +65,23 @@ function equityCurve(d: BotData): { time: number; value: number }[] {
   });
 }
 
-// Fixed number of trade-slots the chart always reserves, regardless of how
-// many trades actually exist yet — this is what keeps spacing constant (see
-// the comment on setVisibleLogicalRange below) instead of proportional to
-// the current trade count.
+// Fixed number of trade-slots each chart reserves while there's room —
+// this is what keeps spacing constant (see the effect below) instead of
+// proportional to the current trade count. Once a bot's OWN trade count
+// reaches this, ITS chart switches to fitContent() and starts compressing —
+// but only then, and only for that bot: v3 and v4 now get one chart each
+// (see EquityChart usage below), so a fast-trading v4 filling its window
+// doesn't force v3's much shorter curve to stretch or compress to match.
 const EQUITY_CHART_WINDOW = 30;
 
-function EquityChart({ series }: { series: { data: { time: number; value: number }[]; color: string; label: string }[] }) {
+function EquityChart({ data, color }: { data: { time: number; value: number }[]; color: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi>();
 
   useEffect(() => {
-    if (!ref.current) return;
+    if (!ref.current || !data.length) return;
     const chart = createChart(ref.current, {
-      height: 320,
+      height: 220,
       autoSize: true,
       layout: { background: { type: ColorType.Solid, color: "#0e1117" }, textColor: "#c9d1d9" },
       grid: { vertLines: { color: "#1b1f27" }, horzLines: { color: "#1b1f27" } },
@@ -94,27 +97,29 @@ function EquityChart({ series }: { series: { data: { time: number; value: number
       },
     });
     chartRef.current = chart;
-    series.forEach((s) => {
-      if (!s.data.length) return;
-      // No title/last-value label box at the curve's end — color alone
-      // identifies the series (matches the color-coded stats table below).
-      const line = chart.addLineSeries({
-        color: s.color, lineWidth: 2,
-        lastValueVisible: false, priceLineVisible: false,
-      });
-      line.setData(s.data as any);
+    // No title/last-value label box at the curve's end — color alone
+    // identifies the series (matches the color-coded stats table below).
+    const line = chart.addLineSeries({
+      color, lineWidth: 2,
+      lastValueVisible: false, priceLineVisible: false,
     });
-    // Deliberately NOT fitContent(): that rescales bar spacing to fill the
-    // full width with whatever data currently exists, so every new trade
-    // re-compresses all the earlier ones. A fixed logical window instead
-    // pins trade #1 to the left edge with constant, unchanging spacing per
-    // trade — the curve simply extends into already-reserved blank space on
-    // the right as more trades land, never redrawing the existing history.
-    chart.timeScale().setVisibleLogicalRange({ from: -0.5, to: EQUITY_CHART_WINDOW - 0.5 });
-    return () => chart.remove();
-  }, [series]);
+    line.setData(data as any);
 
-  return <div ref={ref} style={{ width: "100%", height: 320 }} />;
+    if (data.length < EQUITY_CHART_WINDOW) {
+      // Fewer trades than the window: fixed spacing, trade #1 pinned to the
+      // left edge, curve simply extends into already-reserved blank space
+      // on the right as new trades land — never redraws/compresses history.
+      chart.timeScale().setVisibleLogicalRange({ from: -0.5, to: EQUITY_CHART_WINDOW - 0.5 });
+    } else {
+      // The curve has filled its own window — only NOW start behaving like
+      // a normal auto-fit chart (which will keep compressing as more trades
+      // arrive beyond this point, but not before it had to).
+      chart.timeScale().fitContent();
+    }
+    return () => chart.remove();
+  }, [data, color]);
+
+  return <div ref={ref} style={{ width: "100%", height: 220 }} />;
 }
 
 const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(0)}%`);
@@ -165,8 +170,8 @@ export function ComparePage() {
 
   const rows = BACKENDS.map((b) => ({ b, d: data[b.key] }));
   const chartSeries = rows
-    .filter((r) => r.d && !r.d.error)
-    .map((r) => ({ data: equityCurve(r.d!), color: r.b.color, label: r.d!.label }));
+    .filter((r) => r.d && !r.d.error && equityCurve(r.d!).length)
+    .map((r) => ({ key: r.b.key, data: equityCurve(r.d!), color: r.b.color, label: r.d!.label }));
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", padding: 20, color: "#c9d1d9" }}>
@@ -178,10 +183,17 @@ export function ComparePage() {
       <div style={{ background: "#161b22", borderRadius: 8, padding: 12, marginBottom: 16 }}>
         <div style={{ fontWeight: 600, marginBottom: 8 }}>
           Kumulierter P/L (realisiert)
-          <span style={{ color: "#8b949e", fontWeight: 400 }}> — nach Trade-Nummer, nicht Kalenderdatum</span>
+          <span style={{ color: "#8b949e", fontWeight: 400 }}> — nach Trade-Nummer, unabhängig skaliert je Bot</span>
         </div>
-        {chartSeries.some((s) => s.data.length) ? (
-          <EquityChart series={chartSeries} />
+        {chartSeries.length ? (
+          <div style={{ display: "grid", gap: 12 }}>
+            {chartSeries.map((s) => (
+              <div key={s.key}>
+                <div style={{ fontSize: 12, color: s.color, marginBottom: 4 }}>{s.label}</div>
+                <EquityChart data={s.data} color={s.color} />
+              </div>
+            ))}
+          </div>
         ) : (
           <div style={{ color: "#8b949e", padding: 20 }}>Noch keine geschlossenen Trades auf beiden Instanzen.</div>
         )}
