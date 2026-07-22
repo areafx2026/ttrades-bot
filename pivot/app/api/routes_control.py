@@ -50,4 +50,5 @@ def status():
             "bot_name": settings.bot_name,
             "zone_timeframe": settings.zone_timeframe,
             "entry_timeframe": settings.entry_timeframe,
-            "broker_utc_offset_h": broker_offset_h}
+            "broker_utc_offset_h": broker_offset_h,
+            "hour_blackout_hours": settings.hour_blackout_hours if settings.hour_blackout_enabled else []}

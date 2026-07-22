@@ -4,7 +4,7 @@ from app.db.models import Trade, TradeState, Side
 from app.services.events import bus
 from app.engine.risk import position_size
 from app.config import settings
-from app.strategy.market_hours import in_rollover_blackout
+from app.strategy.market_hours import in_hour_blackout, in_rollover_blackout
 
 
 class Executor:
@@ -41,6 +41,14 @@ class Executor:
         # blow the risk_eur budget on entry just like it did on the exit side.
         if settings.rollover_blackout_enabled and tick and in_rollover_blackout(tick.get("time", 0)):
             bus.publish("skip", {"symbol": sig.symbol, "reason": "rollover blackout window"})
+            return
+
+        # Per-instance "historically our worst entry hour" block (see
+        # config.hour_blackout_hours) — new entries only, doesn't touch a
+        # trade that's already running.
+        if (settings.hour_blackout_enabled and tick
+                and in_hour_blackout(tick.get("time", 0), settings.hour_blackout_hours)):
+            bus.publish("skip", {"symbol": sig.symbol, "reason": "hour blackout window"})
             return
 
         # A zone narrower than a few spreads produces SL/TP the broker will

@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 import app.strategy.market_hours as mh
-from app.strategy.market_hours import in_rollover_blackout, market_elapsed_minutes
+from app.strategy.market_hours import in_hour_blackout, in_rollover_blackout, market_elapsed_minutes
 
 UTC = timezone.utc
 
@@ -81,3 +81,27 @@ def test_rollover_blackout_fails_open_on_implausible_offset(monkeypatch):
     now = datetime(2026, 7, 16, 21, 30, tzinfo=UTC)   # would be "inside" at +3h
     monkeypatch.setattr(mh._time, "time", lambda: now.timestamp())
     assert in_rollover_blackout(0.0, now) is False   # dummy epoch -> offset absurd -> fail open
+
+
+def test_hour_blackout_matches_listed_hour(monkeypatch):
+    now = datetime(2026, 7, 22, 13, 0, tzinfo=UTC)    # broker (+3h) = 16:00
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_hour_blackout(tt, [16], now) is True
+
+
+def test_hour_blackout_does_not_match_other_hours(monkeypatch):
+    now = datetime(2026, 7, 22, 14, 0, tzinfo=UTC)    # broker (+3h) = 17:00
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_hour_blackout(tt, [16], now) is False
+
+
+def test_hour_blackout_empty_list_blocks_nothing(monkeypatch):
+    now = datetime(2026, 7, 22, 13, 0, tzinfo=UTC)    # broker (+3h) = 16:00
+    tt = _tick_time(now, 3, monkeypatch)
+    assert in_hour_blackout(tt, [], now) is False
+
+
+def test_hour_blackout_fails_open_on_implausible_offset(monkeypatch):
+    now = datetime(2026, 7, 22, 13, 0, tzinfo=UTC)
+    monkeypatch.setattr(mh._time, "time", lambda: now.timestamp())
+    assert in_hour_blackout(0.0, [16], now) is False

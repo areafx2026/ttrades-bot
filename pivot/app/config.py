@@ -83,6 +83,13 @@ class Settings(BaseSettings):
     rollover_blackout_enabled: bool = True
     rollover_blackout_start_h: int = 22
     rollover_blackout_end_h: int = 1
+    # Per-instance "this broker-local hour has historically been our worst"
+    # block on NEW entries only (an already-open trade isn't touched — a bad
+    # entry hour doesn't retroactively make a running trade worse). Snapshot
+    # decision from /compare's hour-of-day chart, not an auto-adapting stat —
+    # revisit as more trades accumulate. Empty by default (v3 unaffected).
+    hour_blackout_enabled: bool = False
+    hour_blackout_hours: list[int] = []
     scan_interval_s: int = 60
     snapshot_interval_s: int = 300   # account_snapshots cadence (equity curve)
     # ── spread monitor ────────────────────────────────────────────────────────

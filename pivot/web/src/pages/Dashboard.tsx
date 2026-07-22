@@ -17,11 +17,13 @@ export function Dashboard({ state }: { state: State }) {
   const [restZones, setRestZones] = useState<Record<string, any[]>>({});
   const [botName, setBotName] = useState("Pivot");
   const [brokerOffsetH, setBrokerOffsetH] = useState(0);
+  const [blockedHours, setBlockedHours] = useState<number[]>([]);
 
   useEffect(() => {
     api.status().then((s: any) => {
       if (s?.bot_name) setBotName(s.bot_name);
       if (typeof s?.broker_utc_offset_h === "number") setBrokerOffsetH(s.broker_utc_offset_h);
+      if (Array.isArray(s?.hour_blackout_hours)) setBlockedHours(s.hour_blackout_hours);
     }).catch(() => {});
   }, []);
 
@@ -82,7 +84,7 @@ export function Dashboard({ state }: { state: State }) {
         ))}
       </div>
 
-      <HourOfDayChart trades={trades} brokerOffsetH={brokerOffsetH} />
+      <HourOfDayChart trades={trades} brokerOffsetH={brokerOffsetH} blockedHours={blockedHours} />
 
       <ZoneTable zones={{ [symbol]: zonesAll[symbol] ?? [] }} />
       <TradesTable trades={trades} />

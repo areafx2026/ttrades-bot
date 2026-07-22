@@ -109,3 +109,47 @@ def test_execute_blocks_new_entries_during_rollover_blackout(monkeypatch):
 
     with executor.db() as s:
         assert s.query(Trade).count() == 0   # no order attempted, nothing persisted
+
+
+def test_execute_blocks_new_entries_during_hour_blackout(monkeypatch):
+    monkeypatch.setattr(settings, "hour_blackout_enabled", True)
+    monkeypatch.setattr(settings, "hour_blackout_hours", [16])
+    now = datetime(2026, 7, 22, 13, 0, tzinfo=timezone.utc)   # broker (+3h) = 16:00
+    _freeze_now(monkeypatch, now)
+    tick_time = now.timestamp() + 3 * 3600
+
+    class HourBlockedBroker(FakeBroker):
+        def tick(self, symbol):
+            return {"bid": self.bid, "ask": self.ask, "time": tick_time}
+
+    broker = HourBlockedBroker(bid=1.1050, ask=1.1052)
+    executor = Executor(broker, _session_factory(), Guard())
+    sig = Signal(symbol="EURUSD", side="BUY", entry=1.1000, sl=1.0980,
+                 tp=1.1026, zone=None, rr=1.3, decel={})
+
+    asyncio.run(executor.execute(sig))
+
+    with executor.db() as s:
+        assert s.query(Trade).count() == 0
+
+
+def test_execute_allows_entries_outside_hour_blackout(monkeypatch):
+    monkeypatch.setattr(settings, "hour_blackout_enabled", True)
+    monkeypatch.setattr(settings, "hour_blackout_hours", [16])
+    now = datetime(2026, 7, 22, 14, 0, tzinfo=timezone.utc)   # broker (+3h) = 17:00
+    _freeze_now(monkeypatch, now)
+    tick_time = now.timestamp() + 3 * 3600
+
+    class OtherHourBroker(FakeBroker):
+        def tick(self, symbol):
+            return {"bid": self.bid, "ask": self.ask, "time": tick_time}
+
+    broker = OtherHourBroker(bid=1.1050, ask=1.1052)
+    executor = Executor(broker, _session_factory(), Guard())
+    sig = Signal(symbol="EURUSD", side="BUY", entry=1.1000, sl=1.0980,
+                 tp=1.1026, zone=None, rr=1.3, decel={})
+
+    asyncio.run(executor.execute(sig))
+
+    with executor.db() as s:
+        assert s.query(Trade).filter(Trade.state == TradeState.OPEN).count() == 1

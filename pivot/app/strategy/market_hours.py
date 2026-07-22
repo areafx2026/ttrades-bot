@@ -37,6 +37,20 @@ def market_open(symbol: str, now: datetime | None = None) -> bool:
     return True if is_crypto(symbol) else is_forex_open(now)
 
 
+def _broker_hour(tick_time: float, now: datetime | None = None) -> int | None:
+    """The BROKER's local clock hour, derived live from a tick's raw epoch —
+    same broker-local-encoded convention `mt5_adapter._broker_utc_offset_h()`
+    corrects for elsewhere (closed_at conversion). The gap between the tick's
+    epoch and real UTC now gives the live offset (handles DST automatically).
+    None on an implausible offset (e.g. a dummy tick in tests) — callers
+    should treat that as "unknown, don't block on it"."""
+    now = now or datetime.now(timezone.utc)
+    off = round((tick_time - _time.time()) / 3600)
+    if not -12 <= off <= 14:
+        return None
+    return (now + timedelta(hours=off)).hour
+
+
 def in_rollover_blackout(tick_time: float, now: datetime | None = None,
                           start_hour: int = 22, end_hour: int = 1) -> bool:
     """True if the BROKER's local clock is within the daily rollover blackout
@@ -46,20 +60,23 @@ def in_rollover_blackout(tick_time: float, now: datetime | None = None,
     mechanism `stale_spread_guard_mult` polices for the time-stop, but that
     guard needs 24h of baseline samples first and only covers that one exit
     path. This is a blunter, always-on backstop with no baseline dependency:
-    no new entries, no time-stop closes, during the known-bad window.
-
-    `tick_time` is any fresh MT5 tick's raw epoch seconds — same broker-local-
-    encoded convention `mt5_adapter.closed_position()` corrects for. The gap
-    to real UTC now gives the live offset (handles DST automatically, same
-    as the existing `_broker_utc_offset_h()`)."""
-    now = now or datetime.now(timezone.utc)
-    off = round((tick_time - _time.time()) / 3600)
-    if not -12 <= off <= 14:      # implausible (e.g. dummy tick in tests) -> fail open
+    no new entries, no time-stop closes, during the known-bad window."""
+    h = _broker_hour(tick_time, now)
+    if h is None:
         return False
-    broker_hour = (now + timedelta(hours=off)).hour
     if start_hour <= end_hour:
-        return start_hour <= broker_hour < end_hour
-    return broker_hour >= start_hour or broker_hour < end_hour
+        return start_hour <= h < end_hour
+    return h >= start_hour or h < end_hour
+
+
+def in_hour_blackout(tick_time: float, blocked_hours: list[int], now: datetime | None = None) -> bool:
+    """True if the broker-local hour is in `blocked_hours` — a per-instance
+    "don't open new trades in this hour, it's historically been our worst"
+    rule (see config.hour_blackout_hours). Unlike the rollover blackout this
+    only ever gates new entries, never the time-stop exit — a bad ENTRY hour
+    doesn't mean a trade already running should be treated differently."""
+    h = _broker_hour(tick_time, now)
+    return h is not None and h in blocked_hours
 
 
 def _weekend_closure_minutes(start: datetime, end: datetime) -> float:
