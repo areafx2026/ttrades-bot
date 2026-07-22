@@ -4,8 +4,6 @@ export const api = {
   account: () => fetch("/api/account").then(j),
   zones: (symbol?: string) =>
     fetch(`/api/zones${symbol ? `?symbol=${symbol}` : ""}`).then(j),
-  candles: (symbol: string, tf = "H4", count = 120) =>
-    fetch(`/api/zones/${symbol}/candles?timeframe=${tf}&count=${count}`).then(j),
   trades: (state?: string) =>
     fetch(`/api/trades${state ? `?state=${state}` : ""}`).then(j),
   status: () => fetch("/api/control/status").then(j),

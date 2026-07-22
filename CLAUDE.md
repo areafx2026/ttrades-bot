@@ -322,8 +322,19 @@ Broker-Positionsstand liest statt eines prozesslokalen Zählers:**
 **Vergleichsansicht:** `/compare` (neue Seite in der bestehenden SPA, `web/src/pages/ComparePage.tsx`,
 über den Link oben rechts im Dashboard erreichbar) holt `GET /api/trades` + `GET /api/control/status` von
 **beiden** Ports per Cross-Origin-Fetch (`CORSMiddleware` in `main.py` erlaubt `127.0.0.1:8000`/`8001`) und
-zeigt Win-Rate/Trades-pro-Tag/Gesamt-P/L/Ø-R nebeneinander plus eine kumulierte-P/L-Kurve
+zeigt Win-Rate/Trades-pro-Tag/Gesamt-P/L/Ø-R nebeneinander plus **getrennte, unabhängig skalierte**
+kumulierte-P/L-Kurven pro Bot (`EquityChart`, ein Chart je Bot — sonst würde ein schneller handelnder
+Bot wie v4 die Skalierung/Kompression für v3s deutlich kürzere Kurve mit erzwingen; feste Balkenbreite
+bis `EQUITY_CHART_WINDOW` (30) Trades erreicht sind, danach `fitContent()`, jeweils **pro Kurve**).
 (**nicht** Account-Equity — die wäre kontoweit geteilt und würde v3/v4 nicht trennbar machen).
+
+**Dashboard (v3 wie v4):** Das Kerzenchart wurde entfernt (2026-07-22, ebenso den zugehörigen
+`GET /api/zones/{symbol}/candles`-Endpoint und `ChartPanel.tsx`) und durch eine **Win/Loss-nach-Uhrzeit-
+Analyse** ersetzt (`HourOfDayChart.tsx`): 24-Stunden-Histogramm über alle Symbole, gebucketed nach
+**Broker-lokaler Entry-Stunde** (`opened_at`, nicht `closed_at` — Entry-Zeit ist die tatsächlich
+handlungsrelevante Größe, Close-Zeit hängt nur von der Haltedauer ab). Der Broker-Offset kommt vom
+Backend (`GET /api/control/status` → `broker_utc_offset_h`, wiederverwendet
+`mt5_adapter._broker_utc_offset_h()`), nicht clientseitig geraten.
 
 ---
 

@@ -38,6 +38,10 @@ def force_scan():
 
 @router.get("/control/status")
 def status():
+    try:
+        broker_offset_h = deps.broker._broker_utc_offset_h()
+    except Exception:
+        broker_offset_h = 0   # e.g. MT5 unreachable — dashboard falls back to UTC labels
     return {"auto_enabled": deps.guard.enabled,
             "symbols": settings.symbols,
             "risk_eur": settings.risk_eur,
@@ -45,4 +49,5 @@ def status():
             "min_touches": settings.min_touches,
             "bot_name": settings.bot_name,
             "zone_timeframe": settings.zone_timeframe,
-            "entry_timeframe": settings.entry_timeframe}
+            "entry_timeframe": settings.entry_timeframe,
+            "broker_utc_offset_h": broker_offset_h}

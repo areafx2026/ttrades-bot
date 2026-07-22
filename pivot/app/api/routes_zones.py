@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Query
 from app.api import deps
-from app.config import settings
 
 router = APIRouter()
 
@@ -17,10 +16,3 @@ def zones(symbol: str | None = Query(None)):
                      "support": z.tests_support, "resist": z.tests_resist}
                     for z in zs]
     return out
-
-
-@router.get("/zones/{symbol}/candles")
-def zone_candles(symbol: str, timeframe: str = "H4", count: int = 120):
-    df = deps.broker.candles(symbol, timeframe, count)
-    return [{"time": int(r["time"].timestamp()), "open": r["open"], "high": r["high"],
-             "low": r["low"], "close": r["close"]} for _, r in df.iterrows()]
