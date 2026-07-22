@@ -96,7 +96,12 @@ function EquityChart({ series }: { series: { data: { time: number; value: number
     chartRef.current = chart;
     series.forEach((s) => {
       if (!s.data.length) return;
-      const line = chart.addLineSeries({ color: s.color, lineWidth: 2, title: s.label });
+      // No title/last-value label box at the curve's end — color alone
+      // identifies the series (matches the color-coded stats table below).
+      const line = chart.addLineSeries({
+        color: s.color, lineWidth: 2,
+        lastValueVisible: false, priceLineVisible: false,
+      });
       line.setData(s.data as any);
     });
     // Deliberately NOT fitContent(): that rescales bar spacing to fill the
