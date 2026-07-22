@@ -111,6 +111,7 @@ Jeder Auto-Trade speichert den auslösenden H4-Deceleration-Snapshot in `trades.
 | `stale_spread_guard_mult` | 3.0 | Zeit-Stop-Close wird verschoben, wenn Live-Spread > N× 24h-Median |
 | `stale_close_max_defer_min` | 120 | Obergrenze fürs Verschieben — danach wird trotzdem geschlossen |
 | `rollover_blackout_start_h`/`_end_h` | 22 / 1 | Broker-Zeit-Fenster: keine neuen Entries, kein Zeit-Stop-Close |
+| `hour_blackout_enabled` / `_hours` | false / [] | Per-Instanz-Liste „historisch schlechtester Stunden" — blockt nur neue Entries |
 
 ### Symbole (11)
 **Forex (Mo–Fr):** EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, EURGBP, EURJPY, USDCAD
@@ -183,6 +184,15 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   relativ zum echten Fill** wieder `rr` (1.3) ist. Der **SL bleibt strukturell** (eine Zonenbreite hinter der
   fernen Kante). Ohne das driftet das realisierte RR (z. B. 0.84 statt 1.3, wenn der Preis schnell in die Zone lief).
   Der nachgezogene TP wird in `trades.tp` gespeichert; schlägt das Modify fehl, bleibt der ursprüngliche TP.
+- **Stunden-Blackout (`hour_blackout_enabled`/`_hours`, `market_hours.in_hour_blackout`):** Per-Instanz-Liste
+  "historisch schlechtester Broker-Stunden", blockt **nur neue Entries** (`[SKIP] hour blackout window`) —
+  ein bereits offener Trade wird nicht angefasst, eine schlechte Entry-Stunde macht einen laufenden Trade
+  nicht rückwirkend schlechter, und Exit-Timing bleibt allein Sache von Zeit-Stop/Rollover-Blackout. Nutzt
+  denselben `_broker_hour()`-Offset wie `in_rollover_blackout` (live aus Tick-Epoch, fail-open bei
+  unplausiblem Offset). Snapshot-Entscheidung aus `/compare`s Stunden-Chart (siehe unten), keine
+  automatisch nachziehende Statistik — bewusst manuell zu revidieren, sobald mehr Daten da sind.
+  **v4 seit 2026-07-22:** `HOUR_BLACKOUT_HOURS=[16]` (16:00 Broker-Zeit: 4 Losses/1 Win, klar schlechteste
+  Stunde bei noch dünner Datenlage von ~43 Trades/24h). v3 unverändert deaktiviert (Default `false`/`[]`).
 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
@@ -334,7 +344,9 @@ Analyse** ersetzt (`HourOfDayChart.tsx`): 24-Stunden-Histogramm über alle Symbo
 **Broker-lokaler Entry-Stunde** (`opened_at`, nicht `closed_at` — Entry-Zeit ist die tatsächlich
 handlungsrelevante Größe, Close-Zeit hängt nur von der Haltedauer ab). Der Broker-Offset kommt vom
 Backend (`GET /api/control/status` → `broker_utc_offset_h`, wiederverwendet
-`mt5_adapter._broker_utc_offset_h()`), nicht clientseitig geraten.
+`mt5_adapter._broker_utc_offset_h()`), nicht clientseitig geraten. Stunden, die per
+`hour_blackout_hours` gesperrt sind, werden im Chart markiert (schattierte Spalte + 🔒-Icon, Liste in der
+Kopfzeile) — Werte kommen ebenfalls aus `/api/control/status`, keine eigene Berechnung im Frontend.
 
 ---
 
