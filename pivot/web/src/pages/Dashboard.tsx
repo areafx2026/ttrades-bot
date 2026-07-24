@@ -22,6 +22,14 @@ export function Dashboard({ state }: { state: State }) {
     }).catch(() => {});
   }, []);
 
+  // Same compiled bundle serves both v3 and v4 (see CLAUDE.md) — the static
+  // index.html title can't distinguish them, so set it from the per-instance
+  // bot_name once status is known (browser tab/history would otherwise show
+  // "Pivot v3.0" on both).
+  useEffect(() => {
+    document.title = `${botName} — Trading Dashboard`;
+  }, [botName]);
+
   // REST hydrate + poll. The engine is the source of truth — account/trades/zones
   // are pulled on load and refreshed, so nothing depends on having caught a live
   // WS event (zones are only pushed on the 6h rescan).
