@@ -6,12 +6,7 @@ import { HourOfDayChart } from "../components/HourOfDayChart";
 import { ZoneTable } from "../components/ZoneTable";
 import { TradesTable } from "../components/TradesTable";
 
-const SYMBOLS = ["EURUSD", "USDJPY", "GBPUSD", "USDCHF", "AUDUSD", "USDCAD",
-                 "EURGBP", "EURJPY",
-                 "BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"];
-
 export function Dashboard({ state }: { state: State }) {
-  const [symbol, setSymbol] = useState(SYMBOLS[0]);
   const [account, setAccount] = useState<any>(null);
   const [trades, setTrades] = useState<any[]>([]);
   const [restZones, setRestZones] = useState<Record<string, any[]>>({});
@@ -73,20 +68,9 @@ export function Dashboard({ state }: { state: State }) {
 
       <AccountBar account={account ?? state.account} autoEnabled={state.autoEnabled} />
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-        {SYMBOLS.map((s) => (
-          <button key={s} onClick={() => setSymbol(s)} style={{
-            padding: "6px 12px", borderRadius: 6, cursor: "pointer",
-            border: "1px solid #30363d",
-            background: s === symbol ? "#1f6feb" : "#161b22",
-            color: "#fff", fontWeight: s === symbol ? 700 : 400,
-          }}>{s}</button>
-        ))}
-      </div>
-
       <HourOfDayChart trades={trades} brokerOffsetH={brokerOffsetH} blockedHours={blockedHours} />
 
-      <ZoneTable zones={{ [symbol]: zonesAll[symbol] ?? [] }} />
+      <ZoneTable zones={zonesAll} />
       <TradesTable trades={trades} />
     </div>
   );

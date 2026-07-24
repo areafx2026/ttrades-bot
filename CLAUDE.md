@@ -191,8 +191,10 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   denselben `_broker_hour()`-Offset wie `in_rollover_blackout` (live aus Tick-Epoch, fail-open bei
   unplausiblem Offset). Snapshot-Entscheidung aus `/compare`s Stunden-Chart (siehe unten), keine
   automatisch nachziehende Statistik — bewusst manuell zu revidieren, sobald mehr Daten da sind.
-  **v4 seit 2026-07-22:** `HOUR_BLACKOUT_HOURS=[16]` (16:00 Broker-Zeit: 4 Losses/1 Win, klar schlechteste
-  Stunde bei noch dünner Datenlage von ~43 Trades/24h). v3 unverändert deaktiviert (Default `false`/`[]`).
+  **Seit 2026-07-24 auf beiden Instanzen:** `HOUR_BLACKOUT_HOURS=[14,15,16,17]` (14:00–17:00 Broker-Zeit),
+  in `.env`/`.env.v4` gesetzt. Löst die frühere v4-only-Einstellung ab (`[16]`, seit 2026-07-22, basierend
+  auf 4 Losses/1 Win in dieser einen Stunde bei ~43 Trades/24h) — auf Wunsch des Users bewusst breiter
+  und auf v3 ausgeweitet, nicht mehr nur die statistisch schlechteste Einzelstunde.
 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
@@ -346,7 +348,9 @@ handlungsrelevante Größe, Close-Zeit hängt nur von der Haltedauer ab). Der Br
 Backend (`GET /api/control/status` → `broker_utc_offset_h`, wiederverwendet
 `mt5_adapter._broker_utc_offset_h()`), nicht clientseitig geraten. Stunden, die per
 `hour_blackout_hours` gesperrt sind, werden im Chart markiert (schattierte Spalte + 🔒-Icon, Liste in der
-Kopfzeile) — Werte kommen ebenfalls aus `/api/control/status`, keine eigene Berechnung im Frontend.
+Kopfzeile) — Werte kommen ebenfalls aus `/api/control/status`, keine eigene Berechnung im Frontend. Die
+Symbol-Auswahl-Buttons über der Zonen-Tabelle wurden am 2026-07-24 entfernt — `ZoneTable` zeigt seither
+alle Symbole gleichzeitig statt eines einzeln ausgewählten.
 
 ---
 
