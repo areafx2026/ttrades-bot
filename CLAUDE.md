@@ -191,10 +191,12 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   denselben `_broker_hour()`-Offset wie `in_rollover_blackout` (live aus Tick-Epoch, fail-open bei
   unplausiblem Offset). Snapshot-Entscheidung aus `/compare`s Stunden-Chart (siehe unten), keine
   automatisch nachziehende Statistik — bewusst manuell zu revidieren, sobald mehr Daten da sind.
-  **Seit 2026-07-24 auf beiden Instanzen:** `HOUR_BLACKOUT_HOURS=[14,15,16,17]` (14:00–17:00 Broker-Zeit),
-  in `.env`/`.env.v4` gesetzt. Löst die frühere v4-only-Einstellung ab (`[16]`, seit 2026-07-22, basierend
-  auf 4 Losses/1 Win in dieser einen Stunde bei ~43 Trades/24h) — auf Wunsch des Users bewusst breiter
-  und auf v3 ausgeweitet, nicht mehr nur die statistisch schlechteste Einzelstunde.
+  **Seit 2026-07-25 auf beiden Instanzen:** `HOUR_BLACKOUT_HOURS=[16,17,18]` (16:00–18:00 Broker-Zeit
+  == 15:00–17:00 Browser-Zeit/Europe-Berlin im Sommer, da Broker UTC+3 und Browser UTC+2), in
+  `.env`/`.env.v4` gesetzt. Der User denkt/gibt diese Fenster in seiner eigenen Uhr an (das Dashboard
+  zeigt den Stunden-Chart seit 2026-07-25 ebenfalls in Browser-Zeit, s. u.) — hier weiterhin in
+  Broker-Zeit dokumentiert, weil genau das ist, was der Code tatsächlich prüft. War zuvor
+  `[14,15,16,17]` (14:00–17:00 Broker-Zeit, seit 2026-07-24, davor v4-only `[16]` seit 2026-07-22).
 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
