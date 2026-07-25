@@ -4,9 +4,10 @@ type Trade = { opened_at?: string | null; state: string; result?: string | null 
  * shown in the viewer's own clock so it lines up with how a trader reasons
  * about session times (e.g. "15:30 my time is NY open"), matching the
  * "Opened" column in the trades table below (also browser-local). The
- * actual entry blackout is enforced in broker time on the backend
- * (session boundaries are fixed to the broker's clock, not the viewer's) —
- * blockedHours is converted for display only, see below. */
+ * hour-of-day blackout itself is also specified and enforced in the
+ * operator's own clock now (market_hours.in_hour_blackout, OPERATOR_TZ) —
+ * not the broker's — so blockedHours arrives already in the same timezone
+ * as these bars, no conversion needed. */
 function bucketByHour(trades: Trade[]): { win: number; loss: number }[] {
   const buckets = Array.from({ length: 24 }, () => ({ win: 0, loss: 0 }));
   for (const t of trades) {
@@ -20,17 +21,12 @@ function bucketByHour(trades: Trade[]): { win: number; loss: number }[] {
 
 const hh = (h: number) => String(h).padStart(2, "0");
 
-export function HourOfDayChart({ trades, brokerOffsetH, blockedHours = [] }:
-                                { trades: Trade[]; brokerOffsetH: number; blockedHours?: number[] }) {
+export function HourOfDayChart({ trades, blockedHours = [] }:
+                                { trades: Trade[]; blockedHours?: number[] }) {
   const buckets = bucketByHour(trades);
   const totalTrades = buckets.reduce((s, b) => s + b.win + b.loss, 0);
   const max = Math.max(1, ...buckets.map((b) => Math.max(b.win, b.loss)));
-  // blockedHours arrives in broker-local hours (that's what the backend
-  // actually enforces) — shift into browser-local hours so the shaded
-  // columns line up with the browser-local bars above.
-  const browserOffsetH = -new Date().getTimezoneOffset() / 60;
-  const shift = browserOffsetH - brokerOffsetH;
-  const blocked = new Set(blockedHours.map((h) => ((h + shift) % 24 + 24) % 24));
+  const blocked = new Set(blockedHours);
 
   const W = 1160, H = 210, padTop = 16, padBottom = 22, groupW = W / 24, barGap = 2;
   const barW = (groupW - barGap * 3) / 2;

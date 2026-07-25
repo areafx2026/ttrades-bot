@@ -45,9 +45,9 @@ class Executor:
 
         # Per-instance "historically our worst entry hour" block (see
         # config.hour_blackout_hours) — new entries only, doesn't touch a
-        # trade that's already running.
-        if (settings.hour_blackout_enabled and tick
-                and in_hour_blackout(tick.get("time", 0), settings.hour_blackout_hours)):
+        # trade that's already running. Read off the system clock in the
+        # operator's own timezone, not the broker's (see in_hour_blackout).
+        if settings.hour_blackout_enabled and in_hour_blackout(settings.hour_blackout_hours):
             bus.publish("skip", {"symbol": sig.symbol, "reason": "hour blackout window"})
             return
 

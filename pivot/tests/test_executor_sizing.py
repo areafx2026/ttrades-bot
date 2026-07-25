@@ -112,17 +112,14 @@ def test_execute_blocks_new_entries_during_rollover_blackout(monkeypatch):
 
 
 def test_execute_blocks_new_entries_during_hour_blackout(monkeypatch):
+    # Hour blackout is read off the OPERATOR's own clock (Europe/Berlin), not
+    # a broker tick -- _freeze_now's datetime.now() patch is all that's needed.
     monkeypatch.setattr(settings, "hour_blackout_enabled", True)
-    monkeypatch.setattr(settings, "hour_blackout_hours", [16])
-    now = datetime(2026, 7, 22, 13, 0, tzinfo=timezone.utc)   # broker (+3h) = 16:00
+    monkeypatch.setattr(settings, "hour_blackout_hours", [15])
+    now = datetime(2026, 7, 22, 13, 0, tzinfo=timezone.utc)   # Berlin (CEST, +2) = 15:00
     _freeze_now(monkeypatch, now)
-    tick_time = now.timestamp() + 3 * 3600
 
-    class HourBlockedBroker(FakeBroker):
-        def tick(self, symbol):
-            return {"bid": self.bid, "ask": self.ask, "time": tick_time}
-
-    broker = HourBlockedBroker(bid=1.1050, ask=1.1052)
+    broker = FakeBroker(bid=1.1050, ask=1.1052)
     executor = Executor(broker, _session_factory(), Guard())
     sig = Signal(symbol="EURUSD", side="BUY", entry=1.1000, sl=1.0980,
                  tp=1.1026, zone=None, rr=1.3, decel={})
@@ -135,16 +132,11 @@ def test_execute_blocks_new_entries_during_hour_blackout(monkeypatch):
 
 def test_execute_allows_entries_outside_hour_blackout(monkeypatch):
     monkeypatch.setattr(settings, "hour_blackout_enabled", True)
-    monkeypatch.setattr(settings, "hour_blackout_hours", [16])
-    now = datetime(2026, 7, 22, 14, 0, tzinfo=timezone.utc)   # broker (+3h) = 17:00
+    monkeypatch.setattr(settings, "hour_blackout_hours", [15])
+    now = datetime(2026, 7, 22, 14, 0, tzinfo=timezone.utc)   # Berlin (CEST, +2) = 16:00
     _freeze_now(monkeypatch, now)
-    tick_time = now.timestamp() + 3 * 3600
 
-    class OtherHourBroker(FakeBroker):
-        def tick(self, symbol):
-            return {"bid": self.bid, "ask": self.ask, "time": tick_time}
-
-    broker = OtherHourBroker(bid=1.1050, ask=1.1052)
+    broker = FakeBroker(bid=1.1050, ask=1.1052)
     executor = Executor(broker, _session_factory(), Guard())
     sig = Signal(symbol="EURUSD", side="BUY", entry=1.1000, sl=1.0980,
                  tp=1.1026, zone=None, rr=1.3, decel={})

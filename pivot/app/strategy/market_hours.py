@@ -2,8 +2,14 @@
 engine must not fire (and rack up rejected orders) when the market is shut."""
 import time as _time
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 CRYPTO = {"BTCUSD", "ETHUSD", "SOLUSD", "XRPUSD", "DOGEUSD"}
+
+# The operator's own clock, for the hour-of-day blackout (see in_hour_blackout)
+# -- a human preference about time of day, unlike the broker-time rollover
+# blackout which tracks a real server-side event.
+OPERATOR_TZ = ZoneInfo("Europe/Berlin")
 
 
 def is_crypto(symbol: str) -> bool:
@@ -69,14 +75,25 @@ def in_rollover_blackout(tick_time: float, now: datetime | None = None,
     return h >= start_hour or h < end_hour
 
 
-def in_hour_blackout(tick_time: float, blocked_hours: list[int], now: datetime | None = None) -> bool:
-    """True if the broker-local hour is in `blocked_hours` — a per-instance
-    "don't open new trades in this hour, it's historically been our worst"
-    rule (see config.hour_blackout_hours). Unlike the rollover blackout this
-    only ever gates new entries, never the time-stop exit — a bad ENTRY hour
-    doesn't mean a trade already running should be treated differently."""
-    h = _broker_hour(tick_time, now)
-    return h is not None and h in blocked_hours
+def in_hour_blackout(blocked_hours: list[int], now: datetime | None = None) -> bool:
+    """True if it's currently one of `blocked_hours` in the OPERATOR's own
+    clock (OPERATOR_TZ) — a per-instance "don't open new trades in this
+    hour, it's historically been our worst" rule (see
+    config.hour_blackout_hours). This is a human preference about time of
+    day, not a broker server event (unlike the rollover blackout, which
+    tracks real spread-widening at broker midnight) — specified and
+    displayed in the trader's own time, and read straight off the system
+    clock via a fixed IANA zone rather than derived from a live MT5 tick.
+    That also sidesteps the staleness problem tick-derived broker offsets
+    have on weekends (see mt5_adapter._broker_utc_offset_h()): the system
+    clock is always live, no forex tick needed. Unlike the rollover
+    blackout this only ever gates new entries, never the time-stop exit —
+    a bad ENTRY hour doesn't mean a trade already running should be
+    treated differently."""
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    return now.astimezone(OPERATOR_TZ).hour in blocked_hours
 
 
 def _weekend_closure_minutes(start: datetime, end: datetime) -> float:
