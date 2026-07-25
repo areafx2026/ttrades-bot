@@ -185,18 +185,22 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
   fernen Kante). Ohne das driftet das realisierte RR (z. B. 0.84 statt 1.3, wenn der Preis schnell in die Zone lief).
   Der nachgezogene TP wird in `trades.tp` gespeichert; schlägt das Modify fehl, bleibt der ursprüngliche TP.
 - **Stunden-Blackout (`hour_blackout_enabled`/`_hours`, `market_hours.in_hour_blackout`):** Per-Instanz-Liste
-  "historisch schlechtester Broker-Stunden", blockt **nur neue Entries** (`[SKIP] hour blackout window`) —
+  "historisch schlechtester Stunden", blockt **nur neue Entries** (`[SKIP] hour blackout window`) —
   ein bereits offener Trade wird nicht angefasst, eine schlechte Entry-Stunde macht einen laufenden Trade
-  nicht rückwirkend schlechter, und Exit-Timing bleibt allein Sache von Zeit-Stop/Rollover-Blackout. Nutzt
-  denselben `_broker_hour()`-Offset wie `in_rollover_blackout` (live aus Tick-Epoch, fail-open bei
-  unplausiblem Offset). Snapshot-Entscheidung aus `/compare`s Stunden-Chart (siehe unten), keine
-  automatisch nachziehende Statistik — bewusst manuell zu revidieren, sobald mehr Daten da sind.
-  **Seit 2026-07-25 auf beiden Instanzen:** `HOUR_BLACKOUT_HOURS=[16,17,18]` (16:00–18:00 Broker-Zeit
-  == 15:00–17:00 Browser-Zeit/Europe-Berlin im Sommer, da Broker UTC+3 und Browser UTC+2), in
-  `.env`/`.env.v4` gesetzt. Der User denkt/gibt diese Fenster in seiner eigenen Uhr an (das Dashboard
-  zeigt den Stunden-Chart seit 2026-07-25 ebenfalls in Browser-Zeit, s. u.) — hier weiterhin in
-  Broker-Zeit dokumentiert, weil genau das ist, was der Code tatsächlich prüft. War zuvor
-  `[14,15,16,17]` (14:00–17:00 Broker-Zeit, seit 2026-07-24, davor v4-only `[16]` seit 2026-07-22).
+  nicht rückwirkend schlechter, und Exit-Timing bleibt allein Sache von Zeit-Stop/Rollover-Blackout.
+  **Läuft komplett unabhängig vom Broker** (seit 2026-07-25, User-Feedback: das ist eine menschliche
+  Zeitpräferenz, kein Broker-Server-Ereignis wie der Rollover) — `in_hour_blackout()` liest die
+  Systemuhr direkt in einer festen IANA-Zeitzone (`market_hours.OPERATOR_TZ = Europe/Berlin`, via
+  `zoneinfo`, DST-sicher) statt einen Offset aus einem MT5-Tick abzuleiten. Kein `_broker_hour()`, kein
+  Tick nötig — dadurch auch unempfindlich gegen das am selben Tag gefundene Wochenend-Problem mit
+  `mt5_adapter._broker_utc_offset_h()` (siehe unten). `hour_blackout_hours` wird direkt in dieser
+  Operator-Zeitzone angegeben, keine gedankliche Umrechnung nötig — und das Dashboard zeigt es 1:1 ohne
+  Verschiebung an (`HourOfDayChart` braucht dafür keinen Broker-Offset mehr). Snapshot-Entscheidung aus
+  `/compare`s Stunden-Chart (siehe unten), keine automatisch nachziehende Statistik — bewusst manuell zu
+  revidieren, sobald mehr Daten da sind. **Seit 2026-07-25 auf beiden Instanzen:**
+  `HOUR_BLACKOUT_HOURS=[15,16,17]` (15:00–17:00 in `OPERATOR_TZ`), in `.env`/`.env.v4` gesetzt. War zuvor
+  kurzzeitig `[16,17,18]` broker-zeit-kodiert, davor `[14,15,16,17]` (seit 2026-07-24), davor v4-only
+  `[16]` (seit 2026-07-22).
 
 ### Reconciler (`reconcile.py`) — die andere Hälfte, **MT5 = Single Source of Truth**
 - Jeden Zyklus über alle OPEN-Trades:
@@ -359,10 +363,10 @@ gebucketed, am 2026-07-25 auf Browser-Zeit umgestellt (`new Date(opened_at).getH
 Browser-Zeit zeigt) und mit der Art, wie ein Trader über Session-Zeiten in seiner eigenen Uhr denkt
 (z. B. "15:30 meine Zeit = NY-Open"). Anlass: ein Trade lief im Chart unter Stunde 22 (Broker), stand
 in der Tabelle aber unter 21:00 (Browser, 1h Differenz durch unterschiedliche DST-Handhabung) — beim
-manuellen Abgleich "fehlte" er scheinbar. `hour_blackout_hours` kommt weiterhin Broker-lokal vom Backend
-(so wird der Blackout tatsächlich durchgesetzt) und wird im Frontend nur fürs Anzeigen auf Browser-Stunden
-verschoben (`shift = browserOffsetH - brokerOffsetH`), damit die schattierten/gesperrten Spalten zu den
-richtigen Balken passen. Die Symbol-Auswahl-Buttons über der Zonen-Tabelle wurden am 2026-07-24 entfernt —
+manuellen Abgleich "fehlte" er scheinbar. `hour_blackout_hours` kommt seit derselben Umstellung ebenfalls
+schon in `OPERATOR_TZ` vom Backend (s. o., Executor-Abschnitt) — keine Verschiebung mehr im Frontend nötig,
+`HourOfDayChart` zeigt die gesperrten Stunden 1:1 als schattierte Spalte an. Die Symbol-Auswahl-Buttons
+über der Zonen-Tabelle wurden am 2026-07-24 entfernt —
 `ZoneTable` zeigt seither alle Symbole gleichzeitig statt eines einzeln ausgewählten.
 
 ---
