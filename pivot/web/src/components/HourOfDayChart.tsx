@@ -1,14 +1,18 @@
 type Trade = { opened_at?: string | null; state: string; result?: string | null };
 
-/** Win/Loss counts bucketed by the BROKER-LOCAL hour a trade was opened —
- * entry timing is what a trader can actually act on (avoid trading certain
- * hours), unlike close hour which is mostly a function of hold duration. */
-function bucketByHour(trades: Trade[], offsetH: number): { win: number; loss: number }[] {
+/** Win/Loss counts bucketed by the BROWSER-LOCAL hour a trade was opened —
+ * shown in the viewer's own clock so it lines up with how a trader reasons
+ * about session times (e.g. "15:30 my time is NY open"), matching the
+ * "Opened" column in the trades table below (also browser-local). The
+ * actual entry blackout is enforced in broker time on the backend
+ * (session boundaries are fixed to the broker's clock, not the viewer's) —
+ * blockedHours is converted for display only, see below. */
+function bucketByHour(trades: Trade[]): { win: number; loss: number }[] {
   const buckets = Array.from({ length: 24 }, () => ({ win: 0, loss: 0 }));
   for (const t of trades) {
     if (t.state !== "CLOSED" || !t.opened_at) continue;
     if (t.result !== "WIN" && t.result !== "LOSS") continue;
-    const h = (new Date(t.opened_at).getUTCHours() + offsetH + 24) % 24;
+    const h = new Date(t.opened_at).getHours();
     buckets[h][t.result === "WIN" ? "win" : "loss"]++;
   }
   return buckets;
@@ -18,10 +22,15 @@ const hh = (h: number) => String(h).padStart(2, "0");
 
 export function HourOfDayChart({ trades, brokerOffsetH, blockedHours = [] }:
                                 { trades: Trade[]; brokerOffsetH: number; blockedHours?: number[] }) {
-  const buckets = bucketByHour(trades, brokerOffsetH);
+  const buckets = bucketByHour(trades);
   const totalTrades = buckets.reduce((s, b) => s + b.win + b.loss, 0);
   const max = Math.max(1, ...buckets.map((b) => Math.max(b.win, b.loss)));
-  const blocked = new Set(blockedHours);
+  // blockedHours arrives in broker-local hours (that's what the backend
+  // actually enforces) — shift into browser-local hours so the shaded
+  // columns line up with the browser-local bars above.
+  const browserOffsetH = -new Date().getTimezoneOffset() / 60;
+  const shift = browserOffsetH - brokerOffsetH;
+  const blocked = new Set(blockedHours.map((h) => ((h + shift) % 24 + 24) % 24));
 
   const W = 1160, H = 210, padTop = 16, padBottom = 22, groupW = W / 24, barGap = 2;
   const barW = (groupW - barGap * 3) / 2;
@@ -34,7 +43,7 @@ export function HourOfDayChart({ trades, brokerOffsetH, blockedHours = [] }:
     <div style={{ background: "#161b22", borderRadius: 8, padding: 12, marginBottom: 16 }}>
       <div style={{ fontWeight: 600, marginBottom: 4 }}>
         Win/Loss nach Uhrzeit
-        <span style={{ color: "#8b949e", fontWeight: 400 }}> — Broker-Zeit, nach Entry-Stunde (alle Symbole)</span>
+        <span style={{ color: "#8b949e", fontWeight: 400 }}> — Browser-Zeit, nach Entry-Stunde (alle Symbole)</span>
       </div>
       {totalTrades === 0 ? (
         <div style={{ color: "#8b949e", padding: 20 }}>Noch keine geschlossenen Trades.</div>

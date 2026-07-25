@@ -99,11 +99,21 @@ class MT5Adapter(BrokerAdapter):
         """Pepperstone's server clock runs UTC+2/+3 (DST). Derive the offset live
         from a tick instead of hardcoding it, so the DST switch never breaks
         close-time conversion. Epochs are TZ-independent, so the gap between the
-        broker's tick time and real UTC now is the server offset."""
+        broker's tick time and real UTC now is the server offset.
+
+        EURUSD is closed on weekends, so its tick can sit stale for up to ~2
+        days once the market reopens — dividing that gap by 3600 gives a wild
+        offset (observed: -8 on a Saturday) instead of the real +2/+3. That
+        garbage value still falls inside the generic +-12..14 "is this a
+        plausible timezone at all" band used elsewhere (market_hours.
+        _broker_hour(), for an arbitrary tick's own offset) — it just doesn't
+        happen to be Pepperstone's. Bound tightly to the broker's actual known
+        range instead of the worldwide one, and fail open to 0 outside it."""
         tk = mt5.symbol_info_tick("EURUSD")
         if not tk or not tk.time:
             return 0
-        return round((tk.time - _time.time()) / 3600)
+        off = round((tk.time - _time.time()) / 3600)
+        return off if 1 <= off <= 4 else 0
 
     def closed_position(self, ticket):
         """Closing details for a position that has left the open book, or None if
