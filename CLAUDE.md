@@ -261,8 +261,15 @@ nachgezogen (geprüft via `PRAGMA table_info`). Beim Hinzufügen neuer Spalten: 
 
 ### Zeitzone-Konvention (WICHTIG)
 - MT5 liefert Server-Zeit (Pepperstone = UTC+2/+3, DST). **Nicht hardcoden.**
-- `mt5_adapter._broker_utc_offset_h()` leitet den Offset **live aus einem Tick** ab (Epoch ist TZ-frei →
+- `mt5_adapter._broker_utc_offset_h()` leitet den Offset **live aus einem EURUSD-Tick** ab (Epoch ist TZ-frei →
   Differenz Broker-Tick-Zeit zu echtem UTC = Offset). `closed_at` wird damit korrekt nach **UTC** umgerechnet.
+  **Fail-open auf Pepperstones echten Bereich (1–4h) begrenzt** (2026-07-25): EURUSD ist am Wochenende
+  geschlossen, der Tick kann dann bis zu ~2 Tage alt sein — die Epoch-Differenz ergibt dann einen wilden
+  Offset (live beobachtet: -8 an einem Samstag statt der echten +2/+3). Die generische Plausibilitätsgrenze
+  (-12..14, s. `market_hours._broker_hour()`, dort für einen beliebigen Tick-eigenen Offset gedacht) lässt
+  das durch, weil -8 irgendwo auf der Welt ein plausibler Zeitzonen-Offset ist — nur eben nicht Pepperstones.
+  Deshalb enger auf 1–4h begrenzt und außerhalb auf 0 zurückgefallen, statt Unsinn in `closed_position()`s
+  Zeitkonvertierung und die Dashboard-Uhrzeiten-Anzeigen zu propagieren.
 - `opened_at`/Recorder-Zeiten sind UTC (`datetime.utcnow()` / SQLite `func.now()`). Dashboard/Logfile zeigen lokal (Berlin).
 
 ---
@@ -343,14 +350,18 @@ bis `EQUITY_CHART_WINDOW` (30) Trades erreicht sind, danach `fitContent()`, jewe
 **Dashboard (v3 wie v4):** Das Kerzenchart wurde entfernt (2026-07-22, ebenso den zugehörigen
 `GET /api/zones/{symbol}/candles`-Endpoint und `ChartPanel.tsx`) und durch eine **Win/Loss-nach-Uhrzeit-
 Analyse** ersetzt (`HourOfDayChart.tsx`): 24-Stunden-Histogramm über alle Symbole, gebucketed nach
-**Broker-lokaler Entry-Stunde** (`opened_at`, nicht `closed_at` — Entry-Zeit ist die tatsächlich
-handlungsrelevante Größe, Close-Zeit hängt nur von der Haltedauer ab). Der Broker-Offset kommt vom
-Backend (`GET /api/control/status` → `broker_utc_offset_h`, wiederverwendet
-`mt5_adapter._broker_utc_offset_h()`), nicht clientseitig geraten. Stunden, die per
-`hour_blackout_hours` gesperrt sind, werden im Chart markiert (schattierte Spalte + 🔒-Icon, Liste in der
-Kopfzeile) — Werte kommen ebenfalls aus `/api/control/status`, keine eigene Berechnung im Frontend. Die
-Symbol-Auswahl-Buttons über der Zonen-Tabelle wurden am 2026-07-24 entfernt — `ZoneTable` zeigt seither
-alle Symbole gleichzeitig statt eines einzeln ausgewählten.
+**Browser-lokaler Entry-Stunde** (`opened_at`, nicht `closed_at` — Entry-Zeit ist die tatsächlich
+handlungsrelevante Größe, Close-Zeit hängt nur von der Haltedauer ab). Ursprünglich Broker-lokal
+gebucketed, am 2026-07-25 auf Browser-Zeit umgestellt (`new Date(opened_at).getHours()` statt
+`getUTCHours()+offset`) — deckungsgleich mit der "Opened"-Spalte der Trades-Tabelle (die schon immer
+Browser-Zeit zeigt) und mit der Art, wie ein Trader über Session-Zeiten in seiner eigenen Uhr denkt
+(z. B. "15:30 meine Zeit = NY-Open"). Anlass: ein Trade lief im Chart unter Stunde 22 (Broker), stand
+in der Tabelle aber unter 21:00 (Browser, 1h Differenz durch unterschiedliche DST-Handhabung) — beim
+manuellen Abgleich "fehlte" er scheinbar. `hour_blackout_hours` kommt weiterhin Broker-lokal vom Backend
+(so wird der Blackout tatsächlich durchgesetzt) und wird im Frontend nur fürs Anzeigen auf Browser-Stunden
+verschoben (`shift = browserOffsetH - brokerOffsetH`), damit die schattierten/gesperrten Spalten zu den
+richtigen Balken passen. Die Symbol-Auswahl-Buttons über der Zonen-Tabelle wurden am 2026-07-24 entfernt —
+`ZoneTable` zeigt seither alle Symbole gleichzeitig statt eines einzeln ausgewählten.
 
 ---
 
