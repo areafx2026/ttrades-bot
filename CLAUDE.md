@@ -324,6 +324,7 @@ heben, indem v4 eine Timeframe-Stufe tiefer arbeitet: **H4-Zonen / M15-Entry**, 
 | DB | `pivot.db` | `pivot_v4.db` |
 | `ZONE_TIMEFRAME` / `ENTRY_TIMEFRAME` | D1 / H4 | H4 / M15 |
 | `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 3 / false |
+| `SYMBOLS` | Forex + Crypto (11) | **nur Forex (8)** — Crypto seit 2026-07-26 raus (User-Entscheidung) |
 | `MAGIC_NUMBER` / `ORDER_COMMENT` | 30000 / "Pivot v3" | 40000 / "Pivot v4" |
 | `LOG_FILE` | `activity.log` | `activity_v4.log` |
 | Start/Stop/Status | `start.ps1` / `stop.ps1` / `status.ps1` | `start_v4.ps1` / `stop_v4.ps1` / `status_v4.ps1` |
