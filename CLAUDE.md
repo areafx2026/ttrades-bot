@@ -366,8 +366,10 @@ Browser-Zeit zeigt) und mit der Art, wie ein Trader über Session-Zeiten in sein
 in der Tabelle aber unter 21:00 (Browser, 1h Differenz durch unterschiedliche DST-Handhabung) — beim
 manuellen Abgleich "fehlte" er scheinbar. `hour_blackout_hours` kommt seit derselben Umstellung ebenfalls
 schon in `OPERATOR_TZ` vom Backend (s. o., Executor-Abschnitt) — keine Verschiebung mehr im Frontend nötig,
-`HourOfDayChart` zeigt die gesperrten Stunden 1:1 als schattierte Spalte an. Die Symbol-Auswahl-Buttons
-über der Zonen-Tabelle wurden am 2026-07-24 entfernt —
+`HourOfDayChart` zeigt die gesperrten Stunden 1:1 als schattierte Spalte an. Direkt darunter zeigt
+**`SymbolChart.tsx`** (2026-07-26) dasselbe Win/Loss-Balkenpaar-Muster, aber nach Symbol statt Stunde
+gebucketed — macht eine Symbol-Schwäche/Stärke auf einen Blick neben der Stunden-Sicht sichtbar. Die
+Symbol-Auswahl-Buttons über der Zonen-Tabelle wurden am 2026-07-24 entfernt —
 `ZoneTable` zeigt seither alle Symbole gleichzeitig statt eines einzeln ausgewählten.
 
 ---
