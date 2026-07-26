@@ -368,7 +368,12 @@ manuellen Abgleich "fehlte" er scheinbar. `hour_blackout_hours` kommt seit derse
 schon in `OPERATOR_TZ` vom Backend (s. o., Executor-Abschnitt) — keine Verschiebung mehr im Frontend nötig,
 `HourOfDayChart` zeigt die gesperrten Stunden 1:1 als schattierte Spalte an. Direkt darunter zeigt
 **`SymbolChart.tsx`** (2026-07-26) dasselbe Win/Loss-Balkenpaar-Muster, aber nach Symbol statt Stunde
-gebucketed — macht eine Symbol-Schwäche/Stärke auf einen Blick neben der Stunden-Sicht sichtbar. Die
+gebucketed — macht eine Symbol-Schwäche/Stärke auf einen Blick neben der Stunden-Sicht sichtbar. Zeigt
+immer das volle Symbol-Universum (`config.py`s `symbols`-Default, vereinigt mit allen Symbolen aus der
+Trade-Historie — deckt auch die komplett stillgelegten XRPUSD/SOLUSD ab), nicht nur Symbole mit
+Trade-Daten, damit die Spaltenzahl nicht mit wachsender Historie „springt". Symbole außerhalb der
+eigenen `settings.symbols` dieser Instanz (aus `/api/control/status`) werden genau wie gesperrte Stunden
+schattiert + 🔒 markiert — auf v4 seit der Krypto-Entfernung also BTCUSD/ETHUSD/DOGEUSD. Die
 Symbol-Auswahl-Buttons über der Zonen-Tabelle wurden am 2026-07-24 entfernt —
 `ZoneTable` zeigt seither alle Symbole gleichzeitig statt eines einzeln ausgewählten.
 
