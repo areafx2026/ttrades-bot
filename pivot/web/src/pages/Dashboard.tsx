@@ -3,6 +3,7 @@ import { api } from "../api";
 import { State } from "../App";
 import { AccountBar } from "../components/AccountBar";
 import { HourOfDayChart } from "../components/HourOfDayChart";
+import { SymbolChart } from "../components/SymbolChart";
 import { ZoneTable } from "../components/ZoneTable";
 import { TradesTable } from "../components/TradesTable";
 
@@ -75,6 +76,7 @@ export function Dashboard({ state }: { state: State }) {
       <AccountBar account={account ?? state.account} autoEnabled={state.autoEnabled} />
 
       <HourOfDayChart trades={trades} blockedHours={blockedHours} />
+      <SymbolChart trades={trades} />
 
       <ZoneTable zones={zonesAll} />
       <TradesTable trades={trades} />
