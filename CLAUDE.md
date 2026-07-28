@@ -323,7 +323,7 @@ heben, indem v4 eine Timeframe-Stufe tiefer arbeitet: **H4-Zonen / M15-Entry**, 
 | `.env`-Datei | `.env` | `.env.v4` |
 | DB | `pivot.db` | `pivot_v4.db` |
 | `ZONE_TIMEFRAME` / `ENTRY_TIMEFRAME` | D1 / H4 | H4 / M15 |
-| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 3 / false |
+| `MIN_TOUCHES` / `REQUIRE_BOTH_SIDES` | 4 / true | 3 / true |
 | `SYMBOLS` | Forex + Crypto (11) | **7 Forex-Paare** — Crypto und USDCHF seit 2026-07-26 raus (User-Entscheidung) |
 | `MAGIC_NUMBER` / `ORDER_COMMENT` | 30000 / "Pivot v3" | 40000 / "Pivot v4" |
 | `LOG_FILE` | `activity.log` | `activity_v4.log` |
@@ -433,8 +433,9 @@ Get-Content pivot\logs\activity.log -Wait        # PowerShell
 4. **Backtest/Validierung** der Pivot-Strategie über längeren Zeitraum sammeln.
 5. **v4-Signalqualität beobachten:** `/compare` regelmäßig prüfen (Win-Rate, Ø-R). `MIN_TOUCHES` wurde
    am 2026-07-15 von 2 auf 3 angehoben (3 von 23 Trades gingen mit `mae_pct_of_sl=100%` sofort auf SL —
-   Zeichen strukturell schwacher Zonen). `REQUIRE_BOTH_SIDES=false` bleibt vorerst unverändert; weiter
-   gegen echte Trades beobachten, ob das reicht oder weiter nachjustiert werden muss.
+   Zeichen strukturell schwacher Zonen). `REQUIRE_BOTH_SIDES` am 2026-07-26 von `false` auf `true`
+   angehoben (User-Entscheidung, gleiche Regel wie v3) — Zonenzahl fiel dadurch von 40 auf 19 beim
+   Rescan. Weiter gegen echte Trades beobachten, ob das die Signalqualität spürbar verbessert.
 6. ~~Zonen-Sperre nach SL-Verlust~~ — **umgesetzt 2026-07-17** als Loss-Zonen-Sperre (siehe
    Scanner-Abschnitt): Zone bleibt nach LOSS gesperrt, bis der Preis ≥1 Zonenbreite entfernt ist.
    Hinweis: greift nur für Trades mit gespeichertem Zonenband (`zone_low/zone_high`), also ab
